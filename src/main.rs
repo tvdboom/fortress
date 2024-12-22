@@ -4,7 +4,7 @@ use crate::game::GamePlugin;
 
 use bevy::prelude::*;
 
-const TITLE: &str = "Zombie Defense";
+const TITLE: &str = "Zombo";
 
 fn main() {
     App::new()

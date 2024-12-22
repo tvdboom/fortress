@@ -1,0 +1,7 @@
+# IDE
+.idea/
+.vscode/
+.spyproject/
+
+# Bevy files
+target/
