@@ -1,7 +1,4 @@
-mod enemy;
-
-use std::any::type_name;
-use bevu::prelude::*;
+use bevy::prelude::*;
 
 #[derive(Component)]
 pub struct Walker {
@@ -10,7 +7,6 @@ pub struct Walker {
     speed: u32,
     damage: u32,
 }
-
 
 impl Default for Walker {
     fn default() -> Self {

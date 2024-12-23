@@ -4,7 +4,7 @@ use crate::game::GamePlugin;
 
 use bevy::prelude::*;
 
-const TITLE: &str = "Zombo";
+const TITLE: &str = "Fortress";
 
 fn main() {
     App::new()
@@ -21,4 +21,13 @@ fn main() {
             GamePlugin,
         ))
         .run();
+}
+
+#[derive(States, Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
+pub enum AppState {
+    Buy,
+    #[default]
+    MainMenu,
+    Game,
+    GameOver,
 }
