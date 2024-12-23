@@ -1,3 +1,4 @@
+pub(crate) mod components;
 mod systems;
 
 use crate::game::map::systems::setup;
