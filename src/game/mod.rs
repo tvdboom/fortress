@@ -1,7 +1,9 @@
 mod enemy;
 mod map;
-mod resources;
+pub(crate) mod resources;
 mod systems;
+mod components;
+pub(crate) mod weapon;
 
 use crate::game::enemy::EnemyPlugin;
 use crate::game::map::MapPlugin;

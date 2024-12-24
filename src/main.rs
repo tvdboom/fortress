@@ -4,6 +4,7 @@ mod resources;
 use crate::game::GamePlugin;
 
 use bevy::prelude::*;
+use crate::resources::Player;
 
 const TITLE: &str = "Fortress";
 
@@ -24,6 +25,7 @@ fn main() {
         )
         .add_plugins(GamePlugin)
         .init_state::<AppState>()
+        .init_resource::<Player>()
         .run();
 }
 

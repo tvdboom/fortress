@@ -2,41 +2,38 @@ use super::components::*;
 use crate::game::enemy::components::*;
 use crate::game::map::components::*;
 use crate::game::resources::{EnemyStatus, WaveStats};
-use bevy::color::palettes::basic::{BLACK, LIME};
-use bevy::color::Color;
+use bevy::color::{Color, palettes::basic::{BLACK, LIME}};
 use bevy::prelude::*;
 use bevy::tasks::futures_lite::StreamExt;
 use rand::prelude::*;
+use crate::game::components::*;
+use crate::resources::Player;
 
 pub fn spawn_enemies(
     mut commands: Commands,
+    mut wave_stats: ResMut<WaveStats>,
     window: Single<&Window>,
     asset_server: Res<AssetServer>,
-    mut wave_stats: ResMut<WaveStats>,
 ) {
-    let enemy = Walker::default();
-
     let mut rng = thread_rng();
-    let window_half = window.width() / 2.;
-    let random_number = rng.gen_range(-window_half + enemy.size..=window_half - enemy.size);
+    let enemy = match rng.gen_range(0..1000) * wave_stats.wave {
+        800..900 => Enemy::walker(),
+        900..950 => Enemy::runner(),
+        950..1000 => Enemy::ogre(),
+        _ => return,
+    };
 
-    wave_stats
-        .enemies
-        .entry(enemy.name.clone())
-        .and_modify(|e| e.alive += 1)
-        .or_insert_with(|| EnemyStatus {
-            alive: 1,
-            killed: 0,
-        });
+    let window_half = window.width() / 2.;
+    let x = rng.gen_range(-window_half + enemy.size..=window_half - enemy.size);
 
     commands
         .spawn((
             Sprite {
-                image: asset_server.load(format!("enemy/{}.png", enemy.name.to_lowercase())),
+                image: asset_server.load(&enemy.image),
                 custom_size: Some(Vec2::new(enemy.size, enemy.size)),
                 ..default()
             },
-            Transform::from_xyz(random_number, window.height() / 2., 2.0),
+            Transform::from_xyz(x, window.height() / 2., 2.0),
             enemy.clone(),
         ))
         .with_children(|parent| {
@@ -55,7 +52,7 @@ pub fn spawn_enemies(
                         Sprite {
                             color: Color::from(LIME),
                             custom_size: Some(Vec2::new(
-                                enemy.size * 0.8 - 5.0,
+                                enemy.size * 0.8 - 2.0,
                                 enemy.size * 0.1 - 2.0,
                             )),
                             ..default()
@@ -65,11 +62,21 @@ pub fn spawn_enemies(
                     ));
                 });
         });
+
+    wave_stats
+        .enemies
+        .entry(enemy.name.clone())
+        .and_modify(|status| status.alive += 1)
+        .or_insert_with(|| EnemyStatus {
+            alive: 1,
+            killed: 0,
+        });
 }
 
 pub fn move_enemies(
-    mut enemy_q: Query<(&mut Transform, &Walker)>,
-    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Walker>)>,
+    mut enemy_q: Query<(&mut Transform, &Enemy)>,
+    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
+    mut player: ResMut<Player>,
     window: Single<&Window>,
     time: Res<Time>,
 ) {
@@ -82,6 +89,12 @@ pub fn move_enemies(
 
         if new_pos < wall_y + 5.0 {
             transform.translation.y = wall_y + 5.0;
+
+            if player.wall.health > enemy.damage {
+                player.wall.health -= enemy.damage;
+            } else {
+                todo!();
+            }
         } else {
             transform.translation.y = new_pos;
         }

@@ -16,7 +16,7 @@ impl Plugin for EnemyPlugin {
         app.add_systems(
             Update,
             (
-                spawn_enemies.run_if(on_timer(Duration::from_secs(1))),
+                spawn_enemies.run_if(on_timer(Duration::from_millis(100))),
                 move_enemies,
             )
                 .run_if(in_state(AppState::Game))

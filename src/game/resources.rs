@@ -8,12 +8,14 @@ pub struct EnemyStatus {
 
 #[derive(Resource)]
 pub struct WaveStats {
+    pub wave: u32,
     pub enemies: HashMap<String, EnemyStatus>,
 }
 
 impl Default for WaveStats {
     fn default() -> Self {
         Self {
+            wave: 1,
             enemies: HashMap::default(),
         }
     }
