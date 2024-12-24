@@ -20,7 +20,7 @@ impl Enemy {
             health: 100,
             size: 50.,
             speed: 10.,
-            damage: 10,
+            damage: 1,
         }
     }
 
@@ -32,7 +32,7 @@ impl Enemy {
             health: 100,
             size: 50.,
             speed: 20.,
-            damage: 10,
+            damage: 1,
         }
     }
 
@@ -44,7 +44,7 @@ impl Enemy {
             health: 100,
             size: 70.,
             speed: 5.,
-            damage: 20,
+            damage: 2,
         }
     }
 }

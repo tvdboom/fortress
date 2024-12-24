@@ -3,8 +3,8 @@ mod resources;
 
 use crate::game::GamePlugin;
 
-use bevy::prelude::*;
 use crate::resources::Player;
+use bevy::prelude::*;
 
 const TITLE: &str = "Fortress";
 

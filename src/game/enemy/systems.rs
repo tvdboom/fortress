@@ -1,13 +1,18 @@
 use super::components::*;
+use crate::game::components::*;
 use crate::game::enemy::components::*;
 use crate::game::map::components::*;
 use crate::game::resources::{EnemyStatus, WaveStats};
-use bevy::color::{Color, palettes::basic::{BLACK, LIME}};
+use crate::game::systems::pause_game;
+use crate::game::GameState;
+use crate::resources::Player;
+use bevy::color::{
+    palettes::basic::{BLACK, LIME},
+    Color,
+};
 use bevy::prelude::*;
 use bevy::tasks::futures_lite::StreamExt;
 use rand::prelude::*;
-use crate::game::components::*;
-use crate::resources::Player;
 
 pub fn spawn_enemies(
     mut commands: Commands,
@@ -17,9 +22,9 @@ pub fn spawn_enemies(
 ) {
     let mut rng = thread_rng();
     let enemy = match rng.gen_range(0..1000) * wave_stats.wave {
-        800..900 => Enemy::walker(),
-        900..950 => Enemy::runner(),
-        950..1000 => Enemy::ogre(),
+        800..950 => Enemy::walker(),
+        950..990 => Enemy::runner(),
+        990..1000 => Enemy::ogre(),
         _ => return,
     };
 
@@ -77,6 +82,7 @@ pub fn move_enemies(
     mut enemy_q: Query<(&mut Transform, &Enemy)>,
     wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
+    next_state: ResMut<NextState<GameState>>,
     window: Single<&Window>,
     time: Res<Time>,
 ) {
@@ -93,6 +99,7 @@ pub fn move_enemies(
             if player.wall.health > enemy.damage {
                 player.wall.health -= enemy.damage;
             } else {
+                pause_game(next_state);
                 todo!();
             }
         } else {

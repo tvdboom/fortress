@@ -1,14 +1,14 @@
+mod components;
 mod enemy;
 mod map;
 pub(crate) mod resources;
 mod systems;
-mod components;
 pub(crate) mod weapon;
 
 use crate::game::enemy::EnemyPlugin;
 use crate::game::map::MapPlugin;
-use bevy::prelude::*;
 use crate::game::resources::WaveStats;
+use bevy::prelude::*;
 
 pub struct GamePlugin;
 

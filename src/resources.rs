@@ -1,6 +1,6 @@
 use crate::game::resources::WaveStats;
-use bevy::prelude::Resource;
 use crate::game::weapon::components::*;
+use bevy::prelude::Resource;
 
 #[derive(Clone)]
 pub struct Resources {
@@ -11,7 +11,11 @@ pub struct Resources {
 
 impl Default for Resources {
     fn default() -> Self {
-        Self {bullets: 0, gasoline: 0, materials: 0}
+        Self {
+            bullets: 0,
+            gasoline: 0,
+            materials: 0,
+        }
     }
 }
 
@@ -36,7 +40,10 @@ pub struct Wall {
 
 impl Default for Wall {
     fn default() -> Self {
-        Self {max_health: 1000, health: 1000}
+        Self {
+            max_health: 10000,
+            health: 10000,
+        }
     }
 }
 
@@ -51,7 +58,11 @@ pub struct Player {
 impl Default for Player {
     fn default() -> Self {
         Self {
-            resources: Resources {bullets: 1000, gasoline: 1000, materials: 1000},
+            resources: Resources {
+                bullets: 1000,
+                gasoline: 1000,
+                materials: 1000,
+            },
             weapons: Weapons {
                 n_sentry_gun: 1,
                 sentry_gun: SentryGun::default(),
