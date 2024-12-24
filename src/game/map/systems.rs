@@ -1,8 +1,10 @@
 use super::components::*;
 use crate::game::components::*;
+use crate::game::weapon::components::Weapon;
 use crate::resources::Player;
 use bevy::color::palettes::basic::{BLACK, GRAY, LIME, WHITE};
 use bevy::prelude::*;
+use crate::game::enemy::components::{Enemy, EnemyHealth};
 
 pub fn setup(
     mut commands: Commands,
@@ -35,7 +37,7 @@ pub fn setup(
             ..default()
         },
         Transform::from_xyz(0., -window.height() * 0.45, 1.0),
-        Map,
+        Sand,
     ));
 
     commands.spawn((
@@ -56,7 +58,7 @@ pub fn setup(
                 ..default()
             },
             Transform::from_xyz(window.width() * 0.42, -window.height() * 0.45, 1.5),
-            LifeBarWrapper,
+            WallHealthWrapper,
         ))
         .with_children(|parent| {
             parent
@@ -70,7 +72,7 @@ pub fn setup(
                         ..default()
                     },
                     Transform::from_xyz(0.0, 0.0, 1.1),
-                    LifeBar,
+                    WallHealth,
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -79,7 +81,7 @@ pub fn setup(
                         TextColor(Color::from(GRAY)),
                         TextLayout::new_with_justify(JustifyText::Center),
                         Transform::from_xyz(0.0, 0.0, 1.1),
-                        LifeBarText,
+                        WallHealthText,
                     ));
                 });
         });
@@ -105,12 +107,39 @@ pub fn setup(
                 PauseText,
             ));
         });
+
+    // Spawn sentry-gun
+    let weapon = Weapon::sentry_gun();
+
+    let mut pos = -window.width() * 0.5;
+    for _ in 0..player.weapons.sentry_gun {
+        pos += window.width() / (player.weapons.sentry_gun + 1) as f32;
+
+        commands.spawn((
+            Sprite {
+                image: asset_server.load(&weapon.image),
+                custom_size: Some(Vec2::new(weapon.size.0, weapon.size.1)),
+                ..default()
+            },
+            Transform::from_xyz(pos, -window.height() * 0.35, 2.0),
+            weapon.clone(),
+        ));
+    }
 }
 
-pub fn text_update(
-    mut wall_q: Query<&mut Text2d, With<LifeBarText>>,
+pub fn map_update(
+    mut wall_q: Query<&mut Text2d, With<WallHealthText>>,
+    mut enemy_q: Query<(&mut Sprite, &Enemy),  With<EnemyHealth>>,
     player: Res<Player>,
 ) {
+    // Update wall health
     let mut span = wall_q.get_single_mut().unwrap();
     **span = player.wall.health.to_string();
+
+    for (mut sprite, enemy) in enemy_q.iter_mut() {
+        sprite.custom_size = Some(Vec2::new(
+            sprite.custom_size.unwrap().x * (enemy.health / enemy.max_health) as f32,
+            sprite.custom_size.unwrap().y,
+        ))
+    }
 }

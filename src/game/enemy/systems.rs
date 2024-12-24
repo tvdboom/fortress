@@ -11,7 +11,6 @@ use bevy::color::{
     Color,
 };
 use bevy::prelude::*;
-use bevy::tasks::futures_lite::StreamExt;
 use rand::prelude::*;
 
 pub fn spawn_enemies(
@@ -29,13 +28,13 @@ pub fn spawn_enemies(
     };
 
     let window_half = window.width() / 2.;
-    let x = rng.gen_range(-window_half + enemy.size..=window_half - enemy.size);
+    let x = rng.gen_range(-window_half + enemy.size.0..=window_half - enemy.size.0);
 
     commands
         .spawn((
             Sprite {
                 image: asset_server.load(&enemy.image),
-                custom_size: Some(Vec2::new(enemy.size, enemy.size)),
+                custom_size: Some(Vec2::new(enemy.size.0, enemy.size.1)),
                 ..default()
             },
             Transform::from_xyz(x, window.height() / 2., 2.0),
@@ -46,24 +45,24 @@ pub fn spawn_enemies(
                 .spawn((
                     Sprite {
                         color: Color::from(BLACK),
-                        custom_size: Some(Vec2::new(enemy.size * 0.8, enemy.size * 0.1)),
+                        custom_size: Some(Vec2::new(enemy.size.0 * 0.8, enemy.size.1 * 0.1)),
                         ..default()
                     },
-                    Transform::from_xyz(0.0, enemy.size / 2.0 - 5.0, 1.5),
-                    LifeBarWrapper,
+                    Transform::from_xyz(0.0, enemy.size.1 / 2.0 - 5.0, 1.5),
+                    EnemyHealthWrapper,
                 ))
                 .with_children(|parent| {
                     parent.spawn((
                         Sprite {
                             color: Color::from(LIME),
                             custom_size: Some(Vec2::new(
-                                enemy.size * 0.8 - 2.0,
-                                enemy.size * 0.1 - 2.0,
+                                enemy.size.0 * 0.8 - 2.0,
+                                enemy.size.1 * 0.1 - 2.0,
                             )),
                             ..default()
                         },
                         Transform::from_xyz(0.0, 0.0, 1.6),
-                        LifeBar,
+                        EnemyHealth,
                     ));
                 });
         });
@@ -84,8 +83,8 @@ pub fn move_enemies(
     vis_q: Query<&mut Visibility, With<PauseWrapper>>,
     mut player: ResMut<Player>,
     next_state: ResMut<NextState<GameState>>,
-    window: Single<&Window>,
     time: Res<Time>,
+    window: Single<&Window>,
 ) {
     let (t, wall) = wall_q.iter().next().unwrap();
     let wall_y = t.translation.y + wall.custom_size.unwrap().y / 2.0;

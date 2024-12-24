@@ -20,31 +20,12 @@ impl Default for Resources {
 }
 
 pub struct Weapons {
-    pub n_sentry_gun: u32,
-    pub sentry_gun: SentryGun,
-}
-
-impl Default for Weapons {
-    fn default() -> Self {
-        Self {
-            n_sentry_gun: 1,
-            sentry_gun: SentryGun::default(),
-        }
-    }
+    pub sentry_gun: u32,
 }
 
 pub struct Wall {
     pub max_health: u32,
     pub health: u32,
-}
-
-impl Default for Wall {
-    fn default() -> Self {
-        Self {
-            max_health: 10000,
-            health: 10000,
-        }
-    }
 }
 
 #[derive(Resource)]
@@ -63,11 +44,11 @@ impl Default for Player {
                 gasoline: 1000,
                 materials: 1000,
             },
-            weapons: Weapons {
-                n_sentry_gun: 1,
-                sentry_gun: SentryGun::default(),
+            weapons: Weapons { sentry_gun: 2 },
+            wall: Wall {
+                max_health: 10_000,
+                health: 10_000,
             },
-            wall: Wall::default(),
             stats: vec![],
         }
     }
