@@ -1,4 +1,4 @@
-pub(crate) mod components;
+pub mod components;
 mod systems;
 
 use crate::game::map::systems::{setup, text_update};

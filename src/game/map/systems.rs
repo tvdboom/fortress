@@ -1,7 +1,7 @@
 use super::components::*;
 use crate::game::components::*;
 use crate::resources::Player;
-use bevy::color::palettes::basic::{BLACK, GRAY, LIME};
+use bevy::color::palettes::basic::{BLACK, GRAY, LIME, WHITE};
 use bevy::prelude::*;
 
 pub fn setup(
@@ -82,6 +82,28 @@ pub fn setup(
                         LifeBarText,
                     ));
                 });
+        });
+
+    // Spawn hidden pause banner
+    commands
+        .spawn((
+            Sprite {
+                color: Color::srgba(255., 255., 255., 0.1),
+                custom_size: Some(Vec2::new(window.width() * 0.1, window.height() * 0.1)),
+                ..default()
+            },
+            Transform::from_xyz(0., 0., 3.),
+            Visibility::Hidden,
+            PauseWrapper,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text2d::new("Paused".to_string()),
+                TextColor(Color::from(WHITE)),
+                TextLayout::new_with_justify(JustifyText::Center),
+                Transform::from_xyz(0.0, 0.0, 3.1),
+                PauseText,
+            ));
         });
 }
 

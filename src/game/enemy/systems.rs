@@ -81,6 +81,7 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut enemy_q: Query<(&mut Transform, &Enemy)>,
     wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
+    vis_q: Query<&mut Visibility, With<PauseWrapper>>,
     mut player: ResMut<Player>,
     next_state: ResMut<NextState<GameState>>,
     window: Single<&Window>,
@@ -99,7 +100,7 @@ pub fn move_enemies(
             if player.wall.health > enemy.damage {
                 player.wall.health -= enemy.damage;
             } else {
-                pause_game(next_state);
+                pause_game(vis_q, next_state);
                 todo!();
             }
         } else {
