@@ -6,6 +6,7 @@ use crate::game::resources::{EnemyStatus, WaveStats};
 use crate::game::systems::pause_game;
 use crate::game::GameState;
 use crate::resources::Player;
+use crate::{HEIGHT, WIDTH};
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -16,7 +17,6 @@ use rand::prelude::*;
 pub fn spawn_enemies(
     mut commands: Commands,
     mut wave_stats: ResMut<WaveStats>,
-    window: Single<&Window>,
     asset_server: Res<AssetServer>,
 ) {
     let mut rng = thread_rng();
@@ -27,8 +27,7 @@ pub fn spawn_enemies(
         _ => return,
     };
 
-    let window_half = window.width() / 2.;
-    let x = rng.gen_range(-window_half + enemy.size.0..=window_half - enemy.size.0);
+    let x = rng.gen_range(-WIDTH * 0.5 + enemy.size.0..=WIDTH * 0.5 - enemy.size.0);
 
     commands
         .spawn((
@@ -37,7 +36,7 @@ pub fn spawn_enemies(
                 custom_size: Some(Vec2::new(enemy.size.0, enemy.size.1)),
                 ..default()
             },
-            Transform::from_xyz(x, window.height() / 2., 2.0),
+            Transform::from_xyz(x, HEIGHT * 0.5, 2.0),
             enemy.clone(),
         ))
         .with_children(|parent| {
@@ -48,7 +47,7 @@ pub fn spawn_enemies(
                         custom_size: Some(Vec2::new(enemy.size.0 * 0.8, enemy.size.1 * 0.1)),
                         ..default()
                     },
-                    Transform::from_xyz(0.0, enemy.size.1 / 2.0 - 5.0, 1.5),
+                    Transform::from_xyz(0., enemy.size.1 * 0.5 - 5.0, 1.5),
                     EnemyHealthWrapper,
                 ))
                 .with_children(|parent| {
@@ -61,7 +60,7 @@ pub fn spawn_enemies(
                             )),
                             ..default()
                         },
-                        Transform::from_xyz(0.0, 0.0, 1.6),
+                        Transform::from_xyz(0., 0., 1.6),
                         EnemyHealth,
                     ));
                 });
@@ -84,17 +83,15 @@ pub fn move_enemies(
     mut player: ResMut<Player>,
     next_state: ResMut<NextState<GameState>>,
     time: Res<Time>,
-    window: Single<&Window>,
 ) {
     let (t, wall) = wall_q.iter().next().unwrap();
-    let wall_y = t.translation.y + wall.custom_size.unwrap().y / 2.0;
+    let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
     for (mut transform, enemy) in enemy_q.iter_mut() {
-        let new_pos =
-            transform.translation.y - window.height() / 100. * enemy.speed * time.delta_secs();
+        let new_pos = transform.translation.y - HEIGHT / 100. * enemy.speed * time.delta_secs();
 
-        if new_pos < wall_y + 5.0 {
-            transform.translation.y = wall_y + 5.0;
+        if new_pos < wall_y + 5. {
+            transform.translation.y = wall_y + 5.;
 
             if player.wall.health > enemy.damage {
                 player.wall.health -= enemy.damage;

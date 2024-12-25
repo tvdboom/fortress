@@ -10,10 +10,16 @@ pub struct Sand;
 pub struct Wall;
 
 #[derive(Component)]
-pub struct WallHealthWrapper;
+pub struct ResourcesWrapper;
 
 #[derive(Component)]
-pub struct WallHealth;
+pub struct HealthText;
 
 #[derive(Component)]
-pub struct WallHealthText;
+pub struct BulletsText;
+
+#[derive(Component)]
+pub struct GasolineText;
+
+#[derive(Component)]
+pub struct MaterialsText;

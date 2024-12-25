@@ -1,97 +1,51 @@
 use super::components::*;
 use crate::game::components::*;
+use crate::game::enemy::components::{Enemy, EnemyHealth};
 use crate::game::weapon::components::Weapon;
 use crate::resources::Player;
-use bevy::color::palettes::basic::{BLACK, GRAY, LIME, WHITE};
+use crate::{HEIGHT, WIDTH};
+use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use crate::game::enemy::components::{Enemy, EnemyHealth};
 
-pub fn setup(
-    mut commands: Commands,
-    player: Res<Player>,
-    asset_server: Res<AssetServer>,
-    window: Single<&Window>,
-) {
-    let text_font = TextFont {
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-        font_size: 20.,
-        ..default()
-    };
-
+pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
         Sprite {
             image: asset_server.load("map/grass.png"),
-            custom_size: Some(Vec2::new(window.width(), window.height() * 0.8)),
+            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.8)),
             ..default()
         },
-        Transform::from_xyz(0., window.height() * 0.1, 0.0),
+        Transform::from_xyz(0., HEIGHT * 0.1, 0.0),
         Map,
     ));
 
     commands.spawn((
         Sprite {
-            image: asset_server.load("map/sand.png"),
-            custom_size: Some(Vec2::new(window.width(), window.height() * 0.1)),
+            image: asset_server.load("map/wall.png"),
+            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.1)),
             ..default()
         },
-        Transform::from_xyz(0., -window.height() * 0.45, 1.0),
-        Sand,
+        Transform::from_xyz(0., -HEIGHT * 0.35, 1.0),
+        Wall,
     ));
 
     commands.spawn((
         Sprite {
-            image: asset_server.load("map/wall.png"),
-            custom_size: Some(Vec2::new(window.width(), window.height() * 0.1)),
+            image: asset_server.load("map/sand.png"),
+            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.1)),
             ..default()
         },
-        Transform::from_xyz(0., -window.height() * 0.35, 1.0),
-        Wall,
+        Transform::from_xyz(0., -HEIGHT * 0.45, 1.0),
+        Sand,
     ));
-
-    commands
-        .spawn((
-            Sprite {
-                color: Color::from(BLACK),
-                custom_size: Some(Vec2::new(window.width() * 0.1, window.height() * 0.05)),
-                ..default()
-            },
-            Transform::from_xyz(window.width() * 0.42, -window.height() * 0.45, 1.5),
-            WallHealthWrapper,
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Sprite {
-                        color: Color::from(LIME),
-                        custom_size: Some(Vec2::new(
-                            window.width() * 0.1 - 5.0,
-                            window.height() * 0.05 - 5.0,
-                        )),
-                        ..default()
-                    },
-                    Transform::from_xyz(0.0, 0.0, 1.1),
-                    WallHealth,
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
-                        Text2d::new(player.wall.health.to_string()),
-                        text_font.clone(),
-                        TextColor(Color::from(GRAY)),
-                        TextLayout::new_with_justify(JustifyText::Center),
-                        Transform::from_xyz(0.0, 0.0, 1.1),
-                        WallHealthText,
-                    ));
-                });
-        });
 
     // Spawn hidden pause banner
     commands
         .spawn((
             Sprite {
                 color: Color::srgba(255., 255., 255., 0.1),
-                custom_size: Some(Vec2::new(window.width() * 0.1, window.height() * 0.1)),
+                custom_size: Some(Vec2::new(WIDTH * 0.1, HEIGHT * 0.1)),
                 ..default()
             },
             Transform::from_xyz(0., 0., 3.),
@@ -103,17 +57,91 @@ pub fn setup(
                 Text2d::new("Paused".to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0.0, 0.0, 3.1),
+                Transform::from_xyz(0., 0., 3.1),
                 PauseText,
             ));
         });
 
-    // Spawn sentry-gun
+    // Spawn resources
+    commands
+        .spawn((
+            Sprite {
+                color: Color::srgba(255., 255., 255., 0.2),
+                custom_size: Some(Vec2::new(WIDTH * 0.49, HEIGHT * 0.085)),
+                ..default()
+            },
+            Transform::from_xyz(-WIDTH * 0.25, -HEIGHT * 0.45, 1.1),
+            ResourcesWrapper,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Sprite {
+                    image: asset_server.load("map/health.png"),
+                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
+                    ..default()
+                },
+                Transform::from_xyz(-WIDTH * 0.24, 0., 1.2),
+            ));
+            parent.spawn((
+                Text2d::new(player.wall.health.to_string()),
+                TextColor(Color::from(WHITE)),
+                TextLayout::new_with_justify(JustifyText::Left),
+                Transform::from_xyz(-WIDTH * 0.18, 0., 1.2),
+                HealthText,
+            ));
+            parent.spawn((
+                Sprite {
+                    image: asset_server.load("map/bullets.png"),
+                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
+                    ..default()
+                },
+                Transform::from_xyz(-WIDTH * 0.10, 0., 1.2),
+            ));
+            parent.spawn((
+                Text2d::new(player.resources.bullets.to_string()),
+                TextColor(Color::from(WHITE)),
+                TextLayout::new_with_justify(JustifyText::Left),
+                Transform::from_xyz(-WIDTH * 0.04, 0., 1.2),
+                BulletsText,
+            ));
+            parent.spawn((
+                Sprite {
+                    image: asset_server.load("map/gasoline.png"),
+                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
+                    ..default()
+                },
+                Transform::from_xyz(-WIDTH * 0.08, 0., 1.2),
+            ));
+            parent.spawn((
+                Text2d::new(player.resources.gasoline.to_string()),
+                TextColor(Color::from(WHITE)),
+                TextLayout::new_with_justify(JustifyText::Left),
+                Transform::from_xyz(-WIDTH * 0.04, 0., 1.2),
+                GasolineText,
+            ));
+            parent.spawn((
+                Sprite {
+                    image: asset_server.load("map/materials.png"),
+                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
+                    ..default()
+                },
+                Transform::from_xyz(WIDTH * 0.02, 0., 1.2),
+            ));
+            parent.spawn((
+                Text2d::new(player.resources.materials.to_string()),
+                TextColor(Color::from(WHITE)),
+                TextLayout::new_with_justify(JustifyText::Left),
+                Transform::from_xyz(WIDTH * 0.06, 0., 1.2),
+                MaterialsText,
+            ));
+        });
+
+    // Spawn sentry-guns
     let weapon = Weapon::sentry_gun();
 
-    let mut pos = -window.width() * 0.5;
+    let mut pos = -WIDTH * 0.5;
     for _ in 0..player.weapons.sentry_gun {
-        pos += window.width() / (player.weapons.sentry_gun + 1) as f32;
+        pos += WIDTH / (player.weapons.sentry_gun + 1) as f32;
 
         commands.spawn((
             Sprite {
@@ -121,25 +149,39 @@ pub fn setup(
                 custom_size: Some(Vec2::new(weapon.size.0, weapon.size.1)),
                 ..default()
             },
-            Transform::from_xyz(pos, -window.height() * 0.35, 2.0),
+            Transform::from_xyz(pos, -HEIGHT * 0.35, 2.0),
             weapon.clone(),
         ));
     }
 }
 
 pub fn map_update(
-    mut wall_q: Query<&mut Text2d, With<WallHealthText>>,
-    mut enemy_q: Query<(&mut Sprite, &Enemy),  With<EnemyHealth>>,
+    mut text_q: Query<(
+        &mut Text2d,
+        Option<&HealthText>,
+        Option<&BulletsText>,
+        Option<&GasolineText>,
+        Option<&MaterialsText>,
+    )>,
+    mut enemy_q: Query<(&mut Sprite, &Enemy), With<EnemyHealth>>,
     player: Res<Player>,
 ) {
-    // Update wall health
-    let mut span = wall_q.get_single_mut().unwrap();
-    **span = player.wall.health.to_string();
+    // Update health and resources
+    for (mut text, health, bullets, gasoline, materials) in text_q.iter_mut() {
+        if health.is_some() {
+            text.0 = player.wall.health.to_string();
+        } else if bullets.is_some() {
+            text.0 = player.resources.bullets.to_string();
+        } else if gasoline.is_some() {
+            text.0 = player.resources.gasoline.to_string();
+        } else if materials.is_some() {
+            text.0 = player.resources.materials.to_string();
+        }
+    }
 
+    // Update enemy health bars
     for (mut sprite, enemy) in enemy_q.iter_mut() {
-        sprite.custom_size = Some(Vec2::new(
-            sprite.custom_size.unwrap().x * (enemy.health / enemy.max_health) as f32,
-            sprite.custom_size.unwrap().y,
-        ))
+        println!("{:?}, {:?}", sprite, enemy);
+        sprite.custom_size.unwrap().x = sprite.custom_size.unwrap().x * (enemy.health / enemy.max_health) as f32
     }
 }

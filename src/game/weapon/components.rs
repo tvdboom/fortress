@@ -8,7 +8,7 @@ pub struct Bullet {
     pub speed: f32,
     pub angle: f32,
     pub damage: u32,
-    pub max_distance: f32,  // 0-100 as percentage of map's height
+    pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,
 }
 
@@ -40,8 +40,8 @@ impl Weapon {
             },
             bullet: Bullet {
                 image: "weapon/bullet.png".to_string(),
-                size: (40., 40.),
-                speed: 20.,
+                size: (30., 30.),
+                speed: 30.,
                 angle: 0.,
                 damage: 10,
                 max_distance: 70.,

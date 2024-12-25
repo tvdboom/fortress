@@ -1,7 +1,7 @@
 pub mod components;
 mod systems;
 
-use crate::game::map::systems::{setup, map_update};
+use crate::game::map::systems::{map_update, setup};
 use crate::game::GameState;
 use crate::AppState;
 use bevy::prelude::*;

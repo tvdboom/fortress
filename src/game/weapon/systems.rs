@@ -1,9 +1,9 @@
 use crate::game::enemy::components::Enemy;
+use crate::game::map::components::Map;
 use crate::game::resources::WaveStats;
 use crate::game::weapon::components::{Bullet, Weapon};
 use crate::resources::Player;
 use bevy::prelude::*;
-use crate::game::map::components::Map;
 
 pub fn spawn_bullets(
     mut commands: Commands,
@@ -55,7 +55,7 @@ pub fn spawn_bullets(
                             Transform {
                                 translation: Vec3::new(
                                     transform.translation.x,
-                                    transform.translation.y,
+                                    transform.translation.y + 10.,
                                     3.0,
                                 ),
                                 rotation: Quat::from_rotation_z(weapon.bullet.angle),
@@ -65,6 +65,7 @@ pub fn spawn_bullets(
                         ));
 
                         wave_stats.resources.bullets += weapon.fire_cost.bullets;
+                        wave_stats.resources.gasoline += weapon.fire_cost.gasoline;
                         player.resources.bullets -= weapon.fire_cost.bullets;
                     }
                 }
@@ -80,7 +81,6 @@ pub fn move_bullets(
     map_q: Query<&Sprite, With<Map>>,
     time: Res<Time>,
     mut wave_stats: ResMut<WaveStats>,
-    mut player: ResMut<Player>,
     window: Single<&Window>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
@@ -95,27 +95,49 @@ pub fn move_bullets(
         // Pythagoras to get distance traveled
         bullet.distance += (dx.powi(2) + dy.powi(2)).sqrt();
 
-        // If outside map -> despawn
-        if transform.translation.x < -window.width() * 0.5
+        // If the bullet collided with an enemy -> resolve and despawn
+        for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
+            if collision(
+                &transform.translation,
+                &bullet.size,
+                &transform_enemy.translation,
+                &enemy.size,
+            ) {
+                commands.entity(entity).despawn();
+
+                if enemy.health <= bullet.damage {
+                    commands.entity(enemy_entity).despawn_recursive();
+
+                    wave_stats
+                        .enemies
+                        .entry(enemy.name.clone())
+                        .and_modify(|status| {
+                            status.alive -= 1;
+                            status.killed += 1
+                        });
+                } else {
+                    enemy.health -= bullet.damage;
+                }
+            }
+        }
+
+        // If the bullet traveled more than max distance or left map boundaries -> despawn
+        if bullet.distance >= map_height / 100. * bullet.max_distance
+            || transform.translation.x < -window.width() * 0.5
             || transform.translation.x > window.width() * 0.5
             || transform.translation.y > window.height() * 0.5
         {
             commands.entity(entity).despawn();
-            return;
-        }
-
-        // If the bullet collided with an enemy -> resolve and despawn
-        // for (transform, enemy_entity, mut enemy) in enemy_q.iter_mut() {
-        //     if true {
-        //         commands.entity(entity).despawn();
-        //
-        //         enemy.health -= bullet.damage;
-        //     }
-        // }
-
-        // If the bullet traveled more than max distance -> despawn
-        if bullet.distance >= map_height / 100. * bullet.max_distance {
-            commands.entity(entity).despawn();
         }
     }
+}
+
+fn collision(pos1: &Vec3, size1: &(f32, f32), pos2: &Vec3, size2: &(f32, f32)) -> bool {
+    let p1_min = pos1 - Vec3::new(size1.0 / 2.0, size1.1 / 2.0, 0.0);
+    let p1_max = pos1 + Vec3::new(size1.0 / 2.0, size1.1 / 2.0, 0.0);
+
+    let p2_min = pos2 - Vec3::new(size2.0 / 2.0, size2.1 / 2.0, 0.0);
+    let p2_max = pos2 + Vec3::new(size2.0 / 2.0, size2.1 / 2.0, 0.0);
+
+    p1_max.x > p2_min.x && p1_min.x < p2_max.x && p1_max.y > p2_min.y && p1_min.y < p2_max.y
 }
