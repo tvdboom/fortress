@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 bevy = "0.15"
 rand = "0.8.5"
+image = "0.25.5"
+winit = "0.30.7"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

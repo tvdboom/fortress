@@ -66,7 +66,7 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
     commands
         .spawn((
             Sprite {
-                color: Color::srgba(255., 255., 255., 0.2),
+                color: Color::srgba(255., 255., 255., 0.1),
                 custom_size: Some(Vec2::new(WIDTH * 0.49, HEIGHT * 0.085)),
                 ..default()
             },
@@ -80,7 +80,7 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                     custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
                     ..default()
                 },
-                Transform::from_xyz(-WIDTH * 0.24, 0., 1.2),
+                Transform::from_xyz(-WIDTH * 0.22, 0., 1.2),
             ));
             parent.spawn((
                 Text2d::new(player.wall.health.to_string()),
@@ -95,13 +95,13 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                     custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
                     ..default()
                 },
-                Transform::from_xyz(-WIDTH * 0.10, 0., 1.2),
+                Transform::from_xyz(-WIDTH * 0.12, 0., 1.2),
             ));
             parent.spawn((
                 Text2d::new(player.resources.bullets.to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(-WIDTH * 0.04, 0., 1.2),
+                Transform::from_xyz(-WIDTH * 0.08, 0., 1.2),
                 BulletsText,
             ));
             parent.spawn((
@@ -110,13 +110,13 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                     custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
                     ..default()
                 },
-                Transform::from_xyz(-WIDTH * 0.08, 0., 1.2),
+                Transform::from_xyz(-WIDTH * 0.02, 0., 1.2),
             ));
             parent.spawn((
                 Text2d::new(player.resources.gasoline.to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(-WIDTH * 0.04, 0., 1.2),
+                Transform::from_xyz(WIDTH * 0.02, 0., 1.2),
                 GasolineText,
             ));
             parent.spawn((
@@ -125,13 +125,13 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                     custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
                     ..default()
                 },
-                Transform::from_xyz(WIDTH * 0.02, 0., 1.2),
+                Transform::from_xyz(WIDTH * 0.08, 0., 1.2),
             ));
             parent.spawn((
                 Text2d::new(player.resources.materials.to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(WIDTH * 0.06, 0., 1.2),
+                Transform::from_xyz(WIDTH * 0.12, 0., 1.2),
                 MaterialsText,
             ));
         });
@@ -146,7 +146,7 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
         commands.spawn((
             Sprite {
                 image: asset_server.load(&weapon.image),
-                custom_size: Some(Vec2::new(weapon.size.0, weapon.size.1)),
+                custom_size: Some(weapon.size),
                 ..default()
             },
             Transform::from_xyz(pos, -HEIGHT * 0.35, 2.0),
@@ -163,7 +163,9 @@ pub fn map_update(
         Option<&GasolineText>,
         Option<&MaterialsText>,
     )>,
-    mut enemy_q: Query<(&mut Sprite, &Enemy), With<EnemyHealth>>,
+    enemy_q: Query<(&Enemy, Entity)>,
+    children_q: Query<&Children>,
+    mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
     player: Res<Player>,
 ) {
     // Update health and resources
@@ -180,8 +182,17 @@ pub fn map_update(
     }
 
     // Update enemy health bars
-    for (mut sprite, enemy) in enemy_q.iter_mut() {
-        println!("{:?}, {:?}", sprite, enemy);
-        sprite.custom_size.unwrap().x = sprite.custom_size.unwrap().x * (enemy.health / enemy.max_health) as f32
+    for (enemy, entity) in enemy_q.iter() {
+        if enemy.health < enemy.max_health {
+            for child in children_q.iter_descendants(entity) {
+                if let Ok((mut transform, mut sprite)) = health_q.get_mut(child) {
+                    if let Some(size) = sprite.custom_size.as_mut() {
+                        let full_size = enemy.size.x * 0.8 - 2.0;
+                        size.x = full_size * enemy.health as f32 / enemy.max_health as f32;
+                        transform.translation.x = (size.x - full_size) * 0.5;
+                    }
+                }
+            }
+        }
     }
 }

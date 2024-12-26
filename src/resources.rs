@@ -1,5 +1,4 @@
 use crate::game::resources::WaveStats;
-use crate::game::weapon::components::*;
 use bevy::prelude::Resource;
 
 #[derive(Clone)]

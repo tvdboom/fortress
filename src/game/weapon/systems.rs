@@ -17,7 +17,7 @@ pub fn spawn_bullets(
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
-    for (mut transform, mut weapon) in weapon_q.iter_mut() {
+    for (transform, mut weapon) in weapon_q.iter_mut() {
         weapon.fire_rate.tick(time.delta());
 
         // To fire, the following prerequisites must be met:
@@ -46,10 +46,7 @@ pub fn spawn_bullets(
                         commands.spawn((
                             Sprite {
                                 image: asset_server.load(&weapon.bullet.image),
-                                custom_size: Some(Vec2::new(
-                                    weapon.bullet.size.0,
-                                    weapon.bullet.size.1,
-                                )),
+                                custom_size: Some(weapon.bullet.size),
                                 ..default()
                             },
                             Transform {
@@ -132,12 +129,12 @@ pub fn move_bullets(
     }
 }
 
-fn collision(pos1: &Vec3, size1: &(f32, f32), pos2: &Vec3, size2: &(f32, f32)) -> bool {
-    let p1_min = pos1 - Vec3::new(size1.0 / 2.0, size1.1 / 2.0, 0.0);
-    let p1_max = pos1 + Vec3::new(size1.0 / 2.0, size1.1 / 2.0, 0.0);
+fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
+    let p1_min = pos1 - Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
+    let p1_max = pos1 + Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
 
-    let p2_min = pos2 - Vec3::new(size2.0 / 2.0, size2.1 / 2.0, 0.0);
-    let p2_max = pos2 + Vec3::new(size2.0 / 2.0, size2.1 / 2.0, 0.0);
+    let p2_min = pos2 - Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
+    let p2_max = pos2 + Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
 
     p1_max.x > p2_min.x && p1_min.x < p2_max.x && p1_max.y > p2_min.y && p1_min.y < p2_max.y
 }

@@ -1,6 +1,5 @@
 use super::components::*;
 use crate::game::components::*;
-use crate::game::enemy::components::*;
 use crate::game::map::components::*;
 use crate::game::resources::{EnemyStatus, WaveStats};
 use crate::game::systems::pause_game;
@@ -23,17 +22,17 @@ pub fn spawn_enemies(
     let enemy = match rng.gen_range(0..1000) * wave_stats.wave {
         800..950 => Enemy::walker(),
         950..990 => Enemy::runner(),
-        990..1000 => Enemy::ogre(),
+        990..1000 => Enemy::dragon(),
         _ => return,
     };
 
-    let x = rng.gen_range(-WIDTH * 0.5 + enemy.size.0..=WIDTH * 0.5 - enemy.size.0);
+    let x = rng.gen_range(-WIDTH * 0.5 + enemy.size.x..=WIDTH * 0.5 - enemy.size.x);
 
     commands
         .spawn((
             Sprite {
                 image: asset_server.load(&enemy.image),
-                custom_size: Some(Vec2::new(enemy.size.0, enemy.size.1)),
+                custom_size: Some(enemy.size),
                 ..default()
             },
             Transform::from_xyz(x, HEIGHT * 0.5, 2.0),
@@ -44,19 +43,18 @@ pub fn spawn_enemies(
                 .spawn((
                     Sprite {
                         color: Color::from(BLACK),
-                        custom_size: Some(Vec2::new(enemy.size.0 * 0.8, enemy.size.1 * 0.1)),
+                        custom_size: Some(Vec2::new(enemy.size.x * 0.8, enemy.size.y * 0.1)),
                         ..default()
                     },
-                    Transform::from_xyz(0., enemy.size.1 * 0.5 - 5.0, 1.5),
-                    EnemyHealthWrapper,
+                    Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
                         Sprite {
                             color: Color::from(LIME),
                             custom_size: Some(Vec2::new(
-                                enemy.size.0 * 0.8 - 2.0,
-                                enemy.size.1 * 0.1 - 2.0,
+                                enemy.size.x * 0.8 - 2.0,
+                                enemy.size.y * 0.1 - 2.0,
                             )),
                             ..default()
                         },
