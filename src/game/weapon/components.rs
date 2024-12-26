@@ -26,7 +26,7 @@ pub struct Weapon {
 impl Weapon {
     pub fn sentry_gun() -> Self {
         Self {
-            name: "Sentry Gun".to_string(),
+            name: "Sentry gun".to_string(),
             image: "weapon/sentry-gun.png".to_string(),
             size: Vec2::new(110., 110.),
             price: Resources {
@@ -41,7 +41,7 @@ impl Weapon {
             bullet: Bullet {
                 image: "weapon/bullet.png".to_string(),
                 size: Vec2::new(30., 30.),
-                speed: 40.,
+                speed: 50.,
                 angle: 0.,
                 damage: 5,
                 max_distance: 70.,
