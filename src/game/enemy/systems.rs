@@ -1,11 +1,11 @@
 use super::components::*;
 use crate::game::components::*;
 use crate::game::map::components::*;
+use crate::game::map::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::resources::{EnemyStatus, WaveStats};
 use crate::game::systems::pause_game;
 use crate::game::GameState;
 use crate::resources::Player;
-use crate::{HEIGHT, WIDTH};
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -26,7 +26,9 @@ pub fn spawn_enemies(
         _ => return,
     };
 
-    let x = rng.gen_range(-WIDTH * 0.5 + enemy.size.x..=WIDTH * 0.5 - enemy.size.x);
+    let x = rng.gen_range(
+        (-SIZE.x + enemy.size.x) * 0.5..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
+    );
 
     commands
         .spawn((
@@ -35,7 +37,7 @@ pub fn spawn_enemies(
                 custom_size: Some(enemy.size),
                 ..default()
             },
-            Transform::from_xyz(x, HEIGHT * 0.5, 2.0),
+            Transform::from_xyz(x, (SIZE.y + enemy.size.y) * 0.5, 2.0),
             enemy.clone(),
         ))
         .with_children(|parent| {
@@ -67,9 +69,9 @@ pub fn spawn_enemies(
     wave_stats
         .enemies
         .entry(enemy.name.clone())
-        .and_modify(|status| status.alive += 1)
+        .and_modify(|status| status.spawned += 1)
         .or_insert_with(|| EnemyStatus {
-            alive: 1,
+            spawned: 1,
             killed: 0,
         });
 }
@@ -86,7 +88,7 @@ pub fn move_enemies(
     let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
     for (mut transform, enemy) in enemy_q.iter_mut() {
-        let new_pos = transform.translation.y - HEIGHT / 100. * enemy.speed * time.delta_secs();
+        let new_pos = transform.translation.y - MAP_SIZE.y / 100. * enemy.speed * time.delta_secs();
 
         if new_pos < wall_y + 5. {
             transform.translation.y = wall_y + 5.;

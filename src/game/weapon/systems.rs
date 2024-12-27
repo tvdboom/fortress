@@ -18,14 +18,15 @@ pub fn spawn_bullets(
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (transform, mut weapon) in weapon_q.iter_mut() {
-        weapon.fire_rate.tick(time.delta());
-
         // To fire, the following prerequisites must be met:
-        // 1. The weapon's timer is finished
+        // 1. The weapon's fire_rate must be set and finished
         // 2. The player has enough resources to fire
         // 3. There is an enemy in range
-        if weapon.fire_rate.finished() {
-            if player.resources.bullets > weapon.fire_cost.bullets
+        if let Some(timer) = weapon.fire_rate.as_mut() {
+            timer.tick(time.delta());
+
+            if timer.finished()
+                && player.resources.bullets > weapon.fire_cost.bullets
                 && player.resources.gasoline > weapon.fire_cost.gasoline
             {
                 // Find the nearest enemy in range
@@ -64,6 +65,7 @@ pub fn spawn_bullets(
                         wave_stats.resources.bullets += weapon.fire_cost.bullets;
                         wave_stats.resources.gasoline += weapon.fire_cost.gasoline;
                         player.resources.bullets -= weapon.fire_cost.bullets;
+                        player.resources.gasoline -= weapon.fire_cost.gasoline;
                     }
                 }
             }
@@ -108,10 +110,7 @@ pub fn move_bullets(
                     wave_stats
                         .enemies
                         .entry(enemy.name.clone())
-                        .and_modify(|status| {
-                            status.alive -= 1;
-                            status.killed += 1
-                        });
+                        .and_modify(|status| status.killed += 1);
                 } else {
                     enemy.health -= bullet.damage;
                 }

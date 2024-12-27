@@ -1,8 +1,8 @@
-mod components;
-mod enemy;
-mod map;
+pub mod components;
+pub mod enemy;
+pub mod map;
 pub mod resources;
-mod systems;
+pub mod systems;
 pub mod weapon;
 
 use crate::game::enemy::EnemyPlugin;

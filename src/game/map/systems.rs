@@ -1,54 +1,67 @@
 use super::components::*;
+use super::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::{Enemy, EnemyHealth};
-use crate::game::weapon::components::Weapon;
+use crate::game::weapon::components::{Weapon, WeaponSettings};
 use crate::resources::Player;
-use crate::{HEIGHT, WIDTH};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
+use bevy_egui::egui::{Color32, CursorIcon, Style, TextStyle};
+use bevy_egui::{egui, EguiContexts};
 
-pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
+pub fn set_style(mut contexts: EguiContexts) {
+    let context = contexts.ctx_mut();
+
+    let mut style = Style::default();
+    style.text_styles.get_mut(&TextStyle::Small).unwrap().size = 24.;
+    style.text_styles.get_mut(&TextStyle::Heading).unwrap().size = 60.;
+    context.set_style(style);
+}
+
+pub fn setup_map(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
         Sprite {
-            image: asset_server.load("map/grass.png"),
-            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.8)),
+            image: asset_server.load("map/map.png"),
+            custom_size: Some(MAP_SIZE),
             ..default()
         },
-        Transform::from_xyz(0., HEIGHT * 0.1, 0.0),
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            (WALL_SIZE.y + RESOURCES_PANEL_SIZE.y) * 0.5,
+            0.0,
+        ),
         Map,
     ));
 
     commands.spawn((
         Sprite {
             image: asset_server.load("map/wall.png"),
-            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.1)),
+            custom_size: Some(WALL_SIZE),
             ..default()
         },
-        Transform::from_xyz(0., -HEIGHT * 0.35, 1.0),
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            (-MAP_SIZE.y + WALL_SIZE.y) * 0.5,
+            0.1,
+        ),
         Wall,
-    ));
-
-    commands.spawn((
-        Sprite {
-            image: asset_server.load("map/sand.png"),
-            custom_size: Some(Vec2::new(WIDTH, HEIGHT * 0.1)),
-            ..default()
-        },
-        Transform::from_xyz(0., -HEIGHT * 0.45, 1.0),
-        Sand,
     ));
 
     // Spawn hidden pause banner
     commands
         .spawn((
             Sprite {
-                color: Color::srgba(255., 255., 255., 0.1),
-                custom_size: Some(Vec2::new(WIDTH * 0.1, HEIGHT * 0.1)),
+                color: Color::srgba(0., 0., 0., 0.3),
+                custom_size: Some(Vec2::new(SIZE.x * 0.1, SIZE.y * 0.1)),
                 ..default()
             },
-            Transform::from_xyz(0., 0., 3.),
+            Transform::from_xyz(
+                -WEAPONS_PANEL_SIZE.x * 0.5,
+                RESOURCES_PANEL_SIZE.y * 0.5,
+                4.9,
+            ),
             Visibility::Hidden,
             PauseWrapper,
         ))
@@ -57,91 +70,18 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                 Text2d::new("Paused".to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0., 0., 3.1),
+                Transform::from_xyz(0., 0., 5.0),
                 PauseText,
             ));
         });
 
-    // Spawn resources
-    commands
-        .spawn((
-            Sprite {
-                color: Color::srgba(255., 255., 255., 0.1),
-                custom_size: Some(Vec2::new(WIDTH * 0.49, HEIGHT * 0.085)),
-                ..default()
-            },
-            Transform::from_xyz(-WIDTH * 0.25, -HEIGHT * 0.45, 1.1),
-            ResourcesWrapper,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Sprite {
-                    image: asset_server.load("map/health.png"),
-                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
-                    ..default()
-                },
-                Transform::from_xyz(-WIDTH * 0.22, 0., 1.2),
-            ));
-            parent.spawn((
-                Text2d::new(player.wall.health.to_string()),
-                TextColor(Color::from(WHITE)),
-                TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(-WIDTH * 0.18, 0., 1.2),
-                HealthText,
-            ));
-            parent.spawn((
-                Sprite {
-                    image: asset_server.load("map/bullets.png"),
-                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
-                    ..default()
-                },
-                Transform::from_xyz(-WIDTH * 0.12, 0., 1.2),
-            ));
-            parent.spawn((
-                Text2d::new(player.resources.bullets.to_string()),
-                TextColor(Color::from(WHITE)),
-                TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(-WIDTH * 0.08, 0., 1.2),
-                BulletsText,
-            ));
-            parent.spawn((
-                Sprite {
-                    image: asset_server.load("map/gasoline.png"),
-                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
-                    ..default()
-                },
-                Transform::from_xyz(-WIDTH * 0.02, 0., 1.2),
-            ));
-            parent.spawn((
-                Text2d::new(player.resources.gasoline.to_string()),
-                TextColor(Color::from(WHITE)),
-                TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(WIDTH * 0.02, 0., 1.2),
-                GasolineText,
-            ));
-            parent.spawn((
-                Sprite {
-                    image: asset_server.load("map/materials.png"),
-                    custom_size: Some(Vec2::new(WIDTH * 0.03, HEIGHT * 0.04)),
-                    ..default()
-                },
-                Transform::from_xyz(WIDTH * 0.08, 0., 1.2),
-            ));
-            parent.spawn((
-                Text2d::new(player.resources.materials.to_string()),
-                TextColor(Color::from(WHITE)),
-                TextLayout::new_with_justify(JustifyText::Left),
-                Transform::from_xyz(WIDTH * 0.12, 0., 1.2),
-                MaterialsText,
-            ));
-        });
+    // Spawn weapons ============================================== >>
 
-    // Spawn sentry-guns
     let weapon = Weapon::sentry_gun();
 
-    let mut pos = -WIDTH * 0.5;
+    let mut pos = -SIZE.x * 0.5;
     for _ in 0..player.weapons.sentry_gun {
-        pos += WIDTH / (player.weapons.sentry_gun + 1) as f32;
+        pos += MAP_SIZE.x / (player.weapons.sentry_gun + 1) as f32;
 
         commands.spawn((
             Sprite {
@@ -149,38 +89,118 @@ pub fn setup(mut commands: Commands, player: Res<Player>, asset_server: Res<Asse
                 custom_size: Some(weapon.size),
                 ..default()
             },
-            Transform::from_xyz(pos, -HEIGHT * 0.35, 2.0),
+            Transform::from_xyz(pos, (-MAP_SIZE.y + WALL_SIZE.y) * 0.5, 2.0),
             weapon.clone(),
         ));
     }
 }
 
+pub fn resources_panel(
+    mut contexts: EguiContexts,
+    mut player: ResMut<Player>,
+    images: Local<Images>,
+) {
+    let fortress_texture = contexts.add_image(images.fortress.clone_weak());
+    let bullets_texture = contexts.add_image(images.bullets.clone_weak());
+    let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
+    let materials_texture = contexts.add_image(images.materials.clone_weak());
+
+    egui::TopBottomPanel::bottom("Resources")
+        .exact_height(RESOURCES_PANEL_SIZE.y)
+        .show(contexts.ctx_mut(), |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.add_space(5.);
+
+                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
+                    fortress_texture,
+                    [20., 20.],
+                )));
+                ui.add(
+                    egui::ProgressBar::new(
+                        player.wall.health as f32 / player.wall.max_health as f32,
+                    )
+                    .desired_width(200.)
+                    .desired_height(20.)
+                    .text(format!("{} / {}", player.wall.health, player.wall.max_health))
+                );
+
+                ui.add_space(5.);
+                ui.separator();
+                ui.add_space(5.);
+
+                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
+                    bullets_texture,
+                    [20., 20.],
+                )));
+                ui.add(egui::Label::new(player.resources.bullets.to_string()));
+
+                ui.add_space(15.);
+
+                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
+                    gasoline_texture,
+                    [20., 20.],
+                )));
+                ui.add(egui::Label::new(player.resources.gasoline.to_string()));
+
+                ui.add_space(15.);
+
+                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
+                    materials_texture,
+                    [20., 20.],
+                )));
+                ui.add(egui::Label::new(player.resources.materials.to_string()));
+            });
+        });
+}
+
+pub fn weapons_panel(
+    mut contexts: EguiContexts,
+    mut weapon_q: Query<&mut Weapon>,
+    mut settings: ResMut<WeaponSettings>,
+) {
+    egui::SidePanel::right("Weapons panel")
+        .exact_width(WEAPONS_PANEL_SIZE.x)
+        .resizable(false)
+        .show(contexts.ctx_mut(), |ui| {
+            ui.add_space(5.);
+            ui.vertical_centered(|ui| {
+                ui.heading("Weapon settings");
+            });
+
+            ui.add_space(5.);
+            ui.separator();
+            ui.add_space(5.);
+
+            ui.horizontal(|ui| {
+                ui.add(egui::Label::new("Sentry gun: "));
+
+                let fire_rate = ui
+                    .add(egui::Slider::new(
+                        &mut settings.sentry_gun_fire_rate_value,
+                        0..=5,
+                    ))
+                    .on_hover_text("Fire rate of the sentry guns. Shoots N bullets per second.");
+
+                if fire_rate.dragged() {
+                    weapon_q
+                        .iter_mut()
+                        .filter(|w| w.name == "Sentry gun")
+                        .for_each(|mut w| {
+                            w.fire_rate = match settings.sentry_gun_fire_rate_value as f32 {
+                                0. => None,
+                                v => Some(Timer::from_seconds(1. / v, TimerMode::Repeating)),
+                            };
+                        });
+                }
+            })
+        });
+}
+
 pub fn map_update(
-    mut text_q: Query<(
-        &mut Text2d,
-        Option<&HealthText>,
-        Option<&BulletsText>,
-        Option<&GasolineText>,
-        Option<&MaterialsText>,
-    )>,
     enemy_q: Query<(&Enemy, Entity)>,
     children_q: Query<&Children>,
     mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
-    player: Res<Player>,
 ) {
-    // Update health and resources
-    for (mut text, health, bullets, gasoline, materials) in text_q.iter_mut() {
-        if health.is_some() {
-            text.0 = player.wall.health.to_string();
-        } else if bullets.is_some() {
-            text.0 = player.resources.bullets.to_string();
-        } else if gasoline.is_some() {
-            text.0 = player.resources.gasoline.to_string();
-        } else if materials.is_some() {
-            text.0 = player.resources.materials.to_string();
-        }
-    }
-
     // Update enemy health bars
     for (enemy, entity) in enemy_q.iter() {
         if enemy.health < enemy.max_health {

@@ -3,7 +3,7 @@ use bevy::prelude::Resource;
 use bevy::utils::hashbrown::HashMap;
 
 pub struct EnemyStatus {
-    pub alive: u32,
+    pub spawned: u32,
     pub killed: u32,
 }
 
