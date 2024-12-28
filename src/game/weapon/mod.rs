@@ -1,9 +1,7 @@
 pub mod components;
 mod systems;
 
-use crate::AppState;
-
-use super::GameState;
+use super::{AppState, GameState};
 use crate::game::weapon::components::*;
 use crate::game::weapon::systems::*;
 use bevy::prelude::*;

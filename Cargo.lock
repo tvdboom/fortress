@@ -1550,6 +1550,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "catppuccin-egui"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "829199ddfaf32b82917412d2af184b33e995724570b888d791230c7e1bc16e6a"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2285,6 +2294,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_egui",
+ "catppuccin-egui",
  "image",
  "rand",
  "winit",

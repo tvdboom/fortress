@@ -2,10 +2,9 @@ use super::components::*;
 use crate::game::components::*;
 use crate::game::map::components::*;
 use crate::game::map::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::resources::{EnemyStatus, WaveStats};
+use crate::game::resources::{EnemyStatus, Player, WaveStats};
 use crate::game::systems::pause_game;
 use crate::game::GameState;
-use crate::resources::Player;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -19,7 +18,7 @@ pub fn spawn_enemies(
     asset_server: Res<AssetServer>,
 ) {
     let mut rng = thread_rng();
-    let enemy = match rng.gen_range(0..1000) * wave_stats.wave {
+    let enemy = match rng.gen_range(0..1000) * wave_stats.day {
         800..950 => Enemy::walker(),
         950..990 => Enemy::runner(),
         990..1000 => Enemy::dragon(),
@@ -37,7 +36,7 @@ pub fn spawn_enemies(
                 custom_size: Some(enemy.size),
                 ..default()
             },
-            Transform::from_xyz(x, (SIZE.y + enemy.size.y) * 0.5, 2.0),
+            Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
             enemy.clone(),
         ))
         .with_children(|parent| {
@@ -101,6 +100,26 @@ pub fn move_enemies(
             }
         } else {
             transform.translation.y = new_pos;
+        }
+    }
+}
+
+pub fn update_enemy_health_bars(
+    enemy_q: Query<(&Enemy, Entity)>,
+    children_q: Query<&Children>,
+    mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
+) {
+    for (enemy, entity) in enemy_q.iter() {
+        if enemy.health < enemy.max_health {
+            for child in children_q.iter_descendants(entity) {
+                if let Ok((mut transform, mut sprite)) = health_q.get_mut(child) {
+                    if let Some(size) = sprite.custom_size.as_mut() {
+                        let full_size = enemy.size.x * 0.8 - 2.0;
+                        size.x = full_size * enemy.health as f32 / enemy.max_health as f32;
+                        transform.translation.x = (size.x - full_size) * 0.5;
+                    }
+                }
+            }
         }
     }
 }

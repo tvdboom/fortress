@@ -1,8 +1,7 @@
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
-use crate::game::resources::WaveStats;
+use crate::game::resources::{Player, WaveStats};
 use crate::game::weapon::components::{Bullet, Weapon};
-use crate::resources::Player;
 use bevy::prelude::*;
 
 pub fn spawn_bullets(

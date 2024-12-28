@@ -28,7 +28,6 @@ pub fn toggle_pause(
         match game_state.get() {
             GameState::Running => pause_game(vis_q, next_state),
             GameState::Paused => resume_game(vis_q, next_state),
-            _ => (),
         }
     }
 }

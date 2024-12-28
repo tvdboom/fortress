@@ -1,4 +1,4 @@
-use crate::resources::Resources;
+use crate::game::resources::Resources;
 use bevy::prelude::*;
 
 #[derive(Resource)]

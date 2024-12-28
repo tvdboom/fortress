@@ -1,10 +1,9 @@
 pub mod components;
 mod systems;
 
-use crate::AppState;
 use std::time::Duration;
 
-use super::GameState;
+use super::{AppState, GameState};
 use crate::game::enemy::systems::*;
 use bevy::prelude::*;
 use bevy::time::common_conditions::on_timer;
@@ -18,6 +17,7 @@ impl Plugin for EnemyPlugin {
             (
                 spawn_enemies.run_if(on_timer(Duration::from_millis(300))),
                 move_enemies,
+                update_enemy_health_bars,
             )
                 .run_if(in_state(AppState::Game))
                 .run_if(in_state(GameState::Running)),
