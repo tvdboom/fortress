@@ -1,10 +1,8 @@
 use super::components::*;
-use crate::game::components::*;
 use crate::game::map::components::*;
 use crate::game::map::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::resources::{EnemyStatus, Player, WaveStats};
-use crate::game::systems::pause_game;
-use crate::game::GameState;
+use crate::game::AppState;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -78,9 +76,9 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut enemy_q: Query<(&mut Transform, &Enemy)>,
     wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
-    vis_q: Query<&mut Visibility, With<PauseWrapper>>,
     mut player: ResMut<Player>,
-    next_state: ResMut<NextState<GameState>>,
+    wave_stats: Res<WaveStats>,
+    mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
 ) {
     let (t, wall) = wall_q.iter().next().unwrap();
@@ -95,8 +93,12 @@ pub fn move_enemies(
             if player.wall.health > enemy.damage {
                 player.wall.health -= enemy.damage;
             } else {
-                pause_game(vis_q, next_state);
-                todo!();
+                player.wall.health = 0;
+                player
+                    .stats
+                    .entry(wave_stats.day)
+                    .or_insert(wave_stats.clone());
+                next_state.set(AppState::GameOver);
             }
         } else {
             transform.translation.y = new_pos;

@@ -7,9 +7,26 @@ use crate::game::weapon::components::{Weapon, WeaponSettings};
 use crate::game::{AppState, GameState};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{RichText, Style, TextStyle};
+use bevy_egui::egui::{epaint, Response, RichText, Style, TextStyle, TextureId, Ui, WidgetText};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
+
+trait CustomUi {
+    fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
+    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response;
+}
+
+impl CustomUi for Ui {
+    fn add_button(&mut self, text: impl Into<WidgetText>) -> Response {
+        self.add_sized([120., 40.], egui::Button::new(text))
+    }
+
+    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response {
+        self.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
+            id, size,
+        )))
+    }
+}
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -121,28 +138,32 @@ pub fn menu_panel(
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "Game", |ui| {
                         if ui.button("New game").clicked() {
-                            std::process::exit(0);
+                            todo!();
                         }
                         if ui.button("Load game").clicked() {
-                            std::process::exit(0);
+                            todo!();
                         }
                         if ui.button("Save game").clicked() {
-                            std::process::exit(0);
+                            todo!();
                         }
                         if ui.button("Quit").clicked() {
                             std::process::exit(0);
                         }
                     });
-                    if *app_state.get() == AppState::Game {
-                        egui::menu::menu_button(ui, "State", |ui| {
-                            if ui.button("Toggle pause").clicked() {
-                                match game_state.get() {
-                                    GameState::Running => pause_game(vis_q, next_state),
-                                    GameState::Paused => resume_game(vis_q, next_state),
-                                }
+                    egui::menu::menu_button(ui, "State", |ui| {
+                        if ui
+                            .add_enabled(
+                                *app_state.get() == AppState::Game,
+                                egui::Button::new("Toggle pause"),
+                            )
+                            .clicked()
+                        {
+                            match game_state.get() {
+                                GameState::Running => pause_game(vis_q, next_state),
+                                GameState::Paused => resume_game(vis_q, next_state),
                             }
-                        });
-                    }
+                        }
+                    });
                     egui::menu::menu_button(ui, "Settings", |ui| {
                         if ui.button("Toggle audio").clicked() {
                             std::process::exit(0);
@@ -153,11 +174,7 @@ pub fn menu_panel(
         });
 }
 
-pub fn resources_panel(
-    mut contexts: EguiContexts,
-    mut player: ResMut<Player>,
-    images: Local<Images>,
-) {
+pub fn resources_panel(mut contexts: EguiContexts, player: Res<Player>, images: Local<Images>) {
     let day_texture = contexts.add_image(images.day.clone_weak());
     let fortress_texture = contexts.add_image(images.fortress.clone_weak());
     let bullets_texture = contexts.add_image(images.bullets.clone_weak());
@@ -170,20 +187,14 @@ pub fn resources_panel(
             ui.horizontal_centered(|ui| {
                 ui.add_space(5.);
 
-                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                    day_texture,
-                    [20., 20.],
-                )));
+                ui.add_image(day_texture, [20., 20.]);
                 ui.add(egui::Label::new(player.day.to_string()));
 
                 ui.add_space(5.);
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                    fortress_texture,
-                    [20., 20.],
-                )));
+                ui.add_image(fortress_texture, [20., 20.]);
                 ui.add(
                     egui::ProgressBar::new(
                         player.wall.health as f32 / player.wall.max_health as f32,
@@ -203,26 +214,17 @@ pub fn resources_panel(
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                    bullets_texture,
-                    [20., 20.],
-                )));
+                ui.add_image(bullets_texture, [20., 20.]);
                 ui.add(egui::Label::new(player.resources.bullets.to_string()));
 
                 ui.add_space(15.);
 
-                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                    gasoline_texture,
-                    [20., 20.],
-                )));
+                ui.add_image(gasoline_texture, [20., 20.]);
                 ui.add(egui::Label::new(player.resources.gasoline.to_string()));
 
                 ui.add_space(15.);
 
-                ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                    materials_texture,
-                    [20., 20.],
-                )));
+                ui.add_image(materials_texture, [20., 20.]);
                 ui.add(egui::Label::new(player.resources.materials.to_string()));
             });
         });
@@ -245,11 +247,8 @@ pub fn weapons_panel(
                 ui.add_space(5.);
                 ui.vertical_centered(|ui| {
                     ui.horizontal(|ui| {
-                        ui.add_space(35.);
-                        ui.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-                            weapon_texture,
-                            [30., 30.],
-                        )));
+                        ui.add_space(55.);
+                        ui.add_image(weapon_texture, [30., 30.]);
                         ui.heading("Weapons");
                     });
                 });
@@ -266,7 +265,9 @@ pub fn weapons_panel(
                             &mut settings.sentry_gun_fire_rate_value,
                             0..=5,
                         ))
-                        .on_hover_text("Fire rate of the sentry guns. Shoots N bullets per second.");
+                        .on_hover_text(
+                            "Fire rate of the sentry guns. Shoots N bullets per second.",
+                        );
 
                     if fire_rate.dragged() {
                         weapon_q
@@ -284,50 +285,112 @@ pub fn weapons_panel(
         });
 }
 
-pub fn start_game_panel(mut contexts: EguiContexts, mut next_state: ResMut<NextState<AppState>>) {
-    egui::Window::new("start game")
+pub fn start_end_game_panel(
+    mut contexts: EguiContexts,
+    player: Res<Player>,
+    app_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    images: Local<Images>,
+) {
+    let game_over_texture = contexts.add_image(images.game_over.clone_weak());
+
+    egui::Window::new("start/end game")
         .title_bar(false)
         .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
-        .fixed_pos((MAP_SIZE.x * 0.3, MAP_SIZE.y * 0.4))
+        .fixed_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
         .show(contexts.ctx_mut(), |ui| {
             ui.vertical_centered(|ui| {
-                ui.add_space(5.);
-                ui.heading("Welcome to Fortress!");
+                ui.add_space(10.);
+                match *app_state.get() {
+                    AppState::StartGame => {
+                        ui.heading("Welcome to Fortress!");
 
-                ui.add_space(15.);
+                        ui.add_space(15.);
 
-                egui::ScrollArea::vertical()
-                    .max_width(SIZE.x * 0.4)
-                    .show(ui, |ui| {
-                        ui.with_layout(
-                            egui::Layout::top_down(egui::Align::LEFT),
-                            |ui| {
-                                ui.add_space(5.);
-                                ui.label(
-                                    "The world has been conquered by monsters. Together \
-                                    with a handful of survivors, you have created a fortress \
-                                    to defend yourself from their attacks.\n\nEvery night, a \
-                                    swarm of monsters attacks your fortress. Try to shoot them \
-                                    down before they reach the wall! When they do, they will \
-                                    start to hit the wall, and if the wall is destroyed, the \
-                                    monsters can freely enter the fortress and the game is \
-                                    lost.\n\nDuring the day, you can upgrade your weapon \
-                                    arsenal to prepare yourself for the following attack, but \
-                                    manage your resources well, or you won't be able to stop \
-                                    the monsters anymore...");
-                                ui.add_space(5.);
-                            },
-                        );
-                });
+                        egui::ScrollArea::vertical()
+                            .max_width(SIZE.x * 0.4)
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(85.);
+                                    ui.with_layout(
+                                        egui::Layout::top_down(egui::Align::LEFT),
+                                        |ui| {
+                                            ui.add_space(5.);
+                                            ui.label(
+                                                "The world has been conquered by monsters. Together \
+                                                with a handful of survivors, you have build a fortress \
+                                                to defend yourself from their ferocious attacks.\n\n\
+                                                Every night, an ever increasing swarm of monsters attacks \
+                                                the fortress. Kill them before they reach the wall! \
+                                                When they do, they hit the wall, reducing its resistance. \
+                                                If the wall is destroyed, the monsters can freely enter \
+                                                the fortress and kill everyone inside (the game is lost). \
+                                                \n\nDuring the day, you can collect resources and upgrade \
+                                                your weapon arsenal to prepare yourself for the following \
+                                                night. During the attack, you can choose how/when to use \
+                                                the weapons you have to your disposal. But be careful, \
+                                                everything has a cost! Manage your resources wisely or \
+                                                you won't be able to stop the monsters tomorrow...");
+                                            ui.add_space(5.);
+                                        })
+                                })
+                            });
 
-                ui.add_space(15.);
+                        ui.add_space(15.);
 
-                if ui.add_sized([120., 40.], egui::Button::new("Start game")).clicked() {
-                    next_state.set(AppState::Game);
+                        if ui.add_button("Start game").clicked() {
+                            next_state.set(AppState::Game);
+                        }
+                    },
+                    AppState::GameOver => {
+                        ui.add_image(game_over_texture,[400., 100.]);
+
+                        ui.heading(format!("You survived {} days!", player.day));
+
+                        ui.add_space(30.);
+
+                        ui.horizontal(|ui| {
+                            ui.add_space(200.);
+                            egui::Grid::new("wave stats")
+                                .num_columns(2)
+                                .spacing([40.0, 4.0])
+                                .striped(true)
+                                .show(ui, |ui| {
+                                    ui.label("Enemy");
+                                    ui.label("Killed / Spawned");
+                                    ui.end_row();
+
+                                    player.stats
+                                        .get(&player.day)
+                                        .unwrap()
+                                        .enemies.iter().for_each(|(k, v)| {
+                                            ui.label(k);
+                                            ui.label(format!("{} / {}", v.killed, v.spawned));
+                                            ui.end_row();
+                                        });
+                                });
+                        });
+
+                        ui.add_space(30.);
+
+                        ui.horizontal(|ui| {
+                            ui.add_space(170.);
+
+                            if ui.add_button("New game").clicked() {
+                                todo!();
+                            }
+
+                            ui.add_space(20.);
+
+                            if ui.add_button("Quit").clicked() {
+                                std::process::exit(0);
+                            }
+                        });
+                    },
+                    _ => unreachable!(),
                 }
+
+                ui.add_space(10.);
             });
-
-
-            ui.add_space(5.);
         });
 }

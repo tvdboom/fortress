@@ -33,7 +33,7 @@ pub struct Player {
     pub resources: Resources,
     pub weapons: Weapons,
     pub wall: Wall,
-    pub stats: Vec<WaveStats>,
+    pub stats: HashMap<u32, WaveStats>,
 }
 
 impl Default for Player {
@@ -47,20 +47,21 @@ impl Default for Player {
             },
             weapons: Weapons { sentry_gun: 2 },
             wall: Wall {
-                max_health: 10_000,
-                health: 10_000,
+                max_health: 1_000,
+                health: 1_000,
             },
-            stats: vec![],
+            stats: HashMap::default(),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct EnemyStatus {
     pub spawned: u32,
     pub killed: u32,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct WaveStats {
     pub day: u32,
     pub resources: Resources,

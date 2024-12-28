@@ -7,6 +7,9 @@ pub struct Images {
     pub bullets: Handle<Image>,
     pub gasoline: Handle<Image>,
     pub materials: Handle<Image>,
+    pub clock: Handle<Image>,
+    pub hourglass: Handle<Image>,
+    pub game_over: Handle<Image>,
 }
 
 impl FromWorld for Images {
@@ -19,6 +22,9 @@ impl FromWorld for Images {
             bullets: asset_server.load("map/bullet.png"),
             gasoline: asset_server.load("map/gasoline.png"),
             materials: asset_server.load("map/brick.png"),
+            clock: asset_server.load("map/clock.png"),
+            hourglass: asset_server.load("map/hourglass.png"),
+            game_over: asset_server.load("map/game-over.png"),
         }
     }
 }

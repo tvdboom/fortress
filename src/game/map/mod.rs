@@ -17,7 +17,8 @@ impl Plugin for MapPlugin {
                     menu_panel,
                     resources_panel,
                     weapons_panel,
-                    start_game_panel.run_if(in_state(AppState::StartGame)),
+                    start_end_game_panel
+                        .run_if(in_state(AppState::StartGame).or(in_state(AppState::GameOver))),
                 ),
             );
     }
