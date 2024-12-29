@@ -6,20 +6,6 @@ use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::prelude::*;
 
 pub fn draw_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
-    commands.spawn((
-        Sprite {
-            image: asset_server.load("map/wall.png"),
-            custom_size: Some(WALL_SIZE),
-            ..default()
-        },
-        Transform::from_xyz(
-            -WEAPONS_PANEL_SIZE.x * 0.5,
-            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y - WALL_SIZE.y * 0.5,
-            0.1,
-        ),
-        Wall,
-    ));
-
     let weapon = Weapon::sentry_gun();
 
     let mut pos = -SIZE.x * 0.5;

@@ -9,8 +9,7 @@ pub struct WeaponPlugin;
 
 impl Plugin for WeaponPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::StartGame), draw_weapons)
-            .add_systems(OnEnter(AppState::Game), draw_weapons)
+        app.add_systems(OnEnter(AppState::Game), draw_weapons)
             .add_systems(
                 Update,
                 (spawn_bullets, move_bullets)

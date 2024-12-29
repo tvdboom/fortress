@@ -3,14 +3,9 @@ use crate::game::resources::{Player, WaveStats};
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
 
-pub fn new_game(
-    mut commands: Commands,
-    mut next_app_state: ResMut<NextState<AppState>>,
-    mut next_game_state: ResMut<NextState<GameState>>,
-) {
+pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
     commands.insert_resource(Player::default());
-    next_game_state.set(GameState::Running);
-    next_app_state.set(AppState::StartGame);
+    next_state.set(GameState::Running);
 }
 
 pub fn start_game(mut commands: Commands) {

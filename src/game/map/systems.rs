@@ -41,6 +41,20 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         Map,
     ));
 
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/wall.png"),
+            custom_size: Some(WALL_SIZE),
+            ..default()
+        },
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y - WALL_SIZE.y * 0.5,
+            0.1,
+        ),
+        Wall,
+    ));
+
     commands
         .spawn((
             Sprite {
@@ -190,7 +204,7 @@ pub fn resources_panel(
 
                 ui.scope_builder(
                     UiBuilder {
-                        invisible: *app_state.get() == AppState::Game,
+                        invisible: *app_state.get() != AppState::Game,
                         ..default()
                     },
                     |ui| {
@@ -381,11 +395,13 @@ pub fn start_end_game_panel(
 
 pub fn clear_map(
     mut commands: Commands,
+    weapon_q: Query<Entity, With<Weapon>>,
     bullet_q: Query<Entity, With<Bullet>>,
     enemy_q: Query<Entity, With<Enemy>>,
 ) {
+    weapon_q.iter().for_each(|w| commands.entity(w).despawn());
+    bullet_q.iter().for_each(|b| commands.entity(b).despawn());
     enemy_q
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());
-    bullet_q.iter().for_each(|b| commands.entity(b).despawn());
 }
