@@ -10,12 +10,14 @@ pub struct WeaponPlugin;
 
 impl Plugin for WeaponPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, draw_weapons)
-            .add_systems(
+        app.add_systems(
             Update,
-            (spawn_bullets, move_bullets)
-                .run_if(in_state(AppState::Game).and(in_state(GameState::Running))),
-        ).init_resource::<WeaponSettings>();
+            (
+                draw_weapons,
+                (spawn_bullets, move_bullets)
+                    .run_if(in_state(AppState::Game).and(in_state(GameState::Running))),
+            ),
+        )
+        .init_resource::<WeaponSettings>();
     }
 }
