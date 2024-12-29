@@ -23,8 +23,8 @@ pub fn draw_weapons(mut commands: Commands, player: Res<Player>, asset_server: R
     let weapon = Weapon::sentry_gun();
 
     let mut pos = -SIZE.x * 0.5;
-    for _ in 0..player.weapons.sentry_gun {
-        pos += MAP_SIZE.x / (player.weapons.sentry_gun + 1) as f32;
+    for _ in 0..player.weapons.sentry_gun.amount {
+        pos += MAP_SIZE.x / (player.weapons.sentry_gun.amount + 1) as f32;
 
         commands.spawn((
             Sprite {

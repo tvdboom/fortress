@@ -3,31 +3,14 @@ use super::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::Player;
-use crate::game::systems::{pause_game, resume_game};
-use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
+use crate::game::weapon::components::{Bullet, Weapon, WeaponType};
 use crate::game::{AppState, GameState};
+use crate::utils::{CustomUi, EnumDisplay};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{epaint, Response, RichText, Style, TextStyle, TextureId, Ui, WidgetText};
+use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
-
-trait CustomUi {
-    fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
-    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response;
-}
-
-impl CustomUi for Ui {
-    fn add_button(&mut self, text: impl Into<WidgetText>) -> Response {
-        self.add_sized([120., 40.], egui::Button::new(text))
-    }
-
-    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response {
-        self.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
-            id, size,
-        )))
-    }
-}
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -86,11 +69,10 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 pub fn menu_panel(
     mut contexts: EguiContexts,
-    vis_q: Query<&mut Visibility, With<PauseWrapper>>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    next_game_state: ResMut<NextState<GameState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
 ) {
     egui::TopBottomPanel::top("Menu")
         .exact_height(MENU_PANEL_SIZE.y)
@@ -120,8 +102,8 @@ pub fn menu_panel(
                             .clicked()
                         {
                             match game_state.get() {
-                                GameState::Running => pause_game(vis_q, next_game_state),
-                                GameState::Paused => resume_game(vis_q, next_game_state),
+                                GameState::Running => next_game_state.set(GameState::Paused),
+                                GameState::Paused => next_game_state.set(GameState::Running),
                             }
                         }
                     });
@@ -135,12 +117,20 @@ pub fn menu_panel(
         });
 }
 
-pub fn resources_panel(mut contexts: EguiContexts, player: Res<Player>, images: Local<Images>) {
+pub fn resources_panel(
+    mut contexts: EguiContexts,
+    app_state: Res<State<AppState>>,
+    player: Res<Player>,
+    images: Local<Images>,
+) {
     let day_texture = contexts.add_image(images.day.clone_weak());
     let fortress_texture = contexts.add_image(images.fortress.clone_weak());
     let bullets_texture = contexts.add_image(images.bullets.clone_weak());
     let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
     let materials_texture = contexts.add_image(images.materials.clone_weak());
+    let spot_texture = contexts.add_image(images.spot.clone_weak());
+    let hourglass_texture = contexts.add_image(images.hourglass.clone_weak());
+    let clock_texture = contexts.add_image(images.clock.clone_weak());
 
     egui::TopBottomPanel::bottom("Resources")
         .exact_height(RESOURCES_PANEL_SIZE.y)
@@ -187,6 +177,36 @@ pub fn resources_panel(mut contexts: EguiContexts, player: Res<Player>, images: 
 
                 ui.add_image(materials_texture, [20., 20.]);
                 ui.add(egui::Label::new(player.resources.materials.to_string()));
+
+                ui.add_space(5.);
+                ui.separator();
+                ui.add_space(5.);
+
+                ui.add_image(spot_texture, [20., 20.]);
+                ui.add(egui::Label::new(format!(
+                    "{} / {}",
+                    player.weapons.sentry_gun.amount, player.wall.max_spots
+                )));
+
+                ui.scope_builder(
+                    UiBuilder {
+                        invisible: *app_state.get() == AppState::Game,
+                        ..default()
+                    },
+                    |ui| {
+                        ui.add_space(5.);
+                        ui.separator();
+                        ui.add_space(5.);
+
+                        ui.add_image(hourglass_texture, [20., 20.]);
+                        ui.add(egui::Label::new("time"));
+
+                        ui.add_space(15.);
+
+                        ui.add_image(clock_texture, [20., 20.]);
+                        ui.add(egui::Label::new(format!("{}x", player.speed)));
+                    },
+                );
             });
         });
 }
@@ -194,7 +214,7 @@ pub fn resources_panel(mut contexts: EguiContexts, player: Res<Player>, images: 
 pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    mut settings: ResMut<WeaponSettings>,
+    player: ResMut<Player>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
@@ -221,10 +241,13 @@ pub fn weapons_panel(
                 ui.horizontal(|ui| {
                     ui.add(egui::Label::new("Sentry gun: "));
 
+                    let mut fr = player.weapons.sentry_gun.fire_rate;
+
                     let fire_rate = ui
                         .add(egui::Slider::new(
-                            &mut settings.sentry_gun_fire_rate_value,
-                            0..=5,
+                            &mut fr,
+                            player.weapons.sentry_gun.fire_rate_min
+                                ..=player.weapons.sentry_gun.fire_rate_max,
                         ))
                         .on_hover_text(
                             "Fire rate of the sentry guns. Shoots N bullets per second.",
@@ -233,9 +256,9 @@ pub fn weapons_panel(
                     if fire_rate.dragged() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| w.name == "Sentry gun")
+                            .filter(|w| w.name == WeaponType::SentryGun)
                             .for_each(|mut w| {
-                                w.fire_rate = match settings.sentry_gun_fire_rate_value as f32 {
+                                w.fire_rate = match player.weapons.sentry_gun.fire_rate as f32 {
                                     0. => None,
                                     v => Some(Timer::from_seconds(1. / v, TimerMode::Repeating)),
                                 };
@@ -325,7 +348,7 @@ pub fn start_end_game_panel(
                                         .get(&player.day)
                                         .unwrap()
                                         .enemies.iter().for_each(|(k, v)| {
-                                            ui.label(k);
+                                            ui.label(k.name());
                                             ui.label(format!("{} / {}", v.killed, v.spawned));
                                             ui.end_row();
                                         });

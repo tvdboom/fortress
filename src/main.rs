@@ -1,5 +1,7 @@
 mod game;
 mod systems;
+mod utils;
+
 use crate::game::map::constants::SIZE;
 use crate::game::GamePlugin;
 

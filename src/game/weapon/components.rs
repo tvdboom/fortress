@@ -1,17 +1,9 @@
 use crate::game::resources::Resources;
 use bevy::prelude::*;
 
-#[derive(Resource)]
-pub struct WeaponSettings {
-    pub sentry_gun_fire_rate_value: u8,
-}
-
-impl Default for WeaponSettings {
-    fn default() -> Self {
-        Self {
-            sentry_gun_fire_rate_value: 1,
-        }
-    }
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum WeaponType {
+    SentryGun,
 }
 
 #[derive(Component, Clone)]
@@ -27,7 +19,7 @@ pub struct Bullet {
 
 #[derive(Component, Clone)]
 pub struct Weapon {
-    pub name: String,
+    pub name: WeaponType,
     pub image: String,
     pub size: Vec2,
     pub price: Resources,
@@ -39,7 +31,7 @@ pub struct Weapon {
 impl Weapon {
     pub fn sentry_gun() -> Self {
         Self {
-            name: "Sentry gun".to_string(),
+            name: WeaponType::SentryGun,
             image: "weapon/sentry-gun.png".to_string(),
             size: Vec2::new(110., 110.),
             price: Resources {

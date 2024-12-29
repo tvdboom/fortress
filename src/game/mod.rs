@@ -18,7 +18,9 @@ impl Plugin for GamePlugin {
         app.add_plugins((MapPlugin, EnemyPlugin, WeaponPlugin))
             .add_systems(OnEnter(AppState::StartGame), new_game)
             .add_systems(OnEnter(AppState::Game), start_game)
-            .add_systems(Update, toggle_pause.run_if(in_state(AppState::Game)))
+            .add_systems(OnEnter(GameState::Paused), pause_game)
+            .add_systems(OnEnter(GameState::Running), unpause_game)
+            .add_systems(Update, check_keys)
             .init_state::<AppState>()
             .init_state::<GameState>();
     }

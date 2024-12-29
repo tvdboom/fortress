@@ -1,11 +1,18 @@
 use bevy::prelude::*;
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum EnemyType {
+    Walker,
+    Runner,
+    Dragon,
+}
+
 #[derive(Component)]
 pub struct EnemyHealth;
 
 #[derive(Component, Clone)]
 pub struct Enemy {
-    pub name: String,
+    pub name: EnemyType,
     pub image: String,
     pub max_health: u32,
     pub health: u32,
@@ -17,7 +24,7 @@ pub struct Enemy {
 impl Enemy {
     pub fn walker() -> Self {
         Self {
-            name: "Walker".to_string(),
+            name: EnemyType::Walker,
             image: "enemy/walker.png".to_string(),
             max_health: 20,
             health: 20,
@@ -29,7 +36,7 @@ impl Enemy {
 
     pub fn runner() -> Self {
         Self {
-            name: "Runner".to_string(),
+            name: EnemyType::Runner,
             image: "enemy/runner.png".to_string(),
             max_health: 10,
             health: 10,
@@ -41,7 +48,7 @@ impl Enemy {
 
     pub fn dragon() -> Self {
         Self {
-            name: "Dragon".to_string(),
+            name: EnemyType::Dragon,
             image: "enemy/dragon.png".to_string(),
             max_health: 50,
             health: 50,

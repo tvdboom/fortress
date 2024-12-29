@@ -17,32 +17,35 @@ pub fn start_game(mut commands: Commands) {
     commands.insert_resource(WaveStats::default())
 }
 
-pub fn pause_game(
-    mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
+pub fn pause_game(mut vis_q: Query<&mut Visibility, With<PauseWrapper>>) {
     *vis_q.single_mut() = Visibility::Visible;
-    next_state.set(GameState::Paused);
 }
 
-pub fn resume_game(
-    mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    *vis_q.single_mut() = Visibility::Hidden;
-    next_state.set(GameState::Running);
+pub fn unpause_game(mut vis_q: Query<&mut Visibility, With<PauseWrapper>>) {
+    if let Ok(mut e) = vis_q.get_single_mut() {
+        *e = Visibility::Hidden;
+    }
 }
 
-pub fn toggle_pause(
-    vis_q: Query<&mut Visibility, With<PauseWrapper>>,
+pub fn check_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
+    app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
-    next_state: ResMut<NextState<GameState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard.just_pressed(KeyCode::Space) {
+    if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+        if keyboard.just_pressed(KeyCode::KeyN) {
+            next_app_state.set(AppState::StartGame);
+        } else if keyboard.just_pressed(KeyCode::KeyQ) {
+            std::process::exit(0);
+        }
+    }
+
+    if keyboard.just_pressed(KeyCode::Space) && *app_state.get() == AppState::Game {
         match game_state.get() {
-            GameState::Running => pause_game(vis_q, next_state),
-            GameState::Paused => resume_game(vis_q, next_state),
+            GameState::Running => next_game_state.set(GameState::Paused),
+            GameState::Paused => next_game_state.set(GameState::Running),
         }
     }
 }
