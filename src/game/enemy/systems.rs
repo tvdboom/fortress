@@ -98,6 +98,7 @@ pub fn move_enemies(
                     .stats
                     .entry(wave_stats.day)
                     .or_insert(wave_stats.clone());
+
                 next_state.set(AppState::GameOver);
             }
         } else {

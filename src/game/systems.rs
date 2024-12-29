@@ -1,6 +1,21 @@
 use crate::game::components::PauseWrapper;
-use crate::game::GameState;
+use crate::game::resources::{Player, WaveStats};
+use crate::game::{AppState, GameState};
 use bevy::prelude::*;
+
+pub fn new_game(
+    mut commands: Commands,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut next_game_state: ResMut<NextState<GameState>>,
+) {
+    commands.insert_resource(Player::default());
+    next_game_state.set(GameState::Running);
+    next_app_state.set(AppState::StartGame);
+}
+
+pub fn start_game(mut commands: Commands) {
+    commands.insert_resource(WaveStats::default())
+}
 
 pub fn pause_game(
     mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,

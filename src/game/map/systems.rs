@@ -1,9 +1,10 @@
 use super::components::*;
 use super::constants::*;
 use crate::game::components::*;
+use crate::game::enemy::components::Enemy;
 use crate::game::resources::Player;
 use crate::game::systems::{pause_game, resume_game};
-use crate::game::weapon::components::{Weapon, WeaponSettings};
+use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
 use crate::game::{AppState, GameState};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
@@ -40,10 +41,8 @@ pub fn set_style(mut contexts: EguiContexts) {
     catppuccin_egui::set_theme(context, catppuccin_egui::FRAPPE);
 }
 
-pub fn setup_map(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
+pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
-
-    // Spawn background images ======================================= >>
 
     commands.spawn((
         Sprite {
@@ -58,22 +57,6 @@ pub fn setup_map(mut commands: Commands, player: Res<Player>, asset_server: Res<
         ),
         Map,
     ));
-
-    commands.spawn((
-        Sprite {
-            image: asset_server.load("map/wall.png"),
-            custom_size: Some(WALL_SIZE),
-            ..default()
-        },
-        Transform::from_xyz(
-            -WEAPONS_PANEL_SIZE.x * 0.5,
-            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y - WALL_SIZE.y * 0.5,
-            0.1,
-        ),
-        Wall,
-    ));
-
-    // Spawn hidden pause banner ===================================== >>
 
     commands
         .spawn((
@@ -99,29 +82,6 @@ pub fn setup_map(mut commands: Commands, player: Res<Player>, asset_server: Res<
                 PauseText,
             ));
         });
-
-    // Spawn weapons ================================================= >>
-
-    let weapon = Weapon::sentry_gun();
-
-    let mut pos = -SIZE.x * 0.5;
-    for _ in 0..player.weapons.sentry_gun {
-        pos += MAP_SIZE.x / (player.weapons.sentry_gun + 1) as f32;
-
-        commands.spawn((
-            Sprite {
-                image: asset_server.load(&weapon.image),
-                custom_size: Some(weapon.size),
-                ..default()
-            },
-            Transform::from_xyz(
-                pos,
-                -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
-                2.0,
-            ),
-            weapon.clone(),
-        ));
-    }
 }
 
 pub fn menu_panel(
@@ -129,7 +89,8 @@ pub fn menu_panel(
     vis_q: Query<&mut Visibility, With<PauseWrapper>>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
-    next_state: ResMut<NextState<GameState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    next_game_state: ResMut<NextState<GameState>>,
 ) {
     egui::TopBottomPanel::top("Menu")
         .exact_height(MENU_PANEL_SIZE.y)
@@ -138,7 +99,7 @@ pub fn menu_panel(
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "Game", |ui| {
                         if ui.button("New game").clicked() {
-                            todo!();
+                            next_app_state.set(AppState::StartGame);
                         }
                         if ui.button("Load game").clicked() {
                             todo!();
@@ -159,8 +120,8 @@ pub fn menu_panel(
                             .clicked()
                         {
                             match game_state.get() {
-                                GameState::Running => pause_game(vis_q, next_state),
-                                GameState::Paused => resume_game(vis_q, next_state),
+                                GameState::Running => pause_game(vis_q, next_game_state),
+                                GameState::Paused => resume_game(vis_q, next_game_state),
                             }
                         }
                     });
@@ -377,7 +338,7 @@ pub fn start_end_game_panel(
                             ui.add_space(170.);
 
                             if ui.add_button("New game").clicked() {
-                                todo!();
+                                next_state.set(AppState::StartGame);
                             }
 
                             ui.add_space(20.);
@@ -393,4 +354,15 @@ pub fn start_end_game_panel(
                 ui.add_space(10.);
             });
         });
+}
+
+pub fn clear_map(
+    mut commands: Commands,
+    bullet_q: Query<Entity, With<Bullet>>,
+    enemy_q: Query<Entity, With<Enemy>>,
+) {
+    enemy_q
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
+    bullet_q.iter().for_each(|b| commands.entity(b).despawn());
 }

@@ -1,8 +1,46 @@
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::Map;
+use crate::game::map::components::{Map, Wall};
+use crate::game::map::constants::*;
 use crate::game::resources::{Player, WaveStats};
 use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::prelude::*;
+
+pub fn draw_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/wall.png"),
+            custom_size: Some(WALL_SIZE),
+            ..default()
+        },
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y - WALL_SIZE.y * 0.5,
+            0.1,
+        ),
+        Wall,
+    ));
+
+    let weapon = Weapon::sentry_gun();
+
+    let mut pos = -SIZE.x * 0.5;
+    for _ in 0..player.weapons.sentry_gun {
+        pos += MAP_SIZE.x / (player.weapons.sentry_gun + 1) as f32;
+
+        commands.spawn((
+            Sprite {
+                image: asset_server.load(&weapon.image),
+                custom_size: Some(weapon.size),
+                ..default()
+            },
+            Transform::from_xyz(
+                pos,
+                -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
+                2.0,
+            ),
+            weapon.clone(),
+        ));
+    }
+}
 
 pub fn spawn_bullets(
     mut commands: Commands,
