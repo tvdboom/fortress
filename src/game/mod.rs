@@ -7,6 +7,7 @@ pub mod weapon;
 
 use crate::game::enemy::EnemyPlugin;
 use crate::game::map::MapPlugin;
+use crate::game::resources::GameSettings;
 use crate::game::systems::*;
 use crate::game::weapon::WeaponPlugin;
 use bevy::prelude::*;
@@ -22,7 +23,8 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(GameState::Running), unpause_game)
             .add_systems(Update, check_keys)
             .init_state::<AppState>()
-            .init_state::<GameState>();
+            .init_state::<GameState>()
+            .init_resource::<GameSettings>();
     }
 }
 

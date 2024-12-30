@@ -1,10 +1,12 @@
 use crate::game::components::PauseWrapper;
 use crate::game::resources::{Player, WaveStats};
+use crate::game::weapon::components::WeaponSettings;
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
 
 pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
     commands.insert_resource(Player::default());
+    commands.insert_resource(WeaponSettings::default());
     next_state.set(GameState::Running);
 }
 

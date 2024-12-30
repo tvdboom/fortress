@@ -1,6 +1,18 @@
 use crate::game::enemy::components::EnemyType;
+use crate::game::weapon::components::WeaponId;
 use bevy::prelude::Resource;
 use bevy::utils::hashbrown::HashMap;
+
+#[derive(Resource)]
+pub struct GameSettings {
+    pub speed: f32,
+}
+
+impl Default for GameSettings {
+    fn default() -> Self {
+        Self { speed: 1. }
+    }
+}
 
 #[derive(Clone)]
 pub struct Resources {
@@ -19,17 +31,6 @@ impl Default for Resources {
     }
 }
 
-pub struct SentryGunSettings {
-    pub amount: u32,
-    pub fire_rate: u32,
-    pub fire_rate_min: u32,
-    pub fire_rate_max: u32,
-}
-
-pub struct WeaponSettings {
-    pub sentry_gun: SentryGunSettings,
-}
-
 pub struct Wall {
     pub max_health: u32,
     pub health: u32,
@@ -39,10 +40,9 @@ pub struct Wall {
 #[derive(Resource)]
 pub struct Player {
     pub day: u32,
-    pub speed: f32,
     pub resources: Resources,
     pub wall: Wall,
-    pub weapons: WeaponSettings,
+    pub weapons: Vec<Option<WeaponId>>,
     pub stats: HashMap<u32, WaveStats>,
 }
 
@@ -50,25 +50,23 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             day: 1,
-            speed: 1.,
             resources: Resources {
-                bullets: 1000,
-                gasoline: 1000,
-                materials: 1000,
+                bullets: 1_000,
+                gasoline: 1_000,
+                materials: 1_000,
             },
             wall: Wall {
                 max_health: 1_000,
                 health: 1_000,
                 max_spots: 5,
             },
-            weapons: WeaponSettings {
-                sentry_gun: SentryGunSettings {
-                    amount: 2,
-                    fire_rate: 1,
-                    fire_rate_min: 0,
-                    fire_rate_max: 5,
-                },
-            },
+            weapons: vec![
+                None,
+                Some(WeaponId::SentryGun),
+                None,
+                Some(WeaponId::SentryGun),
+                None,
+            ],
             stats: HashMap::default(),
         }
     }

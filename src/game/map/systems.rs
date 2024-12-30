@@ -2,8 +2,8 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::Player;
-use crate::game::weapon::components::{Bullet, Weapon, WeaponType};
+use crate::game::resources::{GameSettings, Player};
+use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
 use crate::game::{AppState, GameState};
 use crate::utils::{CustomUi, EnumDisplay};
 use bevy::color::palettes::basic::WHITE;
@@ -135,6 +135,7 @@ pub fn resources_panel(
     mut contexts: EguiContexts,
     app_state: Res<State<AppState>>,
     player: Res<Player>,
+    mut settings: ResMut<GameSettings>,
     images: Local<Images>,
 ) {
     let day_texture = contexts.add_image(images.day.clone_weak());
@@ -152,14 +153,15 @@ pub fn resources_panel(
             ui.horizontal_centered(|ui| {
                 ui.add_space(5.);
 
-                ui.add_image(day_texture, [20., 20.]);
+                ui.add_image(day_texture, [20., 20.]).on_hover_text("Day");
                 ui.add(egui::Label::new(player.day.to_string()));
 
                 ui.add_space(5.);
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add_image(fortress_texture, [20., 20.]);
+                ui.add_image(fortress_texture, [20., 20.])
+                    .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(
                         player.wall.health as f32 / player.wall.max_health as f32,
@@ -179,27 +181,32 @@ pub fn resources_panel(
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add_image(bullets_texture, [20., 20.]);
+                ui.add_image(bullets_texture, [20., 20.])
+                    .on_hover_text("Bullets");
                 ui.add(egui::Label::new(player.resources.bullets.to_string()));
 
                 ui.add_space(15.);
 
-                ui.add_image(gasoline_texture, [20., 20.]);
+                ui.add_image(gasoline_texture, [20., 20.])
+                    .on_hover_text("Gasoline");
                 ui.add(egui::Label::new(player.resources.gasoline.to_string()));
 
                 ui.add_space(15.);
 
-                ui.add_image(materials_texture, [20., 20.]);
+                ui.add_image(materials_texture, [20., 20.])
+                    .on_hover_text("Materials");
                 ui.add(egui::Label::new(player.resources.materials.to_string()));
 
                 ui.add_space(5.);
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add_image(spot_texture, [20., 20.]);
+                ui.add_image(spot_texture, [20., 20.])
+                    .on_hover_text("Occupied / Total spots on wall");
                 ui.add(egui::Label::new(format!(
                     "{} / {}",
-                    player.weapons.sentry_gun.amount, player.wall.max_spots
+                    player.weapons.iter().filter(|&x| x.is_some()).count(),
+                    player.wall.max_spots
                 )));
 
                 ui.scope_builder(
@@ -212,13 +219,21 @@ pub fn resources_panel(
                         ui.separator();
                         ui.add_space(5.);
 
-                        ui.add_image(hourglass_texture, [20., 20.]);
+                        ui.add_image(hourglass_texture, [20., 20.])
+                            .on_hover_text("Remaining night time");
                         ui.add(egui::Label::new("time"));
 
                         ui.add_space(15.);
 
-                        ui.add_image(clock_texture, [20., 20.]);
-                        ui.add(egui::Label::new(format!("{}x", player.speed)));
+                        ui.add_image(clock_texture, [20., 20.])
+                            .on_hover_text("Game speed");
+                        ui.add(
+                            egui::DragValue::new(&mut settings.speed)
+                                .range(0..=3)
+                                .fixed_decimals(1)
+                                .speed(0.5)
+                                .suffix("x"),
+                        );
                     },
                 );
             });
@@ -228,7 +243,7 @@ pub fn resources_panel(
 pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    player: ResMut<Player>,
+    mut weapon_settings: ResMut<WeaponSettings>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
@@ -252,33 +267,27 @@ pub fn weapons_panel(
                 ui.separator();
                 ui.add_space(5.);
 
+                // Sentry gun
                 ui.horizontal(|ui| {
-                    ui.add(egui::Label::new("Sentry gun: "));
+                    let settings = weapon_settings
+                        .as_mut()
+                        .get_params_mut(&WeaponId::SentryGun);
 
-                    let mut fr = player.weapons.sentry_gun.fire_rate;
+                    ui.add(egui::Label::new(format!("{}: ", settings.name)));
 
-                    let fire_rate = ui
-                        .add(egui::Slider::new(
-                            &mut fr,
-                            player.weapons.sentry_gun.fire_rate_min
-                                ..=player.weapons.sentry_gun.fire_rate_max,
-                        ))
-                        .on_hover_text(
-                            "Fire rate of the sentry guns. Shoots N bullets per second.",
-                        );
+                    let sentry_gun_slider = ui.add(egui::Slider::new(
+                        &mut settings.fire_rate,
+                        0..=settings.max_fire_rate,
+                    ))
+                    .on_hover_text("Sentry guns shoot N bullets per second.");
 
-                    if fire_rate.dragged() {
+                    if sentry_gun_slider.dragged() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| w.name == WeaponType::SentryGun)
-                            .for_each(|mut w| {
-                                w.fire_rate = match player.weapons.sentry_gun.fire_rate as f32 {
-                                    0. => None,
-                                    v => Some(Timer::from_seconds(1. / v, TimerMode::Repeating)),
-                                };
-                            });
+                            .filter(|w| w.id == WeaponId::SentryGun)
+                            .for_each(|mut w| w.as_mut().update(&*weapon_settings))
                     }
-                })
+                });
             });
         });
 }
@@ -343,7 +352,7 @@ pub fn start_end_game_panel(
                     AppState::GameOver => {
                         ui.add_image(game_over_texture,[400., 100.]);
 
-                        ui.heading(format!("You survived {} days!", player.day));
+                        ui.heading(format!("You survived {} days!", player.day - 1));
 
                         ui.add_space(30.);
 
