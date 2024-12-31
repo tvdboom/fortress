@@ -1,7 +1,7 @@
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
-use crate::game::map::constants::*;
-use crate::game::resources::{GameSettings, Player, WaveStats};
+use crate::constants::*;
+use crate::game::resources::{GameSettings, Player, NightStats};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
 use bevy::prelude::*;
 
@@ -48,7 +48,7 @@ pub fn spawn_bullets(
     mut weapon_q: Query<(&Transform, &mut Weapon)>,
     enemy_q: Query<&Transform, With<Enemy>>,
     map_q: Query<&Sprite, With<Map>>,
-    mut wave_stats: ResMut<WaveStats>,
+    mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     time: Res<Time>,
     weapon_settings: Res<WeaponSettings>,
@@ -105,8 +105,8 @@ pub fn spawn_bullets(
                             bullet,
                         ));
 
-                        wave_stats.resources.bullets += params.fire_cost.bullets;
-                        wave_stats.resources.gasoline += params.fire_cost.gasoline;
+                        night_stats.resources.bullets += params.fire_cost.bullets;
+                        night_stats.resources.gasoline += params.fire_cost.gasoline;
                         player.resources.bullets -= params.fire_cost.bullets;
                         player.resources.gasoline -= params.fire_cost.gasoline;
                     }
@@ -123,7 +123,7 @@ pub fn move_bullets(
     map_q: Query<&Sprite, With<Map>>,
     time: Res<Time>,
     settings: Res<GameSettings>,
-    mut wave_stats: ResMut<WaveStats>,
+    mut night_stats: ResMut<NightStats>,
     window: Single<&Window>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
@@ -159,7 +159,7 @@ pub fn move_bullets(
                 if enemy.health <= bullet.damage {
                     commands.entity(enemy_entity).despawn_recursive();
 
-                    wave_stats
+                    night_stats
                         .enemies
                         .entry(enemy.name.clone())
                         .and_modify(|status| status.killed += 1);

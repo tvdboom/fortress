@@ -1,11 +1,11 @@
 use super::components::*;
-use super::constants::*;
+use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{GameSettings, Player, WaveStats};
+use crate::game::resources::{GameSettings, Player, NightStats};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
 use crate::game::{AppState, GameState};
-use crate::utils::{CustomUi, EnumDisplay};
+use crate::utils::{scale_duration, CustomUi, EnumDisplay};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
@@ -138,7 +138,7 @@ pub fn resources_panel(
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<GameState>>,
     player: Res<Player>,
-    mut wave_stats: ResMut<WaveStats>,
+    mut night_stats: ResMut<NightStats>,
     time: Res<Time>,
     mut game_settings: ResMut<GameSettings>,
     images: Local<Images>,
@@ -221,12 +221,12 @@ pub fn resources_panel(
                         ui.add_space(5.);
                         ui.separator();
 
-                        ui.add_space(180.);
+                        ui.add_space(165.);
 
                         ui.add_image(hourglass_texture, [20., 20.])
                             .on_hover_text("Remaining night time");
-                        wave_stats.time.tick(scale_duration(time.delta() * game_settings.speed));
-                        ui.add(egui::Label::new(format!("{}s", wave_stats.time.remaining().as_secs())));
+                        night_stats.timer.tick(scale_duration(time.delta(), game_settings.speed));
+                        ui.add(egui::Label::new(format!("{}s", night_stats.timer.remaining().as_secs())));
 
                         ui.add_space(15.);
 
@@ -379,7 +379,7 @@ pub fn start_end_game_panel(
 
                         ui.horizontal(|ui| {
                             ui.add_space(200.);
-                            egui::Grid::new("wave stats")
+                            egui::Grid::new("night stats")
                                 .num_columns(2)
                                 .spacing([40.0, 4.0])
                                 .striped(true)

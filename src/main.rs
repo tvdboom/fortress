@@ -1,8 +1,9 @@
 mod game;
 mod systems;
 mod utils;
+pub mod constants;
 
-use crate::game::map::constants::SIZE;
+use constants::SIZE;
 use crate::game::GamePlugin;
 
 use crate::systems::set_window_icon;

@@ -1,7 +1,7 @@
 use super::components::*;
 use crate::game::map::components::*;
-use crate::game::map::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::resources::{EnemyStatus, GameSettings, Player, WaveStats};
+use crate::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::game::resources::{EnemyStatus, GameSettings, Player, NightStats};
 use crate::game::AppState;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
@@ -12,11 +12,16 @@ use rand::prelude::*;
 
 pub fn spawn_enemies(
     mut commands: Commands,
-    mut wave_stats: ResMut<WaveStats>,
+    mut night_stats: ResMut<NightStats>,
     asset_server: Res<AssetServer>,
 ) {
+    // Stop spawning enemies when the night timer has finished
+    if night_stats.timer.finished() {
+        return
+    }
+
     let mut rng = thread_rng();
-    let enemy = match rng.gen_range(0..1000) * wave_stats.day {
+    let enemy = match rng.gen_range(0..1000) * night_stats.day {
         800..950 => Enemy::walker(),
         950..990 => Enemy::runner(),
         990..1000 => Enemy::dragon(),
@@ -63,7 +68,7 @@ pub fn spawn_enemies(
                 });
         });
 
-    wave_stats
+    night_stats
         .enemies
         .entry(enemy.name.clone())
         .and_modify(|status| status.spawned += 1)
@@ -77,7 +82,7 @@ pub fn move_enemies(
     mut enemy_q: Query<(&mut Transform, &Enemy)>,
     wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
-    wave_stats: Res<WaveStats>,
+    night_stats: Res<NightStats>,
     settings: Res<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
@@ -98,8 +103,8 @@ pub fn move_enemies(
                 player.wall.health = 0.;
                 player
                     .stats
-                    .entry(wave_stats.day)
-                    .or_insert(wave_stats.clone());
+                    .entry(night_stats.day)
+                    .or_insert(night_stats.clone());
 
                 next_state.set(AppState::GameOver);
             }

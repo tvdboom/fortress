@@ -1,5 +1,4 @@
 pub mod components;
-pub mod constants;
 pub mod systems;
 
 use crate::game::map::systems::*;

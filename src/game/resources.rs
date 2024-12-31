@@ -3,6 +3,7 @@ use crate::game::weapon::components::WeaponId;
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
+use crate::constants::NIGHT_DURATION;
 
 #[derive(Resource)]
 pub struct GameSettings {
@@ -44,7 +45,7 @@ pub struct Player {
     pub resources: Resources,
     pub wall: Wall,
     pub weapons: Vec<Option<WeaponId>>,
-    pub stats: HashMap<u32, WaveStats>,
+    pub stats: HashMap<u32, NightStats>,
 }
 
 impl Default for Player {
@@ -80,18 +81,18 @@ pub struct EnemyStatus {
 }
 
 #[derive(Resource, Clone)]
-pub struct WaveStats {
+pub struct NightStats {
     pub day: u32,
-    pub time: Timer,
+    pub timer: Timer,
     pub resources: Resources,
     pub enemies: HashMap<EnemyType, EnemyStatus>,
 }
 
-impl Default for WaveStats {
+impl Default for NightStats {
     fn default() -> Self {
         Self {
             day: 1,
-            time: Timer::from_seconds(60., TimerMode::Once),
+            timer: Timer::from_seconds(NIGHT_DURATION, TimerMode::Once),
             resources: Resources::default(),
             enemies: HashMap::default(),
         }
