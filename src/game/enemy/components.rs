@@ -18,7 +18,7 @@ pub struct Enemy {
     pub health: u32,
     pub size: Vec2,
     pub speed: f32,
-    pub damage: u32,
+    pub damage: f32,
 }
 
 impl Enemy {
@@ -30,7 +30,7 @@ impl Enemy {
             health: 20,
             size: Vec2::new(50., 50.),
             speed: 5.,
-            damage: 1,
+            damage: 1.,
         }
     }
 
@@ -42,7 +42,7 @@ impl Enemy {
             health: 10,
             size: Vec2::new(50., 50.),
             speed: 10.,
-            damage: 1,
+            damage: 1.,
         }
     }
 
@@ -54,7 +54,7 @@ impl Enemy {
             health: 50,
             size: Vec2::new(70., 70.),
             speed: 2.5,
-            damage: 2,
+            damage: 2.,
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::game::resources::Resources;
+use crate::game::resources::{GameSettings, Resources};
 use bevy::prelude::*;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -13,20 +13,26 @@ pub struct Weapon {
 }
 
 impl Weapon {
-    pub fn new(id: &WeaponId) -> Self {
+    pub fn new(id: &WeaponId, game_settings: &GameSettings) -> Self {
         Self {
             id: id.clone(),
-            fire_timer: Some(Timer::from_seconds(1., TimerMode::Repeating)),
+            fire_timer: Some(Timer::from_seconds(
+                game_settings.speed,
+                TimerMode::Repeating,
+            )),
         }
     }
 
-    pub fn update(&mut self, settings: &WeaponSettings) {
-        let params = settings.get_params(&self.id);
+    pub fn update(&mut self, weapon_settings: &WeaponSettings, game_settings: &GameSettings) {
+        let params = weapon_settings.get_params(&self.id);
         match self.id {
             WeaponId::SentryGun => {
                 self.fire_timer = match params.fire_rate {
                     0 => None,
-                    v => Some(Timer::from_seconds(1. / v as f32, TimerMode::Repeating)),
+                    v => Some(Timer::from_seconds(
+                        1. / v as f32 / game_settings.speed,
+                        TimerMode::Repeating,
+                    )),
                 };
             }
         }

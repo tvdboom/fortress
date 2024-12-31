@@ -1,7 +1,7 @@
 use super::components::*;
 use crate::game::map::components::*;
 use crate::game::map::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::resources::{EnemyStatus, Player, WaveStats};
+use crate::game::resources::{EnemyStatus, GameSettings, Player, WaveStats};
 use crate::game::AppState;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
@@ -78,6 +78,7 @@ pub fn move_enemies(
     wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
     wave_stats: Res<WaveStats>,
+    settings: Res<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
 ) {
@@ -85,15 +86,16 @@ pub fn move_enemies(
     let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
     for (mut transform, enemy) in enemy_q.iter_mut() {
-        let new_pos = transform.translation.y - MAP_SIZE.y / 100. * enemy.speed * time.delta_secs();
+        let new_pos = transform.translation.y
+            - MAP_SIZE.y / 100. * enemy.speed * settings.speed * time.delta_secs();
 
         if new_pos < wall_y + 5. {
             transform.translation.y = wall_y + 5.;
 
             if player.wall.health > enemy.damage {
-                player.wall.health -= enemy.damage;
+                player.wall.health -= enemy.damage * settings.speed;
             } else {
-                player.wall.health = 0;
+                player.wall.health = 0.;
                 player
                     .stats
                     .entry(wave_stats.day)

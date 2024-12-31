@@ -1,7 +1,7 @@
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
 use crate::game::map::constants::*;
-use crate::game::resources::{Player, WaveStats};
+use crate::game::resources::{GameSettings, Player, WaveStats};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
 use bevy::prelude::*;
 
@@ -9,6 +9,7 @@ pub fn spawn_weapons(
     mut commands: Commands,
     player: Res<Player>,
     weapon_settings: Res<WeaponSettings>,
+    game_settings: Res<GameSettings>,
     asset_server: Res<AssetServer>,
 ) {
     let positions = player
@@ -22,8 +23,8 @@ pub fn spawn_weapons(
         if let Some(w) = weapon {
             let params = weapon_settings.get_params(w);
 
-            let mut component = Weapon::new(w);
-            component.update(&weapon_settings);
+            let mut component = Weapon::new(w, game_settings.as_ref());
+            component.update(&weapon_settings, game_settings.as_ref());
 
             commands.spawn((
                 Sprite {
@@ -121,16 +122,25 @@ pub fn move_bullets(
     mut enemy_q: Query<(&Transform, Entity, &mut Enemy), Without<Bullet>>,
     map_q: Query<&Sprite, With<Map>>,
     time: Res<Time>,
+    settings: Res<GameSettings>,
     mut wave_stats: ResMut<WaveStats>,
     window: Single<&Window>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (mut transform, entity, mut bullet) in bullet_q.iter_mut() {
-        let dx = map_height / 100. * bullet.speed * bullet.angle.cos() * time.delta_secs();
+        let dx = map_height / 100.
+            * bullet.speed
+            * bullet.angle.cos()
+            * settings.speed
+            * time.delta_secs();
         transform.translation.x += dx;
 
-        let dy = map_height / 100. * bullet.speed * bullet.angle.sin() * time.delta_secs();
+        let dy = map_height / 100.
+            * bullet.speed
+            * bullet.angle.sin()
+            * settings.speed
+            * time.delta_secs();
         transform.translation.y += dy;
 
         // Pythagoras to get distance traveled

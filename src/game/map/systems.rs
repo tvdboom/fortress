@@ -2,7 +2,7 @@ use super::components::*;
 use super::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{GameSettings, Player};
+use crate::game::resources::{GameSettings, Player, WaveStats};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
 use crate::game::{AppState, GameState};
 use crate::utils::{CustomUi, EnumDisplay};
@@ -133,9 +133,14 @@ pub fn menu_panel(
 
 pub fn resources_panel(
     mut contexts: EguiContexts,
+    mut weapon_q: Query<&mut Weapon>,
+    weapon_settings: ResMut<WeaponSettings>,
     app_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<GameState>>,
     player: Res<Player>,
-    mut settings: ResMut<GameSettings>,
+    mut wave_stats: ResMut<WaveStats>,
+    time: Res<Time>,
+    mut game_settings: ResMut<GameSettings>,
     images: Local<Images>,
 ) {
     let day_texture = contexts.add_image(images.day.clone_weak());
@@ -163,9 +168,7 @@ pub fn resources_panel(
                 ui.add_image(fortress_texture, [20., 20.])
                     .on_hover_text("Fortress strength");
                 ui.add(
-                    egui::ProgressBar::new(
-                        player.wall.health as f32 / player.wall.max_health as f32,
-                    )
+                    egui::ProgressBar::new(player.wall.health / player.wall.max_health)
                     .desired_width(200.)
                     .desired_height(20.)
                     .text(
@@ -217,23 +220,37 @@ pub fn resources_panel(
                     |ui| {
                         ui.add_space(5.);
                         ui.separator();
-                        ui.add_space(5.);
+
+                        ui.add_space(180.);
 
                         ui.add_image(hourglass_texture, [20., 20.])
                             .on_hover_text("Remaining night time");
-                        ui.add(egui::Label::new("time"));
+                        wave_stats.time.tick(scale_duration(time.delta() * game_settings.speed));
+                        ui.add(egui::Label::new(format!("{}s", wave_stats.time.remaining().as_secs())));
 
                         ui.add_space(15.);
 
                         ui.add_image(clock_texture, [20., 20.])
                             .on_hover_text("Game speed");
-                        ui.add(
-                            egui::DragValue::new(&mut settings.speed)
-                                .range(0..=3)
+                        let speed = ui.add(
+                            egui::DragValue::new(&mut game_settings.speed)
+                                .range(0..=5)
                                 .fixed_decimals(1)
                                 .speed(0.5)
                                 .suffix("x"),
                         );
+
+                        if speed.changed() {
+                            if game_settings.speed == 0. {
+                                next_state.set(GameState::Paused);
+                            } else {
+                                weapon_q.iter_mut().for_each(|mut w| {
+                                    w.as_mut()
+                                        .update(weapon_settings.as_ref(), game_settings.as_ref())
+                                });
+                                next_state.set(GameState::Running);
+                            }
+                        }
                     },
                 );
             });
@@ -244,6 +261,7 @@ pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
     mut weapon_settings: ResMut<WeaponSettings>,
+    game_settings: Res<GameSettings>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
@@ -275,17 +293,20 @@ pub fn weapons_panel(
 
                     ui.add(egui::Label::new(format!("{}: ", settings.name)));
 
-                    let sentry_gun_slider = ui.add(egui::Slider::new(
-                        &mut settings.fire_rate,
-                        0..=settings.max_fire_rate,
-                    ))
-                    .on_hover_text("Sentry guns shoot N bullets per second.");
+                    let sentry_gun_slider = ui
+                        .add(egui::Slider::new(
+                            &mut settings.fire_rate,
+                            0..=settings.max_fire_rate,
+                        ))
+                        .on_hover_text("Sentry guns shoot N bullets per second.");
 
                     if sentry_gun_slider.dragged() {
                         weapon_q
                             .iter_mut()
                             .filter(|w| w.id == WeaponId::SentryGun)
-                            .for_each(|mut w| w.as_mut().update(&*weapon_settings))
+                            .for_each(|mut w| {
+                                w.as_mut().update(weapon_settings.as_ref(), game_settings.as_ref())
+                            })
                     }
                 });
             });

@@ -10,8 +10,8 @@ pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameSta
     next_state.set(GameState::Running);
 }
 
-pub fn start_game(mut commands: Commands) {
-    commands.insert_resource(WaveStats::default())
+pub fn start_game(mut commands: Commands, player: Res<Player>) {
+    commands.insert_resource(WaveStats {day: player.day, ..default()})
 }
 
 pub fn pause_game(mut vis_q: Query<&mut Visibility, With<PauseWrapper>>) {
@@ -19,6 +19,7 @@ pub fn pause_game(mut vis_q: Query<&mut Visibility, With<PauseWrapper>>) {
 }
 
 pub fn unpause_game(mut vis_q: Query<&mut Visibility, With<PauseWrapper>>) {
+    // PauseWrapper not yet spawned at first iteration
     if let Ok(mut e) = vis_q.get_single_mut() {
         *e = Visibility::Hidden;
     }

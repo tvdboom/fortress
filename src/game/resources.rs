@@ -1,6 +1,7 @@
 use crate::game::enemy::components::EnemyType;
 use crate::game::weapon::components::WeaponId;
-use bevy::prelude::Resource;
+use bevy::prelude::{Resource, Timer};
+use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 
 #[derive(Resource)]
@@ -32,8 +33,8 @@ impl Default for Resources {
 }
 
 pub struct Wall {
-    pub max_health: u32,
-    pub health: u32,
+    pub max_health: f32,
+    pub health: f32,
     pub max_spots: u32,
 }
 
@@ -56,8 +57,8 @@ impl Default for Player {
                 materials: 1_000,
             },
             wall: Wall {
-                max_health: 1_000,
-                health: 1_000,
+                max_health: 1_000.,
+                health: 1_000.,
                 max_spots: 5,
             },
             weapons: vec![
@@ -81,6 +82,7 @@ pub struct EnemyStatus {
 #[derive(Resource, Clone)]
 pub struct WaveStats {
     pub day: u32,
+    pub time: Timer,
     pub resources: Resources,
     pub enemies: HashMap<EnemyType, EnemyStatus>,
 }
@@ -89,6 +91,7 @@ impl Default for WaveStats {
     fn default() -> Self {
         Self {
             day: 1,
+            time: Timer::from_seconds(60., TimerMode::Once),
             resources: Resources::default(),
             enemies: HashMap::default(),
         }
