@@ -49,7 +49,7 @@ pub fn check_keys(
         }
     }
 
-    if keyboard.just_pressed(KeyCode::Space) && *app_state.get() == AppState::Game {
+    if keyboard.just_pressed(KeyCode::Space) && *app_state.get() == AppState::Night {
         match game_state.get() {
             GameState::Running => next_game_state.set(GameState::Paused),
             GameState::Paused => next_game_state.set(GameState::Running),

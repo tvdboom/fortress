@@ -18,7 +18,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((MapPlugin, EnemyPlugin, WeaponPlugin))
             .add_systems(OnEnter(AppState::StartGame), new_game)
-            .add_systems(OnEnter(AppState::Game), start_game)
+            .add_systems(OnEnter(AppState::Night), start_game)
             .add_systems(OnEnter(GameState::Paused), pause_game)
             .add_systems(OnEnter(GameState::Running), unpause_game)
             .add_systems(Update, check_keys)
@@ -30,8 +30,8 @@ impl Plugin for GamePlugin {
 
 #[derive(States, Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
-    BuyMenu,
-    Game,
+    Day,
+    Night,
     GameOver,
     #[default]
     StartGame,

@@ -19,7 +19,7 @@ impl Plugin for EnemyPlugin {
                 move_enemies,
                 update_enemy_health_bars,
             )
-                .run_if(in_state(AppState::Game))
+                .run_if(in_state(AppState::Night))
                 .run_if(in_state(GameState::Running)),
         );
     }

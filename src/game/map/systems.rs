@@ -110,7 +110,7 @@ pub fn menu_panel(
                     egui::menu::menu_button(ui, "State", |ui| {
                         if ui
                             .add_enabled(
-                                *app_state.get() == AppState::Game,
+                                *app_state.get() == AppState::Night,
                                 egui::Button::new("Toggle pause"),
                             )
                             .clicked()
@@ -143,8 +143,12 @@ pub fn resources_panel(
     mut game_settings: ResMut<GameSettings>,
     images: Local<Images>,
 ) {
+    let day_night_texture = contexts.add_image(images.day_night.clone_weak());
     let day_texture = contexts.add_image(images.day.clone_weak());
+    let night_texture = contexts.add_image(images.night.clone_weak());
+    let person_texture = contexts.add_image(images.person.clone_weak());
     let fortress_texture = contexts.add_image(images.fortress.clone_weak());
+    let fence_texture = contexts.add_image(images.fence.clone_weak());
     let bullets_texture = contexts.add_image(images.bullets.clone_weak());
     let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
     let materials_texture = contexts.add_image(images.materials.clone_weak());
@@ -158,8 +162,12 @@ pub fn resources_panel(
             ui.horizontal_centered(|ui| {
                 ui.add_space(5.);
 
-                ui.add_image(day_texture, [20., 20.]).on_hover_text("Day");
-                ui.add(egui::Label::new(player.day.to_string()));
+                match app_state.get() {
+                    AppState::Night => {
+                        ui.add_image(day_texture, [20., 20.]).on_hover_text("Day");
+                        ui.add(egui::Label::new(player.day.to_string()));
+                    }
+                }
 
                 ui.add_space(5.);
                 ui.separator();
@@ -214,7 +222,7 @@ pub fn resources_panel(
 
                 ui.scope_builder(
                     UiBuilder {
-                        invisible: *app_state.get() != AppState::Game,
+                        invisible: *app_state.get() != AppState::Night,
                         ..default()
                     },
                     |ui| {
@@ -271,7 +279,7 @@ pub fn weapons_panel(
         .exact_width(WEAPONS_PANEL_SIZE.x)
         .resizable(false)
         .show(contexts.ctx_mut(), |ui| {
-            ui.add_enabled_ui(*app_state.get() == AppState::Game, |ui| {
+            ui.add_enabled_ui(*app_state.get() == AppState::Night, |ui| {
                 ui.add_space(5.);
                 ui.vertical_centered(|ui| {
                     ui.horizontal(|ui| {
@@ -367,7 +375,7 @@ pub fn start_end_game_panel(
                         ui.add_space(15.);
 
                         if ui.add_button("Start game").clicked() {
-                            next_state.set(AppState::Game);
+                            next_state.set(AppState::Night);
                         }
                     },
                     AppState::GameOver => {
