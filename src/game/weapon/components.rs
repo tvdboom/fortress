@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum WeaponId {
+    // Fence,
     SentryGun,
 }
 
@@ -63,12 +64,14 @@ pub struct WeaponParams {
 
 #[derive(Resource)]
 pub struct WeaponSettings {
+    // pub fence: bool,
     pub sentry_gun: WeaponParams,
 }
 
 impl WeaponSettings {
     pub fn get_params(&self, id: &WeaponId) -> &WeaponParams {
         match *id {
+            // WeaponId::Fence => &self.fence,
             WeaponId::SentryGun => &self.sentry_gun,
         }
     }
@@ -83,6 +86,7 @@ impl WeaponSettings {
 impl Default for WeaponSettings {
     fn default() -> Self {
         WeaponSettings {
+            // fence: false,
             sentry_gun: WeaponParams {
                 name: "Sentry gun".to_string(),
                 image: "weapon/sentry-gun.png".to_string(),

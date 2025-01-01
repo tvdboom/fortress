@@ -4,6 +4,8 @@ use bevy::prelude::*;
 pub enum EnemyType {
     Walker,
     Runner,
+    Ogre,
+    ArmoredOgre,
     Dragon,
 }
 
@@ -46,15 +48,39 @@ impl Enemy {
         }
     }
 
-    pub fn dragon() -> Self {
+    pub fn ogre() -> Self {
         Self {
-            name: EnemyType::Dragon,
-            image: "enemy/dragon.png".to_string(),
+            name: EnemyType::Ogre,
+            image: "enemy/ogre.png".to_string(),
             max_health: 50,
             health: 50,
             size: Vec2::new(70., 70.),
             speed: 2.5,
             damage: 2.,
+        }
+    }
+
+    pub fn armored_ogre() -> Self {
+        Self {
+            name: EnemyType::ArmoredOgre,
+            image: "enemy/ogre-armor.png".to_string(),
+            max_health: 80,
+            health: 80,
+            size: Vec2::new(70., 70.),
+            speed: 2.5,
+            damage: 3.,
+        }
+    }
+
+    pub fn dragon() -> Self {
+        Self {
+            name: EnemyType::Dragon,
+            image: "enemy/dragon.png".to_string(),
+            max_health: 150,
+            health: 150,
+            size: Vec2::new(90., 90.),
+            speed: 7.5,
+            damage: 5.,
         }
     }
 }

@@ -1,10 +1,10 @@
+pub mod constants;
 mod game;
 mod systems;
 mod utils;
-pub mod constants;
 
-use constants::SIZE;
 use crate::game::GamePlugin;
+use constants::SIZE;
 
 use crate::systems::set_window_icon;
 use bevy::prelude::*;

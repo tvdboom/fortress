@@ -1,7 +1,7 @@
+use crate::constants::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
-use crate::constants::*;
-use crate::game::resources::{GameSettings, Player, NightStats};
+use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
 use bevy::prelude::*;
 
@@ -124,7 +124,6 @@ pub fn move_bullets(
     time: Res<Time>,
     settings: Res<GameSettings>,
     mut night_stats: ResMut<NightStats>,
-    window: Single<&Window>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
@@ -171,9 +170,9 @@ pub fn move_bullets(
 
         // If the bullet traveled more than max distance or left map boundaries -> despawn
         if bullet.distance >= map_height / 100. * bullet.max_distance
-            || transform.translation.x < -window.width() * 0.5
-            || transform.translation.x > window.width() * 0.5
-            || transform.translation.y > window.height() * 0.5
+            || transform.translation.x < -SIZE.x * 0.5
+            || transform.translation.x > SIZE.x * 0.5
+            || transform.translation.y > SIZE.y * 0.5
         {
             commands.entity(entity).despawn();
         }

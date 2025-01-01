@@ -1,5 +1,5 @@
 use crate::game::components::PauseWrapper;
-use crate::game::resources::{Player, NightStats};
+use crate::game::resources::{NightStats, Player};
 use crate::game::weapon::components::WeaponSettings;
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
@@ -11,8 +11,18 @@ pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameSta
     next_state.set(GameState::Running);
 }
 
-pub fn start_game(mut commands: Commands, player: Res<Player>) {
-    commands.insert_resource(NightStats {day: player.day, ..default()})
+pub fn start_night(mut commands: Commands, player: Res<Player>) {
+    commands.insert_resource(NightStats {
+        day: player.day,
+        ..default()
+    })
+}
+
+pub fn end_night(mut player: ResMut<Player>, night_stats: Res<NightStats>) {
+    player
+        .stats
+        .entry(night_stats.day)
+        .or_insert(night_stats.clone());
 }
 
 pub fn pause_game(

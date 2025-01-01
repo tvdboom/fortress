@@ -2,10 +2,10 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{GameSettings, Player, NightStats};
+use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
 use crate::game::{AppState, GameState};
-use crate::utils::{scale_duration, CustomUi, EnumDisplay};
+use crate::utils::{scale_duration, CustomUi, EnumDisplay, toggle};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
@@ -24,7 +24,11 @@ pub fn set_style(mut contexts: EguiContexts) {
     catppuccin_egui::set_theme(context, catppuccin_egui::FRAPPE);
 }
 
-pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn draw_map(
+    mut commands: Commands,
+    player: Res<Player>,
+    asset_server: Res<AssetServer>,
+) {
     commands.spawn(Camera2d);
 
     commands.spawn((
@@ -40,6 +44,22 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         ),
         Map,
     ));
+
+    if player.fence.max_health > 0. {
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("map/fence3.png"),
+                custom_size: Some(Vec2::new(WALL_SIZE.x, WALL_SIZE.y * 0.4)),
+                ..default()
+            },
+            Transform::from_xyz(
+                -WEAPONS_PANEL_SIZE.x * 0.5,
+                SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.9,
+                0.1,
+            ),
+            Fence,
+        ));
+    }
 
     commands.spawn((
         Sprite {
@@ -162,31 +182,60 @@ pub fn resources_panel(
             ui.horizontal_centered(|ui| {
                 ui.add_space(5.);
 
-                match app_state.get() {
-                    AppState::Night => {
-                        ui.add_image(day_texture, [20., 20.]).on_hover_text("Day");
-                        ui.add(egui::Label::new(player.day.to_string()));
-                    }
-                }
+                match *app_state.get() {
+                    AppState::Night => ui
+                        .add_image(night_texture, [20., 20.])
+                        .on_hover_text("Night"),
+                    AppState::Day => ui.add_image(day_texture, [20., 20.]).on_hover_text("Day"),
+                    _ => ui
+                        .add_image(day_night_texture, [20., 20.])
+                        .on_hover_text("Day/Night"),
+                };
+                ui.add(egui::Label::new(player.day.to_string()));
 
                 ui.add_space(5.);
                 ui.separator();
                 ui.add_space(5.);
 
+                ui.add_image(person_texture, [20., 20.])
+                    .on_hover_text("Survivors");
+                ui.add(egui::Label::new(player.survivors.to_string()));
+
+                ui.add_space(15.);
+
                 ui.add_image(fortress_texture, [20., 20.])
                     .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(player.wall.health / player.wall.max_health)
-                    .desired_width(200.)
-                    .desired_height(20.)
-                    .text(
-                        RichText::new(format!(
-                            "{} / {}",
-                            player.wall.health, player.wall.max_health
-                        ))
-                        .size(NORMAL_FONT_SIZE),
-                    ),
+                        .desired_width(200.)
+                        .desired_height(20.)
+                        .text(
+                            RichText::new(format!(
+                                "{} / {}",
+                                player.wall.health, player.wall.max_health
+                            ))
+                            .size(NORMAL_FONT_SIZE),
+                        ),
                 );
+
+                if player.fence.max_health > 0. {
+                    ui.add_space(5.);
+
+                    ui.add_image(fence_texture, [20., 20.])
+                        .on_hover_text("Fence strength");
+                    ui.add(
+                        egui::ProgressBar::new(player.fence.health / player.fence.max_health)
+                            .desired_width(100.)
+                            .desired_height(20.)
+                            .text(
+                                RichText::new(format!(
+                                    "{} / {}",
+                                    player.fence.health, player.fence.max_health
+                                ))
+                                    .size(NORMAL_FONT_SIZE),
+                            ),
+                    );
+                }
 
                 ui.add_space(5.);
                 ui.separator();
@@ -229,12 +278,17 @@ pub fn resources_panel(
                         ui.add_space(5.);
                         ui.separator();
 
-                        ui.add_space(165.);
+                        // ui.add_space(135.);
 
                         ui.add_image(hourglass_texture, [20., 20.])
                             .on_hover_text("Remaining night time");
-                        night_stats.timer.tick(scale_duration(time.delta(), game_settings.speed));
-                        ui.add(egui::Label::new(format!("{}s", night_stats.timer.remaining().as_secs())));
+                        night_stats
+                            .timer
+                            .tick(scale_duration(time.delta(), game_settings.speed));
+                        ui.add(egui::Label::new(format!(
+                            "{}s",
+                            night_stats.timer.remaining().as_secs()
+                        )));
 
                         ui.add_space(15.);
 
@@ -274,6 +328,7 @@ pub fn weapons_panel(
     images: Local<Images>,
 ) {
     let weapon_texture = contexts.add_image(images.weapon.clone_weak());
+    let lightning_texture = contexts.add_image(images.lightning.clone_weak());
 
     egui::SidePanel::right("Weapons panel")
         .exact_width(WEAPONS_PANEL_SIZE.x)
@@ -283,7 +338,7 @@ pub fn weapons_panel(
                 ui.add_space(5.);
                 ui.vertical_centered(|ui| {
                     ui.horizontal(|ui| {
-                        ui.add_space(55.);
+                        ui.add_space(65.);
                         ui.add_image(weapon_texture, [30., 30.]);
                         ui.heading("Weapons");
                     });
@@ -313,15 +368,29 @@ pub fn weapons_panel(
                             .iter_mut()
                             .filter(|w| w.id == WeaponId::SentryGun)
                             .for_each(|mut w| {
-                                w.as_mut().update(weapon_settings.as_ref(), game_settings.as_ref())
+                                w.as_mut()
+                                    .update(weapon_settings.as_ref(), game_settings.as_ref())
                             })
                     }
                 });
+
+                // Fence
+                // ui.horizontal(|ui| {
+                //     let settings = weapon_settings
+                //         .as_mut()
+                //         .get_params_mut(&WeaponId::Fence);
+                //
+                //     ui.add(egui::Label::new("Enable electric fence: "));
+                //     ui.add(toggle(&mut settings.)).on_hover_text("Electric fence does damage to nearby standing enemies, but costs gasoline.");
+                //     if settings. {
+                //         ui.add_image(lightning_texture, [30., 30.]);
+                //     }
+                // })
             });
         });
 }
 
-pub fn start_end_game_panel(
+pub fn info_panel(
     mut contexts: EguiContexts,
     player: Res<Player>,
     app_state: Res<State<AppState>>,
@@ -330,7 +399,7 @@ pub fn start_end_game_panel(
 ) {
     let game_over_texture = contexts.add_image(images.game_over.clone_weak());
 
-    egui::Window::new("start/end game")
+    egui::Window::new("info panel")
         .title_bar(false)
         .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
         .fixed_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
@@ -376,6 +445,11 @@ pub fn start_end_game_panel(
 
                         if ui.add_button("Start game").clicked() {
                             next_state.set(AppState::Night);
+                        }
+                    },
+                    AppState::EndNight => {
+                        if ui.add_button("Continue").clicked() {
+                            std::process::exit(0);
                         }
                     },
                     AppState::GameOver => {

@@ -1,7 +1,7 @@
 use super::components::*;
+use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::map::components::*;
-use crate::constants::{MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::resources::{EnemyStatus, GameSettings, Player, NightStats};
+use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::AppState;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
@@ -12,18 +12,25 @@ use rand::prelude::*;
 
 pub fn spawn_enemies(
     mut commands: Commands,
+    enemy_q: Query<&Enemy>,
     mut night_stats: ResMut<NightStats>,
+    mut next_state: ResMut<NextState<AppState>>,
     asset_server: Res<AssetServer>,
 ) {
     // Stop spawning enemies when the night timer has finished
     if night_stats.timer.finished() {
-        return
+        if enemy_q.iter().count() == 0 {
+            next_state.set(AppState::EndNight);
+        }
+        return;
     }
 
     let mut rng = thread_rng();
     let enemy = match rng.gen_range(0..1000) * night_stats.day {
-        800..950 => Enemy::walker(),
-        950..990 => Enemy::runner(),
+        800..900 => Enemy::walker(),
+        900..950 => Enemy::runner(),
+        950..970 => Enemy::ogre(),
+        970..990 => Enemy::armored_ogre(),
         990..1000 => Enemy::dragon(),
         _ => return,
     };
@@ -79,37 +86,58 @@ pub fn spawn_enemies(
 }
 
 pub fn move_enemies(
-    mut enemy_q: Query<(&mut Transform, &Enemy)>,
-    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
+    mut commands: Commands,
+    mut enemy_q: Query<(Entity, &mut Transform, &Enemy)>,
+    fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
+    wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
-    night_stats: Res<NightStats>,
     settings: Res<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
 ) {
-    let (t, wall) = wall_q.iter().next().unwrap();
-    let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
-
-    for (mut transform, enemy) in enemy_q.iter_mut() {
+    for (enemy_entity, mut transform, enemy) in enemy_q.iter_mut() {
         let new_pos = transform.translation.y
             - MAP_SIZE.y / 100. * enemy.speed * settings.speed * time.delta_secs();
 
-        if new_pos < wall_y + 5. {
-            transform.translation.y = wall_y + 5.;
+        if player.fence.health > 0. {
+            let (entity, t, fence) = fence_q.iter().next().unwrap();
+            let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
 
-            if player.wall.health > enemy.damage {
-                player.wall.health -= enemy.damage * settings.speed;
+            if new_pos < fence_y + 5. {
+                transform.translation.y = fence_y + 5.;
+                if player.fence.health > enemy.damage {
+                    player.fence.health -= enemy.damage * settings.speed;
+                } else {
+                    player.fence.health = 0.;
+                    commands.entity(entity).despawn();
+                }
             } else {
-                player.wall.health = 0.;
-                player
-                    .stats
-                    .entry(night_stats.day)
-                    .or_insert(night_stats.clone());
+                transform.translation.y = new_pos;
+            }
+        } else if player.wall.health > 0. {
+            let (entity, t, wall) = wall_q.iter().next().unwrap();
+            let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
+            if new_pos < wall_y + 5. {
+                transform.translation.y = wall_y + 5.;
+
+                if player.wall.health > enemy.damage {
+                    player.wall.health -= enemy.damage * settings.speed;
+                } else {
+                    player.wall.health = 0.;
+                    commands.entity(entity).despawn();
+                }
+            } else {
+                transform.translation.y = new_pos;
+            }
+        } else if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y {
+            commands.entity(enemy_entity).despawn_recursive();
+            if enemy.damage as u32 > player.survivors {
+                player.survivors -= enemy.damage as u32;
+            } else {
+                player.survivors = 0;
                 next_state.set(AppState::GameOver);
             }
-        } else {
-            transform.translation.y = new_pos;
         }
     }
 }

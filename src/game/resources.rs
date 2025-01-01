@@ -1,9 +1,9 @@
+use crate::constants::NIGHT_DURATION;
 use crate::game::enemy::components::EnemyType;
 use crate::game::weapon::components::WeaponId;
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
-use crate::constants::NIGHT_DURATION;
 
 #[derive(Resource)]
 pub struct GameSettings {
@@ -33,7 +33,7 @@ impl Default for Resources {
     }
 }
 
-pub struct Wall {
+pub struct Structure {
     pub max_health: f32,
     pub health: f32,
     pub max_spots: u32,
@@ -42,8 +42,10 @@ pub struct Wall {
 #[derive(Resource)]
 pub struct Player {
     pub day: u32,
+    pub survivors: u32,
+    pub wall: Structure,
+    pub fence: Structure,
     pub resources: Resources,
-    pub wall: Wall,
     pub weapons: Vec<Option<WeaponId>>,
     pub stats: HashMap<u32, NightStats>,
 }
@@ -52,15 +54,21 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             day: 1,
+            survivors: 100,
+            wall: Structure {
+                max_health: 1_000.,
+                health: 1_000.,
+                max_spots: 5,
+            },
+            fence: Structure {
+                max_health: 100.,
+                health: 100.,
+                max_spots: 0,
+            },
             resources: Resources {
                 bullets: 1_000,
                 gasoline: 1_000,
                 materials: 1_000,
-            },
-            wall: Wall {
-                max_health: 1_000.,
-                health: 1_000.,
-                max_spots: 5,
             },
             weapons: vec![
                 None,
