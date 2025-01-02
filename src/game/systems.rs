@@ -1,12 +1,15 @@
+use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED};
 use crate::game::components::PauseWrapper;
-use crate::game::resources::{NightStats, Player};
-use crate::game::weapon::components::WeaponSettings;
+use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
 
-pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
-    commands.insert_resource(Player::default());
-    commands.insert_resource(WeaponSettings::default());
+pub fn new_game(
+    mut commands: Commands,
+    game_settings: Res<GameSettings>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    commands.insert_resource(Player::init(&game_settings));
     commands.insert_resource(NightStats::default());
     next_state.set(GameState::Running);
 }
@@ -35,17 +38,22 @@ pub fn pause_game(
 
 pub fn unpause_game(
     mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,
+    mut game_settings: ResMut<GameSettings>,
     mut night_stats: ResMut<NightStats>,
 ) {
     // PauseWrapper not yet spawned at first iteration
     if let Ok(mut e) = vis_q.get_single_mut() {
         night_stats.timer.unpause();
+        if game_settings.speed == 0. {
+            game_settings.speed = 1.;
+        }
         *e = Visibility::Hidden;
     }
 }
 
 pub fn check_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut game_settings: ResMut<GameSettings>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
@@ -59,10 +67,21 @@ pub fn check_keys(
         }
     }
 
-    if keyboard.just_pressed(KeyCode::Space) && *app_state.get() == AppState::Night {
-        match game_state.get() {
-            GameState::Running => next_game_state.set(GameState::Paused),
-            GameState::Paused => next_game_state.set(GameState::Running),
+    if *app_state.get() == AppState::Night {
+        if keyboard.just_pressed(KeyCode::Space) {
+            match game_state.get() {
+                GameState::Running => next_game_state.set(GameState::Paused),
+                GameState::Paused => next_game_state.set(GameState::Running),
+            }
+        }
+
+        if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
+            if keyboard.just_pressed(KeyCode::ArrowLeft) && game_settings.speed >= GAME_SPEED_STEP {
+                game_settings.speed -= GAME_SPEED_STEP;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowRight) && game_settings.speed <= MAX_GAME_SPEED {
+                game_settings.speed += GAME_SPEED_STEP;
+            }
         }
     }
 }

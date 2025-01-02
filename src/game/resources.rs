@@ -1,6 +1,6 @@
 use crate::constants::NIGHT_DURATION;
 use crate::game::enemy::components::EnemyType;
-use crate::game::weapon::components::WeaponId;
+use crate::game::weapon::components::{Weapon, WeaponSettings};
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
@@ -33,50 +33,91 @@ impl Default for Resources {
     }
 }
 
-pub struct Structure {
-    pub max_health: f32,
+pub struct Wall {
     pub health: f32,
-    pub max_spots: u32,
+    pub max_health: f32,
+    pub upgrade_price: Resources,  // Upgrade => +10k max health
+    pub repair_price: Resources,  // Repair => +1k health
+}
+
+
+pub struct Fence {
+    pub health: f32,
+    pub max_health: f32,
+    pub enabled: bool,
+    pub damage: f32,
+    pub cost: Resources,
+    pub upgrade_price: Resources,  // Upgrade => +100 max health
+    pub repair_price: Resources,  // Repair => +20 health
+}
+
+pub struct Weapons {
+    pub settings: WeaponSettings,
+    pub spots: Vec<Option<Weapon>>,
 }
 
 #[derive(Resource)]
 pub struct Player {
     pub day: u32,
     pub survivors: u32,
-    pub wall: Structure,
-    pub fence: Structure,
+    pub wall: Wall,
+    pub fence: Fence,
     pub resources: Resources,
-    pub weapons: Vec<Option<WeaponId>>,
+    pub weapons: Weapons,
     pub stats: HashMap<u32, NightStats>,
 }
 
-impl Default for Player {
-    fn default() -> Self {
+impl Player {
+    pub fn init(game_settings: &GameSettings) -> Self {
+        let weapon_settings = WeaponSettings::default();
         Self {
             day: 1,
             survivors: 100,
-            wall: Structure {
-                max_health: 1_000.,
+            wall: Wall {
                 health: 1_000.,
-                max_spots: 5,
+                max_health: 1_000.,
+                upgrade_price: Resources {
+                    materials: 10,
+                    ..Resources::default()
+                },
+                repair_price: Resources {
+                    materials: 1,
+                    ..Resources::default()
+                },
             },
-            fence: Structure {
-                max_health: 100.,
-                health: 100.,
-                max_spots: 0,
+            fence: Fence {
+                health: 300.,
+                max_health: 300.,
+                enabled: false,
+                damage: 2.,
+                cost: Resources {
+                    gasoline: 2,
+                    ..Resources::default()
+                },
+                upgrade_price: Resources {
+                    materials: 1,
+                    ..Resources::default()
+                },
+                repair_price: Resources {
+                    materials: 1,
+                    ..Resources::default()
+                },
             },
             resources: Resources {
                 bullets: 1_000,
                 gasoline: 1_000,
                 materials: 1_000,
             },
-            weapons: vec![
-                None,
-                Some(WeaponId::SentryGun),
-                None,
-                Some(WeaponId::SentryGun),
-                None,
-            ],
+            weapons: Weapons {
+                settings: weapon_settings,
+                spots: vec![
+                    None,
+                    Some(Weapon::sentry_gun(&weapon_settings, game_settings)),
+                    None,
+                    Some(Weapon::sentry_gun(&weapon_settings, game_settings)),
+                    None,
+                ],
+            },
             stats: HashMap::default(),
         }
     }

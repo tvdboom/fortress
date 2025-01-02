@@ -32,7 +32,7 @@ impl Enemy {
             health: 20,
             size: Vec2::new(50., 50.),
             speed: 5.,
-            damage: 1.,
+            damage: 10.,
         }
     }
 
@@ -44,7 +44,7 @@ impl Enemy {
             health: 10,
             size: Vec2::new(50., 50.),
             speed: 10.,
-            damage: 1.,
+            damage: 10.,
         }
     }
 
@@ -56,7 +56,7 @@ impl Enemy {
             health: 50,
             size: Vec2::new(70., 70.),
             speed: 2.5,
-            damage: 2.,
+            damage: 20.,
         }
     }
 
@@ -68,7 +68,7 @@ impl Enemy {
             health: 80,
             size: Vec2::new(70., 70.),
             speed: 2.5,
-            damage: 3.,
+            damage: 30.,
         }
     }
 
@@ -80,7 +80,7 @@ impl Enemy {
             health: 150,
             size: Vec2::new(90., 90.),
             speed: 7.5,
-            damage: 5.,
+            damage: 50.,
         }
     }
 }

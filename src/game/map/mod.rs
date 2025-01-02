@@ -18,8 +18,10 @@ impl Plugin for MapPlugin {
                     menu_panel,
                     resources_panel,
                     weapons_panel,
-                    info_panel
-                        .run_if(in_state(AppState::StartGame).or(in_state(AppState::GameOver).or(in_state(AppState::EndNight)))),
+                    info_panel.run_if(
+                        in_state(AppState::StartGame)
+                            .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),
+                    ),
                 ),
             );
     }

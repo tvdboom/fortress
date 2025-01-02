@@ -1,3 +1,5 @@
+use std::cmp::PartialEq;
+use std::ops::Deref;
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
@@ -5,7 +7,7 @@ use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
 use crate::game::{AppState, GameState};
-use crate::utils::{scale_duration, CustomUi, EnumDisplay, toggle};
+use crate::utils::{scale_duration, toggle, CustomUi, EnumDisplay};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
@@ -24,11 +26,7 @@ pub fn set_style(mut contexts: EguiContexts) {
     catppuccin_egui::set_theme(context, catppuccin_egui::FRAPPE);
 }
 
-pub fn draw_map(
-    mut commands: Commands,
-    player: Res<Player>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
@@ -43,36 +41,6 @@ pub fn draw_map(
             0.0,
         ),
         Map,
-    ));
-
-    if player.fence.max_health > 0. {
-        commands.spawn((
-            Sprite {
-                image: asset_server.load("map/fence3.png"),
-                custom_size: Some(Vec2::new(WALL_SIZE.x, WALL_SIZE.y * 0.4)),
-                ..default()
-            },
-            Transform::from_xyz(
-                -WEAPONS_PANEL_SIZE.x * 0.5,
-                SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.9,
-                0.1,
-            ),
-            Fence,
-        ));
-    }
-
-    commands.spawn((
-        Sprite {
-            image: asset_server.load("map/wall.png"),
-            custom_size: Some(WALL_SIZE),
-            ..default()
-        },
-        Transform::from_xyz(
-            -WEAPONS_PANEL_SIZE.x * 0.5,
-            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y - WALL_SIZE.y * 0.5,
-            0.1,
-        ),
-        Wall,
     ));
 
     commands
@@ -154,7 +122,6 @@ pub fn menu_panel(
 pub fn resources_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    weapon_settings: ResMut<WeaponSettings>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<GameState>>,
     player: Res<Player>,
@@ -211,7 +178,7 @@ pub fn resources_panel(
                         .desired_height(20.)
                         .text(
                             RichText::new(format!(
-                                "{} / {}",
+                                "{:.0} / {}",
                                 player.wall.health, player.wall.max_health
                             ))
                             .size(NORMAL_FONT_SIZE),
@@ -229,10 +196,10 @@ pub fn resources_panel(
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
-                                    "{} / {}",
+                                    "{:.0} / {}",
                                     player.fence.health, player.fence.max_health
                                 ))
-                                    .size(NORMAL_FONT_SIZE),
+                                .size(NORMAL_FONT_SIZE),
                             ),
                     );
                 }
@@ -265,8 +232,8 @@ pub fn resources_panel(
                     .on_hover_text("Occupied / Total spots on wall");
                 ui.add(egui::Label::new(format!(
                     "{} / {}",
-                    player.weapons.iter().filter(|&x| x.is_some()).count(),
-                    player.wall.max_spots
+                    player.weapons.spots.iter().filter(|&x| x.is_some()).count(),
+                    player.weapons.spots.len()
                 )));
 
                 ui.scope_builder(
@@ -277,8 +244,6 @@ pub fn resources_panel(
                     |ui| {
                         ui.add_space(5.);
                         ui.separator();
-
-                        // ui.add_space(135.);
 
                         ui.add_image(hourglass_texture, [20., 20.])
                             .on_hover_text("Remaining night time");
@@ -296,9 +261,9 @@ pub fn resources_panel(
                             .on_hover_text("Game speed");
                         let speed = ui.add(
                             egui::DragValue::new(&mut game_settings.speed)
-                                .range(0..=5)
+                                .range(0..=MAX_GAME_SPEED as u32)
                                 .fixed_decimals(1)
-                                .speed(0.5)
+                                .speed(GAME_SPEED_STEP)
                                 .suffix("x"),
                         );
 
@@ -308,7 +273,7 @@ pub fn resources_panel(
                             } else {
                                 weapon_q.iter_mut().for_each(|mut w| {
                                     w.as_mut()
-                                        .update(weapon_settings.as_ref(), game_settings.as_ref())
+                                        .update(&player.weapons.settings.get(w.as_ref()), game_settings.as_ref())
                                 });
                                 next_state.set(GameState::Running);
                             }
@@ -322,7 +287,7 @@ pub fn resources_panel(
 pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    mut weapon_settings: ResMut<WeaponSettings>,
+    mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
@@ -349,43 +314,40 @@ pub fn weapons_panel(
                 ui.add_space(5.);
 
                 // Sentry gun
+                let mut sg = &mut player.weapons.settings.sentry_gun;
                 ui.horizontal(|ui| {
-                    let settings = weapon_settings
-                        .as_mut()
-                        .get_params_mut(&WeaponId::SentryGun);
-
-                    ui.add(egui::Label::new(format!("{}: ", settings.name)));
+                    ui.add(egui::Label::new(format!("{}: ", sg.name)));
 
                     let sentry_gun_slider = ui
                         .add(egui::Slider::new(
-                            &mut settings.fire_rate,
-                            0..=settings.max_fire_rate,
+                            &mut sg.fire_rate,
+                            0..=sg.max_fire_rate,
                         ))
                         .on_hover_text("Sentry guns shoot N bullets per second.");
 
-                    if sentry_gun_slider.dragged() {
+                    if sentry_gun_slider.changed() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| w.id == WeaponId::SentryGun)
+                            .filter(|w| *w.deref() == Weapon::SentryGun)
                             .for_each(|mut w| {
                                 w.as_mut()
-                                    .update(weapon_settings.as_ref(), game_settings.as_ref())
+                                    .update(&player.weapons.settings.sentry_gun, game_settings.as_ref())
                             })
                     }
                 });
 
+                ui.add_space(15.);
+
                 // Fence
-                // ui.horizontal(|ui| {
-                //     let settings = weapon_settings
-                //         .as_mut()
-                //         .get_params_mut(&WeaponId::Fence);
-                //
-                //     ui.add(egui::Label::new("Enable electric fence: "));
-                //     ui.add(toggle(&mut settings.)).on_hover_text("Electric fence does damage to nearby standing enemies, but costs gasoline.");
-                //     if settings. {
-                //         ui.add_image(lightning_texture, [30., 30.]);
-                //     }
-                // })
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new("Enable electric fence: "));
+                    ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
+                        "Electric fence does damage to nearby enemies, but costs gasoline.",
+                    );
+                    if player.fence.enabled {
+                        ui.add_image(lightning_texture, [30., 30.]);
+                    }
+                })
             });
         });
 }

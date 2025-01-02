@@ -1,35 +1,61 @@
 use crate::constants::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::Map;
+use crate::game::map::components::{Fence, Map, Wall};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon, WeaponSettings};
+use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::prelude::*;
 
 pub fn spawn_weapons(
     mut commands: Commands,
     player: Res<Player>,
-    weapon_settings: Res<WeaponSettings>,
-    game_settings: Res<GameSettings>,
     asset_server: Res<AssetServer>,
 ) {
+    if player.fence.max_health > 0. {
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("map/fence.png"),
+                custom_size: Some(Vec2::new(WALL_SIZE.x, WALL_SIZE.y * 0.3)),
+                ..default()
+            },
+            Transform::from_xyz(
+                -WEAPONS_PANEL_SIZE.x * 0.5,
+                -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.4,
+                0.1,
+            ),
+            Fence,
+        ));
+    }
+
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/wall.png"),
+            custom_size: Some(WALL_SIZE),
+            ..default()
+        },
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
+            0.1,
+        ),
+        Wall,
+    ));
+
     let positions = player
         .weapons
+        .spots
         .iter()
         .enumerate()
-        .map(|(i, _)| (i + 1) as f32 * MAP_SIZE.x / (player.weapons.len() + 1) as f32)
+        .map(|(i, _)| (i + 1) as f32 * MAP_SIZE.x / (player.weapons.spots.len() + 1) as f32)
         .collect::<Vec<f32>>();
 
-    for (weapon, pos) in player.weapons.iter().zip(positions) {
+    for (weapon, pos) in player.weapons.spots.iter().zip(positions) {
         if let Some(w) = weapon {
-            let params = weapon_settings.get_params(w);
-
-            let mut component = Weapon::new(w, game_settings.as_ref());
-            component.update(&weapon_settings, game_settings.as_ref());
+            let params = player.weapons.settings.get(w);
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&params.image),
-                    custom_size: Some(params.size),
+                    image: asset_server.load(&w.params().image),
+                    custom_size: Some(w.params().size),
                     ..default()
                 },
                 Transform::from_xyz(
@@ -37,7 +63,7 @@ pub fn spawn_weapons(
                     -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
                     2.0,
                 ),
-                component,
+                weapon,
             ));
         }
     }
@@ -51,13 +77,12 @@ pub fn spawn_bullets(
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     time: Res<Time>,
-    weapon_settings: Res<WeaponSettings>,
     asset_server: Res<AssetServer>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (transform, mut weapon) in weapon_q.iter_mut() {
-        let params = weapon_settings.get_params(&weapon.id);
+        let params = player.weapobs.get_params(&weapon.id);
 
         // To fire, the following prerequisites must be met:
         // 1. The weapon's fire_rate must be set and finished
@@ -168,11 +193,12 @@ pub fn move_bullets(
             }
         }
 
-        // If the bullet traveled more than max distance or left map boundaries -> despawn
+        // If the bullet traveled more than max distance or left window boundaries -> despawn
         if bullet.distance >= map_height / 100. * bullet.max_distance
             || transform.translation.x < -SIZE.x * 0.5
             || transform.translation.x > SIZE.x * 0.5
             || transform.translation.y > SIZE.y * 0.5
+            || transform.translation.y < -SIZE.y * 0.5
         {
             commands.entity(entity).despawn();
         }

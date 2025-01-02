@@ -1,34 +1,30 @@
 use crate::game::resources::{GameSettings, Resources};
 use bevy::prelude::*;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum WeaponId {
-    // Fence,
-    SentryGun,
+#[derive(Component, Clone)]
+pub enum Weapon {
+    SentryGun { timer: Option<Timer> },
 }
 
-#[derive(Component)]
-pub struct Weapon {
-    pub id: WeaponId,
-    pub fire_timer: Option<Timer>,
+impl PartialEq for Weapon {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::SentryGun { .. }, Self::SentryGun { .. }) => true,
+        }
+    }
 }
 
 impl Weapon {
-    pub fn new(id: &WeaponId, game_settings: &GameSettings) -> Self {
-        Self {
-            id: id.clone(),
-            fire_timer: Some(Timer::from_seconds(
-                game_settings.speed,
-                TimerMode::Repeating,
-            )),
+    pub fn sentry_gun(settings: &WeaponSettings, game_settings: &GameSettings) -> Self {
+        Self::SentryGun {
+            timer: Some(Timer::from_seconds(1. / settings.sentry_gun.fire_rate as f32 / game_settings.speed, TimerMode::Repeating)),
         }
     }
 
-    pub fn update(&mut self, weapon_settings: &WeaponSettings, game_settings: &GameSettings) {
-        let params = weapon_settings.get_params(&self.id);
-        match self.id {
-            WeaponId::SentryGun => {
-                self.fire_timer = match params.fire_rate {
+    pub fn update(&mut self, weapon_params: &WeaponParams, game_settings: &GameSettings) {
+        match self {
+            Self::SentryGun { timer} => {
+                timer = match weapon_params.fire_rate {
                     0 => None,
                     v => Some(Timer::from_seconds(
                         1. / v as f32 / game_settings.speed,
@@ -40,7 +36,7 @@ impl Weapon {
     }
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone)]
 pub struct Bullet {
     pub image: String,
     pub size: Vec2,
@@ -62,55 +58,49 @@ pub struct WeaponParams {
     pub bullet: Bullet,
 }
 
-#[derive(Resource)]
 pub struct WeaponSettings {
-    // pub fence: bool,
     pub sentry_gun: WeaponParams,
 }
 
 impl WeaponSettings {
-    pub fn get_params(&self, id: &WeaponId) -> &WeaponParams {
-        match *id {
-            // WeaponId::Fence => &self.fence,
-            WeaponId::SentryGun => &self.sentry_gun,
-        }
-    }
-
-    pub fn get_params_mut(&mut self, id: &WeaponId) -> &mut WeaponParams {
-        match *id {
-            WeaponId::SentryGun => &mut self.sentry_gun,
+    pub fn get(&self, weapon: &Weapon) -> &WeaponParams {
+        match weapon {
+            Weapon::SentryGun => &self.sentry_gun,
         }
     }
 }
 
+
+
 impl Default for WeaponSettings {
     fn default() -> Self {
-        WeaponSettings {
-            // fence: false,
-            sentry_gun: WeaponParams {
-                name: "Sentry gun".to_string(),
-                image: "weapon/sentry-gun.png".to_string(),
-                size: Vec2::new(110., 110.),
-                price: Resources {
-                    materials: 100,
-                    ..default()
-                },
-                fire_rate: 1,
-                max_fire_rate: 5,
-                fire_cost: Resources {
-                    bullets: 1,
-                    ..default()
-                },
-                bullet: Bullet {
-                    image: "weapon/bullet.png".to_string(),
-                    size: Vec2::new(30., 30.),
-                    speed: 60.,
-                    angle: 0.,
-                    damage: 5,
-                    max_distance: 70.,
-                    distance: 0.,
-                },
-            },
+        Self {
+            sentry_gun: {
+                WeaponParams {
+                    name: "Sentry gun".to_string(),
+                    image: "weapon/sentry-gun.png".to_string(),
+                    size: Vec2::new(110., 110.),
+                    price: Resources {
+                        materials: 100,
+                        ..default()
+                    },
+                    fire_rate: 1,
+                    max_fire_rate: 5,
+                    fire_cost: Resources {
+                        bullets: 1,
+                        ..default()
+                    },
+                    bullet: Bullet {
+                        image: "weapon/bullet.png".to_string(),
+                        size: Vec2::new(30., 30.),
+                        speed: 60.,
+                        angle: 0.,
+                        damage: 5,
+                        max_distance: 70.,
+                        distance: 0.,
+                    },
+                }
+            }
         }
     }
 }

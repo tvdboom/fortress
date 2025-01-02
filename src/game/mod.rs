@@ -25,7 +25,8 @@ impl Plugin for GamePlugin {
             .add_systems(Update, check_keys)
             .init_state::<AppState>()
             .init_state::<GameState>()
-            .init_resource::<GameSettings>();
+            .init_resource::<GameSettings>()
+            .init_resource::<NightStats>();
     }
 }
 

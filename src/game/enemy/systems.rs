@@ -9,6 +9,7 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
+use crate::game::weapon::components::WeaponSettings;
 
 pub fn spawn_enemies(
     mut commands: Commands,
@@ -91,13 +92,14 @@ pub fn move_enemies(
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
-    settings: Res<GameSettings>,
+    game_settings: Res<GameSettings>,
+    weapon_settings: Res<WeaponSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
 ) {
     for (enemy_entity, mut transform, enemy) in enemy_q.iter_mut() {
         let new_pos = transform.translation.y
-            - MAP_SIZE.y / 100. * enemy.speed * settings.speed * time.delta_secs();
+            - MAP_SIZE.y / 100. * enemy.speed * game_settings.speed * time.delta_secs();
 
         if player.fence.health > 0. {
             let (entity, t, fence) = fence_q.iter().next().unwrap();
@@ -105,8 +107,12 @@ pub fn move_enemies(
 
             if new_pos < fence_y + 5. {
                 transform.translation.y = fence_y + 5.;
+
                 if player.fence.health > enemy.damage {
-                    player.fence.health -= enemy.damage * settings.speed;
+                    player.fence.health -= enemy.damage * game_settings.speed * time.delta_secs();
+                    if weapon_settings.fence {
+                        enemy.health -=
+                    }
                 } else {
                     player.fence.health = 0.;
                     commands.entity(entity).despawn();
@@ -122,7 +128,7 @@ pub fn move_enemies(
                 transform.translation.y = wall_y + 5.;
 
                 if player.wall.health > enemy.damage {
-                    player.wall.health -= enemy.damage * settings.speed;
+                    player.wall.health -= enemy.damage * game_settings.speed * time.delta_secs();
                 } else {
                     player.wall.health = 0.;
                     commands.entity(entity).despawn();
@@ -130,14 +136,16 @@ pub fn move_enemies(
             } else {
                 transform.translation.y = new_pos;
             }
-        } else if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y {
-            commands.entity(enemy_entity).despawn_recursive();
-            if enemy.damage as u32 > player.survivors {
-                player.survivors -= enemy.damage as u32;
+        } else if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - 10. {
+            if player.survivors > enemy.damage as u32 {
+                player.survivors -= (enemy.damage * game_settings.speed) as u32;
+                commands.entity(enemy_entity).despawn_recursive();
             } else {
                 player.survivors = 0;
                 next_state.set(AppState::GameOver);
             }
+        } else {
+            transform.translation.y = new_pos;
         }
     }
 }
