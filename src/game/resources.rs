@@ -18,17 +18,17 @@ impl Default for GameSettings {
 
 #[derive(Clone)]
 pub struct Resources {
-    pub bullets: u32,
-    pub gasoline: u32,
-    pub materials: u32,
+    pub bullets: f32,
+    pub gasoline: f32,
+    pub materials: f32,
 }
 
 impl Default for Resources {
     fn default() -> Self {
         Self {
-            bullets: 0,
-            gasoline: 0,
-            materials: 0,
+            bullets: 0.,
+            gasoline: 0.,
+            materials: 0.,
         }
     }
 }
@@ -76,11 +76,11 @@ impl Player {
                 health: 1_000.,
                 max_health: 1_000.,
                 upgrade_price: Resources {
-                    materials: 10,
+                    materials: 10.,
                     ..Resources::default()
                 },
                 repair_price: Resources {
-                    materials: 1,
+                    materials: 1.,
                     ..Resources::default()
                 },
             },
@@ -88,24 +88,24 @@ impl Player {
                 health: 300.,
                 max_health: 300.,
                 enabled: false,
-                damage: 2.,
+                damage: 5.,
                 cost: Resources {
-                    gasoline: 2,
+                    gasoline: 2.,
                     ..Resources::default()
                 },
                 upgrade_price: Resources {
-                    materials: 1,
+                    materials: 1.,
                     ..Resources::default()
                 },
                 repair_price: Resources {
-                    materials: 1,
+                    materials: 1.,
                     ..Resources::default()
                 },
             },
             resources: Resources {
-                bullets: 1_000,
-                gasoline: 1_000,
-                materials: 1_000,
+                bullets: 1_000.,
+                gasoline: 1_000.,
+                materials: 1_000.,
             },
             weapons: Weapons {
                 settings: weapon_settings.clone(),

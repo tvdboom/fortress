@@ -96,13 +96,13 @@ impl Default for WeaponSettings {
                     image: "weapon/sentry-gun.png".to_string(),
                     size: Vec2::new(110., 110.),
                     price: Resources {
-                        materials: 100,
+                        materials: 100.,
                         ..default()
                     },
                     fire_rate: 1,
                     max_fire_rate: 5,
                     fire_cost: Resources {
-                        bullets: 1,
+                        bullets: 1.,
                         ..default()
                     },
                     bullet: Bullet {

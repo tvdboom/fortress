@@ -110,8 +110,6 @@ pub fn move_enemies(
                 if player.fence.health > enemy.damage {
                     player.fence.health -= enemy.damage * game_settings.speed * time.delta_secs();
                     if player.fence.enabled {
-                        player.resources.gasoline -= player.fence.cost.gasoline;
-
                         let damage = player.fence.damage * game_settings.speed * time.delta_secs();
                         if enemy.health > damage {
                             enemy.health -= damage;

@@ -4,6 +4,7 @@ use crate::game::map::components::{Fence, Map, Wall};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::prelude::*;
+use crate::utils::collision;
 
 pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
     if player.fence.max_health > 0. {
@@ -78,7 +79,7 @@ pub fn spawn_bullets(
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (transform, mut weapon) in weapon_q.iter_mut() {
-        let params = player.weapons.settings.get(weapon.as_ref());
+        let params = player.weapons.settings.get(weapon.as_ref()).clone();
 
         if weapon.can_fire(&time)
             && player.resources.bullets > params.fire_cost.bullets
@@ -193,12 +194,17 @@ pub fn move_bullets(
     }
 }
 
-fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
-    let p1_min = pos1 - Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
-    let p1_max = pos1 + Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
-
-    let p2_min = pos2 - Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
-    let p2_max = pos2 + Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
-
-    p1_max.x > p2_min.x && p1_min.x < p2_max.x && p1_max.y > p2_min.y && p1_min.y < p2_max.y
+pub fn update_fence_resources(
+    mut player: ResMut<Player>,
+    game_settings: Res<GameSettings>,
+    time: Res<Time>,
+) {
+    if player.fence.enabled {
+        let cost = player.fence.cost.gasoline * game_settings.speed * time.delta_secs();
+        if player.resources.gasoline >= cost {
+            player.resources.gasoline -= cost;
+        } else {
+            player.fence.enabled = false;
+        }
+    }
 }

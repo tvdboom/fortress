@@ -83,6 +83,7 @@ pub fn menu_panel(
                     egui::menu::menu_button(ui, "Game", |ui| {
                         if ui.button("New game").clicked() {
                             next_app_state.set(AppState::StartGame);
+                            ui.close_menu();
                         }
                         if ui.button("Load game").clicked() {
                             todo!();
@@ -110,7 +111,8 @@ pub fn menu_panel(
                     });
                     egui::menu::menu_button(ui, "Settings", |ui| {
                         if ui.button("Toggle audio").clicked() {
-                            std::process::exit(0);
+                            ui.close_menu();
+                            todo!();
                         }
                     });
                 });
@@ -129,7 +131,6 @@ pub fn resources_panel(
     mut game_settings: ResMut<GameSettings>,
     images: Local<Images>,
 ) {
-    let day_night_texture = contexts.add_image(images.day_night.clone_weak());
     let day_texture = contexts.add_image(images.day.clone_weak());
     let night_texture = contexts.add_image(images.night.clone_weak());
     let person_texture = contexts.add_image(images.person.clone_weak());
@@ -149,13 +150,10 @@ pub fn resources_panel(
                 ui.add_space(5.);
 
                 match *app_state.get() {
-                    AppState::Night => ui
-                        .add_image(night_texture, [20., 20.])
-                        .on_hover_text("Night"),
                     AppState::Day => ui.add_image(day_texture, [20., 20.]).on_hover_text("Day"),
                     _ => ui
-                        .add_image(day_night_texture, [20., 20.])
-                        .on_hover_text("Day/Night"),
+                        .add_image(night_texture, [20., 20.])
+                        .on_hover_text("Night"),
                 };
                 ui.add(egui::Label::new(player.day.to_string()));
 
@@ -209,19 +207,19 @@ pub fn resources_panel(
 
                 ui.add_image(bullets_texture, [20., 20.])
                     .on_hover_text("Bullets");
-                ui.add(egui::Label::new(player.resources.bullets.to_string()));
+                ui.add(egui::Label::new(format!("{:.0}", player.resources.bullets)));
 
                 ui.add_space(15.);
 
                 ui.add_image(gasoline_texture, [20., 20.])
                     .on_hover_text("Gasoline");
-                ui.add(egui::Label::new(player.resources.gasoline.to_string()));
+                ui.add(egui::Label::new(format!("{:.0}", player.resources.gasoline)));
 
                 ui.add_space(15.);
 
                 ui.add_image(materials_texture, [20., 20.])
                     .on_hover_text("Materials");
-                ui.add(egui::Label::new(player.resources.materials.to_string()));
+                ui.add(egui::Label::new(format!("{:.0}", player.resources.materials)));
 
                 ui.add_space(5.);
                 ui.separator();
@@ -314,7 +312,7 @@ pub fn weapons_panel(
 
                 // Sentry gun
                 ui.horizontal(|ui| {
-                    let mut sg = &mut player.weapons.settings.sentry_gun;
+                    let sg = &mut player.weapons.settings.sentry_gun;
 
                     ui.add(egui::Label::new(format!("{}: ", sg.name)));
 
@@ -326,27 +324,28 @@ pub fn weapons_panel(
                         weapon_q
                             .iter_mut()
                             .filter(|w| matches!(*w.deref(), Weapon::SentryGun { .. }))
-                            .for_each(|mut w| {
-                                w.as_mut().update(
-                                    &player.weapons.settings.sentry_gun,
-                                    game_settings.as_ref(),
-                                )
-                            })
+                            .for_each(|mut w| w.as_mut().update(sg, game_settings.as_ref()))
                     }
                 });
 
-                ui.add_space(15.);
+                if player.fence.max_health > 0. {
+                    ui.add_space(5.);
+                    ui.separator();
+                    ui.add_space(5.);
 
-                // Fence
-                ui.horizontal(|ui| {
-                    ui.add(egui::Label::new("Enable electric fence: "));
-                    ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
-                        "Electric fence does damage to nearby enemies, but costs gasoline.",
-                    );
-                    if player.fence.enabled {
-                        ui.add_image(lightning_texture, [30., 30.]);
-                    }
-                })
+                    ui.add_enabled_ui(player.fence.health > 0., |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Label::new("Enable electric fence: "));
+                            ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
+                                "The electric fence does damage to adjacent enemies, but costs gasoline.",
+                            );
+
+                            if player.fence.enabled {
+                                ui.add_image(lightning_texture, [20., 20.]);
+                            }
+                        });
+                    });
+                }
             });
         });
 }
@@ -390,8 +389,8 @@ pub fn info_panel(
                                                 the fortress. Kill them before they reach the wall! \
                                                 When they do, they hit the wall, reducing its resistance. \
                                                 If the wall is destroyed, the monsters can freely enter \
-                                                the fortress and kill everyone inside (the game is lost). \
-                                                \n\nDuring the day, you can collect resources and upgrade \
+                                                the fortress and kill everyone inside.\n\n \
+                                                During the day, you can collect resources and upgrade \
                                                 your weapon arsenal to prepare yourself for the following \
                                                 night. During the attack, you can choose how/when to use \
                                                 the weapons you have to your disposal. But be careful, \
