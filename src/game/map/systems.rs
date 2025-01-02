@@ -1,11 +1,9 @@
-use std::cmp::PartialEq;
-use std::ops::Deref;
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon, WeaponId, WeaponSettings};
+use crate::game::weapon::components::{Bullet, Weapon};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi, EnumDisplay};
 use bevy::color::palettes::basic::WHITE;
@@ -13,6 +11,7 @@ use bevy::prelude::*;
 use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
+use std::ops::Deref;
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -272,8 +271,8 @@ pub fn resources_panel(
                                 next_state.set(GameState::Paused);
                             } else {
                                 weapon_q.iter_mut().for_each(|mut w| {
-                                    w.as_mut()
-                                        .update(&player.weapons.settings.get(w.as_ref()), game_settings.as_ref())
+                                    let params = player.weapons.settings.get(w.as_ref());
+                                    w.update(params, game_settings.as_ref())
                                 });
                                 next_state.set(GameState::Running);
                             }
@@ -314,24 +313,24 @@ pub fn weapons_panel(
                 ui.add_space(5.);
 
                 // Sentry gun
-                let mut sg = &mut player.weapons.settings.sentry_gun;
                 ui.horizontal(|ui| {
+                    let mut sg = &mut player.weapons.settings.sentry_gun;
+
                     ui.add(egui::Label::new(format!("{}: ", sg.name)));
 
                     let sentry_gun_slider = ui
-                        .add(egui::Slider::new(
-                            &mut sg.fire_rate,
-                            0..=sg.max_fire_rate,
-                        ))
+                        .add(egui::Slider::new(&mut sg.fire_rate, 0..=sg.max_fire_rate))
                         .on_hover_text("Sentry guns shoot N bullets per second.");
 
                     if sentry_gun_slider.changed() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| *w.deref() == Weapon::SentryGun)
+                            .filter(|w| matches!(*w.deref(), Weapon::SentryGun { .. }))
                             .for_each(|mut w| {
-                                w.as_mut()
-                                    .update(&player.weapons.settings.sentry_gun, game_settings.as_ref())
+                                w.as_mut().update(
+                                    &player.weapons.settings.sentry_gun,
+                                    game_settings.as_ref(),
+                                )
                             })
                     }
                 });

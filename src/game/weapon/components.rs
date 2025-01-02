@@ -17,14 +17,29 @@ impl PartialEq for Weapon {
 impl Weapon {
     pub fn sentry_gun(settings: &WeaponSettings, game_settings: &GameSettings) -> Self {
         Self::SentryGun {
-            timer: Some(Timer::from_seconds(1. / settings.sentry_gun.fire_rate as f32 / game_settings.speed, TimerMode::Repeating)),
+            timer: Some(Timer::from_seconds(
+                1. / settings.sentry_gun.fire_rate as f32 / game_settings.speed,
+                TimerMode::Repeating,
+            )),
+        }
+    }
+
+    pub fn can_fire(&mut self, time: &Res<Time>) -> bool {
+        match self {
+            Self::SentryGun { timer } => match timer {
+                Some(t) => {
+                    t.tick(time.delta());
+                    t.finished()
+                }
+                None => false,
+            },
         }
     }
 
     pub fn update(&mut self, weapon_params: &WeaponParams, game_settings: &GameSettings) {
         match self {
-            Self::SentryGun { timer} => {
-                timer = match weapon_params.fire_rate {
+            Self::SentryGun { timer } => {
+                *timer = match weapon_params.fire_rate {
                     0 => None,
                     v => Some(Timer::from_seconds(
                         1. / v as f32 / game_settings.speed,
@@ -47,6 +62,7 @@ pub struct Bullet {
     pub distance: f32,     // Current distance traveled by the bullet
 }
 
+#[derive(Clone)]
 pub struct WeaponParams {
     pub name: String,
     pub image: String,
@@ -58,6 +74,7 @@ pub struct WeaponParams {
     pub bullet: Bullet,
 }
 
+#[derive(Clone)]
 pub struct WeaponSettings {
     pub sentry_gun: WeaponParams,
 }
@@ -65,12 +82,10 @@ pub struct WeaponSettings {
 impl WeaponSettings {
     pub fn get(&self, weapon: &Weapon) -> &WeaponParams {
         match weapon {
-            Weapon::SentryGun => &self.sentry_gun,
+            Weapon::SentryGun { .. } => &self.sentry_gun,
         }
     }
 }
-
-
 
 impl Default for WeaponSettings {
     fn default() -> Self {
@@ -100,7 +115,7 @@ impl Default for WeaponSettings {
                         distance: 0.,
                     },
                 }
-            }
+            },
         }
     }
 }

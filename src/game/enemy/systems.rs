@@ -9,7 +9,6 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
-use crate::game::weapon::components::WeaponSettings;
 
 pub fn spawn_enemies(
     mut commands: Commands,
@@ -88,16 +87,16 @@ pub fn spawn_enemies(
 
 pub fn move_enemies(
     mut commands: Commands,
-    mut enemy_q: Query<(Entity, &mut Transform, &Enemy)>,
+    mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
-    weapon_settings: Res<WeaponSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
+    mut night_stats: ResMut<NightStats>,
 ) {
-    for (enemy_entity, mut transform, enemy) in enemy_q.iter_mut() {
+    for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
         let new_pos = transform.translation.y
             - MAP_SIZE.y / 100. * enemy.speed * game_settings.speed * time.delta_secs();
 
@@ -110,8 +109,20 @@ pub fn move_enemies(
 
                 if player.fence.health > enemy.damage {
                     player.fence.health -= enemy.damage * game_settings.speed * time.delta_secs();
-                    if weapon_settings.fence {
-                        enemy.health -=
+                    if player.fence.enabled {
+                        player.resources.gasoline -= player.fence.cost.gasoline;
+
+                        let damage = player.fence.damage * game_settings.speed * time.delta_secs();
+                        if enemy.health > damage {
+                            enemy.health -= damage;
+                        } else {
+                            commands.entity(enemy_entity).despawn_recursive();
+
+                            night_stats
+                                .enemies
+                                .entry(enemy.name.clone())
+                                .and_modify(|status| status.killed += 1);
+                        }
                     }
                 } else {
                     player.fence.health = 0.;
@@ -161,7 +172,7 @@ pub fn update_enemy_health_bars(
                 if let Ok((mut transform, mut sprite)) = health_q.get_mut(child) {
                     if let Some(size) = sprite.custom_size.as_mut() {
                         let full_size = enemy.size.x * 0.8 - 2.0;
-                        size.x = full_size * enemy.health as f32 / enemy.max_health as f32;
+                        size.x = full_size * enemy.health / enemy.max_health;
                         transform.translation.x = (size.x - full_size) * 0.5;
                     }
                 }

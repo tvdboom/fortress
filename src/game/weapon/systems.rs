@@ -5,11 +5,7 @@ use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::prelude::*;
 
-pub fn spawn_weapons(
-    mut commands: Commands,
-    player: Res<Player>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
     if player.fence.max_health > 0. {
         commands.spawn((
             Sprite {
@@ -54,8 +50,8 @@ pub fn spawn_weapons(
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&w.params().image),
-                    custom_size: Some(w.params().size),
+                    image: asset_server.load(&params.image),
+                    custom_size: Some(params.size),
                     ..default()
                 },
                 Transform::from_xyz(
@@ -63,7 +59,7 @@ pub fn spawn_weapons(
                     -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
                     2.0,
                 ),
-                weapon,
+                w.clone(),
             ));
         }
     }
@@ -82,59 +78,51 @@ pub fn spawn_bullets(
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (transform, mut weapon) in weapon_q.iter_mut() {
-        let params = player.weapobs.get_params(&weapon.id);
+        let params = player.weapons.settings.get(weapon.as_ref());
 
-        // To fire, the following prerequisites must be met:
-        // 1. The weapon's fire_rate must be set and finished
-        // 2. The player has enough resources to fire
-        // 3. There is an enemy in range
-        if let Some(timer) = weapon.fire_timer.as_mut() {
-            timer.tick(time.delta());
-
-            if timer.finished()
-                && player.resources.bullets > params.fire_cost.bullets
-                && player.resources.gasoline > params.fire_cost.gasoline
+        if weapon.can_fire(&time)
+            && player.resources.bullets > params.fire_cost.bullets
+            && player.resources.gasoline > params.fire_cost.gasoline
+        {
+            // Find the nearest enemy in range
+            if let Some((nearest_enemy, distance)) = enemy_q
+                .iter()
+                .map(|enemy| {
+                    let distance = transform.translation.distance(enemy.translation);
+                    (enemy, distance)
+                })
+                .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
             {
-                // Find the nearest enemy in range
-                if let Some((nearest_enemy, distance)) = enemy_q
-                    .iter()
-                    .map(|enemy| {
-                        let distance = transform.translation.distance(enemy.translation);
-                        (enemy, distance)
-                    })
-                    .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
-                {
-                    // The weapon's fire range is a percentage of the map's height
-                    if distance <= map_height / 100. * params.bullet.max_distance {
-                        let mut bullet = params.bullet.clone();
+                // The weapon's fire range is a percentage of the map's height
+                if distance <= map_height / 100. * params.bullet.max_distance {
+                    let mut bullet = params.bullet.clone();
 
-                        // Compute the angle to the nearest enemy
-                        let d = nearest_enemy.translation - transform.translation;
-                        bullet.angle = d.y.atan2(d.x);
+                    // Compute the angle to the nearest enemy
+                    let d = nearest_enemy.translation - transform.translation;
+                    bullet.angle = d.y.atan2(d.x);
 
-                        commands.spawn((
-                            Sprite {
-                                image: asset_server.load(&bullet.image),
-                                custom_size: Some(bullet.size),
-                                ..default()
-                            },
-                            Transform {
-                                translation: Vec3::new(
-                                    transform.translation.x,
-                                    transform.translation.y + 10.,
-                                    3.0,
-                                ),
-                                rotation: Quat::from_rotation_z(bullet.angle),
-                                ..default()
-                            },
-                            bullet,
-                        ));
+                    commands.spawn((
+                        Sprite {
+                            image: asset_server.load(&bullet.image),
+                            custom_size: Some(bullet.size),
+                            ..default()
+                        },
+                        Transform {
+                            translation: Vec3::new(
+                                transform.translation.x,
+                                transform.translation.y + 10.,
+                                3.0,
+                            ),
+                            rotation: Quat::from_rotation_z(bullet.angle),
+                            ..default()
+                        },
+                        bullet,
+                    ));
 
-                        night_stats.resources.bullets += params.fire_cost.bullets;
-                        night_stats.resources.gasoline += params.fire_cost.gasoline;
-                        player.resources.bullets -= params.fire_cost.bullets;
-                        player.resources.gasoline -= params.fire_cost.gasoline;
-                    }
+                    night_stats.resources.bullets += params.fire_cost.bullets;
+                    night_stats.resources.gasoline += params.fire_cost.gasoline;
+                    player.resources.bullets -= params.fire_cost.bullets;
+                    player.resources.gasoline -= params.fire_cost.gasoline;
                 }
             }
         }
@@ -180,7 +168,7 @@ pub fn move_bullets(
             ) {
                 commands.entity(entity).despawn();
 
-                if enemy.health <= bullet.damage {
+                if enemy.health <= bullet.damage as f32 {
                     commands.entity(enemy_entity).despawn_recursive();
 
                     night_stats
@@ -188,7 +176,7 @@ pub fn move_bullets(
                         .entry(enemy.name.clone())
                         .and_modify(|status| status.killed += 1);
                 } else {
-                    enemy.health -= bullet.damage;
+                    enemy.health -= bullet.damage as f32;
                 }
             }
         }

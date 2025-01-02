@@ -36,10 +36,9 @@ impl Default for Resources {
 pub struct Wall {
     pub health: f32,
     pub max_health: f32,
-    pub upgrade_price: Resources,  // Upgrade => +10k max health
+    pub upgrade_price: Resources, // Upgrade => +10k max health
     pub repair_price: Resources,  // Repair => +1k health
 }
-
 
 pub struct Fence {
     pub health: f32,
@@ -47,7 +46,7 @@ pub struct Fence {
     pub enabled: bool,
     pub damage: f32,
     pub cost: Resources,
-    pub upgrade_price: Resources,  // Upgrade => +100 max health
+    pub upgrade_price: Resources, // Upgrade => +100 max health
     pub repair_price: Resources,  // Repair => +20 health
 }
 
@@ -109,7 +108,7 @@ impl Player {
                 materials: 1_000,
             },
             weapons: Weapons {
-                settings: weapon_settings,
+                settings: weapon_settings.clone(),
                 spots: vec![
                     None,
                     Some(Weapon::sentry_gun(&weapon_settings, game_settings)),
