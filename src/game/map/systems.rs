@@ -475,11 +475,10 @@ pub fn enemy_info_panel(
             .collect::<Vec<_>>();
 
         egui::Window::new("Enemy info")
-            .frame(Frame::default().inner_margin(20.))
             .collapsible(false)
             .open(&mut game_settings.enemy_info)
-            .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.6))
-            .default_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
+            .fixed_size((MAP_SIZE.x * 0.8, MAP_SIZE.y * 0.6))
+            .default_pos((MAP_SIZE.x * 0.35, MAP_SIZE.y * 0.1))
             .min_width(MAP_SIZE.x * 0.6)
             .show(contexts.ctx_mut(), |ui| {
                 ui.add_space(15.);
