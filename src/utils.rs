@@ -1,4 +1,6 @@
+use crate::game::resources::Player;
 use bevy::math::{Vec2, Vec3};
+use bevy::prelude::Res;
 use bevy_egui::egui;
 use bevy_egui::egui::{epaint, Response, TextureId, Ui, WidgetText};
 use std::time::Duration;
@@ -13,6 +15,7 @@ pub fn scale_duration(duration: Duration, scale: f32) -> Duration {
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response;
+    fn add_night_stats(&mut self, player: Res<Player>);
 }
 
 impl CustomUi for Ui {
@@ -24,6 +27,37 @@ impl CustomUi for Ui {
         self.add(egui::widgets::Image::new(egui::load::SizedTexture::new(
             id, size,
         )))
+    }
+
+    fn add_night_stats(&mut self, player: Res<Player>) {
+        self.add_space(30.);
+
+        self.horizontal(|ui| {
+            ui.add_space(200.);
+            egui::Grid::new("night stats")
+                .num_columns(2)
+                .spacing([40.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Enemy");
+                    ui.label("Killed / Spawned");
+                    ui.end_row();
+
+                    player
+                        .stats
+                        .get(&player.day)
+                        .unwrap()
+                        .enemies
+                        .iter()
+                        .for_each(|(k, v)| {
+                            ui.label(*k);
+                            ui.label(format!("{} / {}", v.killed, v.spawned));
+                            ui.end_row();
+                        });
+                });
+        });
+
+        self.add_space(30.);
     }
 }
 

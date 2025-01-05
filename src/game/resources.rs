@@ -7,11 +7,15 @@ use bevy::utils::hashbrown::HashMap;
 #[derive(Resource)]
 pub struct GameSettings {
     pub speed: f32,
+    pub enemy_info: bool,
 }
 
 impl Default for GameSettings {
     fn default() -> Self {
-        Self { speed: 1. }
+        Self {
+            speed: 1.,
+            enemy_info: false,
+        }
     }
 }
 

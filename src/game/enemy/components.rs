@@ -12,6 +12,7 @@ pub struct Enemy {
     pub size: Vec2,
     pub armor: f32,
     pub speed: f32,
+    pub can_fly: bool,
     pub damage: f32,
     pub strength: f32,
 }

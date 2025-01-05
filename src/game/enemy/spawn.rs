@@ -1,4 +1,4 @@
-use crate::constants::{BETA, NIGHT_DURATION};
+use crate::constants::{BETA, NIGHT_DURATION, NO_SPAWN_START, NO_SPAWN_STEP};
 use crate::game::enemy::components::Enemy;
 use bevy::prelude::{Resource, Vec2};
 use rand::distributions::{Distribution, WeightedIndex};
@@ -9,9 +9,8 @@ pub struct EnemySpawner {
 }
 
 impl EnemySpawner {
-    fn get_spawn_probabilities(&self, day: u32, time: f32) -> Vec<f32> {
-        let probabilities: Vec<f32> = self
-            .enemies
+    fn get_spawn_weights(&self, day: u32, time: f32) -> Vec<f32> {
+        self.enemies
             .iter()
             .map(|&enemy| {
                 if enemy.strength <= day as f32 {
@@ -24,26 +23,15 @@ impl EnemySpawner {
                     (-BETA * (1. - time / NIGHT_DURATION) * (enemy.strength - day as f32)).exp()
                 }
             })
-            .collect();
-
-        let total_weight: f32 = probabilities.iter().sum();
-        probabilities.iter().map(|&p| p / total_weight).collect()
+            .collect()
     }
 
     pub fn choose_enemy(&self, day: u32, time: f32) -> Option<&Enemy> {
-        // The Probability of not spawning any enemy is 1 / day + 1
-        if rand::random::<f32>() < 1. / (day as f32 + 1.) {
-            // Function to sample an enemy based on weighted probabilities
-            let weights = self.get_spawn_probabilities(day, time);
-            println!("Weights: {:?}", weights);
-
-            // Sample an index based on the normalized weights
+        if rand::random::<f32>() > NO_SPAWN_START - NO_SPAWN_STEP * (day as f32 - 1.) {
+            let weights = self.get_spawn_weights(day, time);
             let dist = WeightedIndex::new(&weights).unwrap();
-            Some(
-                self.enemies
-                    .get(dist.sample(&mut rand::thread_rng()))
-                    .unwrap(),
-            )
+            let index = dist.sample(&mut rand::thread_rng());
+            Some(self.enemies.get(index).unwrap())
         } else {
             None
         }
@@ -58,9 +46,10 @@ impl Default for EnemySpawner {
                 image: "enemy/dartling.png",
                 max_health: 50.,
                 health: 50.,
-                size: Vec2::new(50., 50.),
+                size: Vec2::new(40., 60.),
                 armor: 0.,
-                speed: 10.,
+                speed: 5.,
+                can_fly: false,
                 damage: 10.,
                 strength: 1.0,
             },
@@ -69,9 +58,10 @@ impl Default for EnemySpawner {
                 image: "enemy/skitterling.png",
                 max_health: 20.,
                 health: 20.,
-                size: Vec2::new(30., 30.),
+                size: Vec2::new(25., 35.),
                 armor: 0.,
-                speed: 25.,
+                speed: 12.,
+                can_fly: false,
                 damage: 5.,
                 strength: 1.0,
             },
@@ -80,9 +70,10 @@ impl Default for EnemySpawner {
                 image: "enemy/shellback.png",
                 max_health: 50.,
                 health: 50.,
-                size: Vec2::new(70., 70.),
-                armor: 5.,
-                speed: 7.,
+                size: Vec2::new(60., 80.),
+                armor: 2.,
+                speed: 3.,
+                can_fly: false,
                 damage: 20.,
                 strength: 2.0,
             },
@@ -91,9 +82,10 @@ impl Default for EnemySpawner {
                 image: "enemy/quickstrike.png",
                 max_health: 40.,
                 health: 40.,
-                size: Vec2::new(40., 40.),
-                armor: 2.,
-                speed: 20.,
+                size: Vec2::new(35., 45.),
+                armor: 1.,
+                speed: 10.,
+                can_fly: false,
                 damage: 10.,
                 strength: 2.0,
             },
@@ -102,9 +94,10 @@ impl Default for EnemySpawner {
                 image: "enemy/chiton.png",
                 max_health: 60.,
                 health: 60.,
-                size: Vec2::new(50., 50.),
+                size: Vec2::new(40., 60.),
                 armor: 0.,
-                speed: 15.,
+                speed: 7.,
+                can_fly: false,
                 damage: 15.,
                 strength: 2.0,
             },
@@ -113,9 +106,10 @@ impl Default for EnemySpawner {
                 image: "enemy/thornbiter.png",
                 max_health: 40.,
                 health: 40.,
-                size: Vec2::new(55., 55.),
-                armor: 10.,
-                speed: 10.,
+                size: Vec2::new(45., 65.),
+                armor: 5.,
+                speed: 5.,
+                can_fly: false,
                 damage: 20.,
                 strength: 3.0,
             },
@@ -124,9 +118,10 @@ impl Default for EnemySpawner {
                 image: "enemy/blightcrawler.png",
                 max_health: 80.,
                 health: 80.,
-                size: Vec2::new(40., 40.),
+                size: Vec2::new(35., 45.),
                 armor: 2.,
-                speed: 20.,
+                speed: 10.,
+                can_fly: false,
                 damage: 25.,
                 strength: 4.0,
             },
@@ -135,11 +130,48 @@ impl Default for EnemySpawner {
                 image: "enemy/shellfist.png",
                 max_health: 120.,
                 health: 120.,
-                size: Vec2::new(90., 90.),
-                armor: 5.,
-                speed: 5.,
+                size: Vec2::new(80., 100.),
+                armor: 7.,
+                speed: 2.,
+                can_fly: false,
                 damage: 50.,
                 strength: 5.0,
+            },
+            Enemy {
+                name: "Shellwarden",
+                image: "enemy/shellwarden.png",
+                max_health: 200.,
+                health: 200.,
+                size: Vec2::new(80., 100.),
+                armor: 4.,
+                speed: 2.,
+                can_fly: false,
+                damage: 50.,
+                strength: 5.0,
+            },
+            Enemy {
+                name: "Hiveborn",
+                image: "enemy/hiveborn.png",
+                max_health: 30.,
+                health: 30.,
+                size: Vec2::new(45., 45.),
+                armor: 0.,
+                speed: 10.,
+                can_fly: true,
+                damage: 10.,
+                strength: 5.0,
+            },
+            Enemy {
+                name: "Crawler",
+                image: "enemy/crawler.png",
+                max_health: 55.,
+                health: 55.,
+                size: Vec2::new(55., 55.),
+                armor: 0.,
+                speed: 20.,
+                can_fly: false,
+                damage: 20.,
+                strength: 6.0,
             },
             // Enemy {
             //     name: "Carapacebreaker",
@@ -152,31 +184,6 @@ impl Default for EnemySpawner {
             //     damage: 2.,
             //     strength: 6.5,
             // },
-            //
-            // Enemy {
-            //     name: "Shellwarden",
-            //     image: "enemy/shellwarden.png",
-            //     max_health: 18.,
-            //     health: 18.,
-            //     size: Vec2::new(55., 55.),
-            //     armor: 4.,
-            //     speed: 2.2,
-            //     damage: 3.,
-            //     strength: 5.0,
-            // },
-            //
-            // Enemy {
-            //     name: "Hiveborn",
-            //     image: "enemy/hiveborn.png",
-            //     max_health: 15.,
-            //     health: 15.,
-            //     size: Vec2::new(55., 55.),
-            //     armor: 3.,
-            //     speed: 3.,
-            //     damage: 3.,
-            //     strength: 5.6,
-            // },
-            //
             // Enemy {
             //     name: "Stinglash",
             //     image: "enemy/stinglash.png",
@@ -225,17 +232,18 @@ impl Default for EnemySpawner {
             //     strength: 9.8,
             // },
             //
-            // Enemy {
-            //     name: "Ironcarapace",
-            //     image: "enemy/ironcarapace.png",
-            //     max_health: 70.,
-            //     health: 70.,
-            //     size: Vec2::new(100., 100.),
-            //     armor: 10.,
-            //     speed: 1.,
-            //     damage: 8.,
-            //     strength: 10.0,
-            // },
+            Enemy {
+                name: "Ironcarapace",
+                image: "enemy/ironcarapace.png",
+                max_health: 500.,
+                health: 500.,
+                size: Vec2::new(200., 200.),
+                armor: 20.,
+                speed: 1.,
+                can_fly: false,
+                damage: 80.,
+                strength: 10.0,
+            },
         ];
 
         Self { enemies }

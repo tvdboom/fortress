@@ -1,6 +1,12 @@
 use crate::game::resources::{GameSettings, Resources};
 use bevy::prelude::*;
 
+#[derive(Component)]
+pub struct Fence;
+
+#[derive(Component)]
+pub struct Wall;
+
 #[derive(Component, Clone)]
 pub enum Weapon {
     SentryGun { timer: Option<Timer> },

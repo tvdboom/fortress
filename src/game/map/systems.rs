@@ -4,11 +4,12 @@ use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
+use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
+use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
 use std::ops::Deref;
@@ -70,6 +71,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 pub fn menu_panel(
     mut contexts: EguiContexts,
+    mut game_settings: ResMut<GameSettings>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
@@ -95,7 +97,7 @@ pub fn menu_panel(
                             std::process::exit(0);
                         }
                     });
-                    egui::menu::menu_button(ui, "State", |ui| {
+                    egui::menu::menu_button(ui, "Tools", |ui| {
                         if ui
                             .add_enabled(
                                 *app_state.get() == AppState::Night,
@@ -109,8 +111,12 @@ pub fn menu_panel(
                             }
                         }
                     });
-                    egui::menu::menu_button(ui, "Settings", |ui| {
-                        if ui.button("Toggle audio").clicked() {
+                    egui::menu::menu_button(ui, "View", |ui| {
+                        if ui.button("Enemy info").clicked() {
+                            game_settings.enemy_info = !game_settings.enemy_info;
+                            ui.close_menu();
+                        }
+                        if ui.button("Settings").clicked() {
                             ui.close_menu();
                             todo!();
                         }
@@ -384,14 +390,14 @@ pub fn info_panel(
                                 ui.horizontal(|ui| {
                                     ui.add_space(85.);
                                     ui.with_layout(
-                                        egui::Layout::top_down(egui::Align::LEFT),
+                                        Layout::top_down(Align::LEFT),
                                         |ui| {
                                             ui.add_space(5.);
                                             ui.label(
-                                                "The world has been conquered by monsters. Together \
+                                                "The world has been conquered by insects. Together \
                                                 with a handful of survivors, you have build a fortress \
                                                 to defend yourself from their ferocious attacks.\n\n\
-                                                Every night, an ever increasing swarm of monsters attacks \
+                                                Every night, an ever increasing swarm of insects attacks \
                                                 the fortress. Kill them before they reach the wall! \
                                                 When they do, they hit the wall, reducing its resistance. \
                                                 If the wall is destroyed, the monsters can freely enter \
@@ -401,7 +407,7 @@ pub fn info_panel(
                                                 night. During the attack, you can choose how/when to use \
                                                 the weapons you have to your disposal. But be careful, \
                                                 everything has a cost! Manage your resources wisely or \
-                                                you won't be able to stop the monsters tomorrow...");
+                                                you won't be able to stop the insects tomorrow...");
                                             ui.add_space(5.);
                                         })
                                 })
@@ -414,40 +420,24 @@ pub fn info_panel(
                         }
                     },
                     AppState::EndNight => {
-                        if ui.add_button("Continue").clicked() {
-                            std::process::exit(0);
-                        }
+                        ui.heading(format!("You survived night {}!", player.day));
+
+                        ui.add_night_stats(player);
+
+                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                            ui.add_space(10.);
+
+                            if ui.add_button("Continue").clicked() {
+                                next_state.set(AppState::Day);
+                            }
+                        });
                     },
                     AppState::GameOver => {
                         ui.add_image(game_over_texture,[400., 100.]);
 
-                        ui.heading(format!("You survived {} days!", player.day - 1));
+                        ui.heading(format!("You survived {} nights!", player.day - 1));
 
-                        ui.add_space(30.);
-
-                        ui.horizontal(|ui| {
-                            ui.add_space(200.);
-                            egui::Grid::new("night stats")
-                                .num_columns(2)
-                                .spacing([40.0, 4.0])
-                                .striped(true)
-                                .show(ui, |ui| {
-                                    ui.label("Enemy");
-                                    ui.label("Killed / Spawned");
-                                    ui.end_row();
-
-                                    player.stats
-                                        .get(&player.day)
-                                        .unwrap()
-                                        .enemies.iter().for_each(|(k, v)| {
-                                            ui.label(*k);
-                                            ui.label(format!("{} / {}", v.killed, v.spawned));
-                                            ui.end_row();
-                                        });
-                                });
-                        });
-
-                        ui.add_space(30.);
+                        ui.add_night_stats(player);
 
                         ui.horizontal(|ui| {
                             ui.add_space(190.);
@@ -469,6 +459,61 @@ pub fn info_panel(
                 ui.add_space(10.);
             });
         });
+}
+
+pub fn enemy_info_panel(
+    mut contexts: EguiContexts,
+    mut game_settings: ResMut<GameSettings>,
+    spawner: Res<EnemySpawner>,
+    images: Local<Images>,
+) {
+    if game_settings.enemy_info {
+        let textures = spawner
+            .enemies
+            .iter()
+            .map(|e| contexts.add_image(images.enemies.get(e.name).unwrap().clone_weak()))
+            .collect::<Vec<_>>();
+
+        egui::Window::new("Enemy info")
+            .collapsible(false)
+            .open(&mut game_settings.enemy_info)
+            .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
+            .default_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
+            .show(contexts.ctx_mut(), |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(10.);
+
+                    egui::ScrollArea::vertical()
+                        .max_width(SIZE.x * 0.4)
+                        .show(ui, |ui| {
+                            spawner.enemies.iter().enumerate().for_each(|(i, e)| {
+                                ui.add_space(20.);
+                                ui.horizontal(|ui| {
+                                    ui.add_image(*textures.get(i).unwrap(), [140., 160.]);
+
+                                    egui::Grid::new("Enemy info")
+                                        .num_columns(2)
+                                        .spacing([4.0, 4.0])
+                                        .striped(true)
+                                        .show(ui, |ui| {
+                                            ui.label("Name");
+                                            ui.label(e.name);
+                                            ui.end_row();
+
+                                            ui.label("Health");
+                                            ui.label(e.health.to_string());
+                                            ui.end_row();
+
+                                            ui.label("Armor");
+                                            ui.label(e.armor.to_string());
+                                            ui.end_row();
+                                        });
+                                });
+                            });
+                        });
+                });
+            });
+    }
 }
 
 pub fn clear_map(

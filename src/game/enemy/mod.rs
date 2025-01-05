@@ -1,5 +1,5 @@
 pub mod components;
-mod spawn;
+pub mod spawn;
 mod systems;
 
 use std::time::Duration;

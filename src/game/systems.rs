@@ -1,8 +1,8 @@
 use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED};
-use crate::game::components::PauseWrapper;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
+use crate::game::map::components::PauseWrapper;
 
 pub fn new_game(
     mut commands: Commands,
@@ -60,11 +60,24 @@ pub fn check_keys(
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
+    if keyboard.just_pressed(KeyCode::KeyE) {
+        game_settings.enemy_info = !game_settings.enemy_info;
+    }
+
     if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
         if keyboard.just_pressed(KeyCode::KeyN) {
             next_app_state.set(AppState::StartGame);
         } else if keyboard.just_pressed(KeyCode::KeyQ) {
             std::process::exit(0);
+        }
+
+        if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+            if keyboard.just_pressed(KeyCode::ArrowUp) {
+                player.day += 1;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
+                player.day -= 1;
+            }
         }
     }
 
@@ -87,15 +100,6 @@ pub fn check_keys(
                 game_settings.speed += GAME_SPEED_STEP;
                 if game_settings.speed == GAME_SPEED_STEP {
                     next_game_state.set(GameState::Running);
-                }
-            }
-
-            if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
-                if keyboard.just_pressed(KeyCode::ArrowUp) {
-                    player.day += 1;
-                }
-                if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
-                    player.day -= 1;
                 }
             }
         }

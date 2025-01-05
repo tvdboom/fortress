@@ -1,7 +1,6 @@
 use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::enemy::spawn::EnemySpawner;
-use crate::game::map::components::*;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::AppState;
 use bevy::color::{
@@ -10,6 +9,7 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
+use crate::game::weapon::components::{Fence, Wall};
 
 pub fn spawn_enemies(
     mut commands: Commands,
@@ -96,52 +96,60 @@ pub fn move_enemies(
         let new_pos = transform.translation.y
             - MAP_SIZE.y / 100. * enemy.speed * game_settings.speed * time.delta_secs();
 
-        if player.fence.health > 0. {
-            let (entity, t, fence) = fence_q.iter().next().unwrap();
-            let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
+        if !enemy.can_fly {
+            if player.fence.health > 0. {
+                let (entity, t, fence) = fence_q.iter().next().unwrap();
+                let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
 
-            if new_pos < fence_y + 5. {
-                transform.translation.y = fence_y + 5.;
+                if new_pos < fence_y + 5. {
+                    transform.translation.y = fence_y + 5.;
 
-                if player.fence.health > enemy.damage {
-                    player.fence.health -= enemy.damage * game_settings.speed * time.delta_secs();
-                    if player.fence.enabled {
-                        let damage = player.fence.damage * game_settings.speed * time.delta_secs();
-                        if enemy.health > damage {
-                            enemy.health -= damage;
-                        } else {
-                            commands.entity(enemy_entity).despawn_recursive();
+                    if player.fence.health > enemy.damage {
+                        player.fence.health -=
+                            enemy.damage * game_settings.speed * time.delta_secs();
+                        if player.fence.enabled {
+                            let damage =
+                                player.fence.damage * game_settings.speed * time.delta_secs();
 
-                            night_stats
-                                .enemies
-                                .entry(enemy.name)
-                                .and_modify(|status| status.killed += 1);
+                            if enemy.health > damage {
+                                enemy.health -= damage;
+                            } else {
+                                commands.entity(enemy_entity).despawn_recursive();
+
+                                night_stats
+                                    .enemies
+                                    .entry(enemy.name)
+                                    .and_modify(|status| status.killed += 1);
+                            }
                         }
+                    } else {
+                        player.fence.health = 0.;
+                        commands.entity(entity).despawn();
                     }
-                } else {
-                    player.fence.health = 0.;
-                    commands.entity(entity).despawn();
-                }
-            } else {
-                transform.translation.y = new_pos;
-            }
-        } else if player.wall.health > 0. {
-            let (entity, t, wall) = wall_q.iter().next().unwrap();
-            let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
-            if new_pos < wall_y + 5. {
-                transform.translation.y = wall_y + 5.;
-
-                if player.wall.health > enemy.damage {
-                    player.wall.health -= enemy.damage * game_settings.speed * time.delta_secs();
-                } else {
-                    player.wall.health = 0.;
-                    commands.entity(entity).despawn();
+                    continue;
                 }
-            } else {
-                transform.translation.y = new_pos;
+            } else if player.wall.health > 0. {
+                let (entity, t, wall) = wall_q.iter().next().unwrap();
+                let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
+
+                if new_pos < wall_y + 5. {
+                    transform.translation.y = wall_y + 5.;
+
+                    if player.wall.health > enemy.damage {
+                        player.wall.health -=
+                            enemy.damage * game_settings.speed * time.delta_secs();
+                    } else {
+                        player.wall.health = 0.;
+                        commands.entity(entity).despawn();
+                    }
+
+                    continue;
+                }
             }
-        } else if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - 10. {
+        }
+
+        if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.size.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
                 player.survivors -= (enemy.damage * game_settings.speed) as u32;
                 commands.entity(enemy_entity).despawn_recursive();

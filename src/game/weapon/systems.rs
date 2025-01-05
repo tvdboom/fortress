@@ -1,8 +1,8 @@
 use crate::constants::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::{Fence, Map, Wall};
+use crate::game::map::components::Map;
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon};
+use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon};
 use crate::utils::collision;
 use bevy::prelude::*;
 
