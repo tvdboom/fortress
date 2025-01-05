@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use bevy::asset::{AssetServer, Handle};
 use bevy::image::Image;
 use bevy::prelude::{FromWorld, World};
+use std::collections::HashMap;
 
 pub struct Images {
     pub bug: Handle<Image>,
@@ -48,11 +48,20 @@ impl FromWorld for Images {
                 ("Quickstrike", asset_server.load("enemy/quickstrike.png")),
                 ("Chiton", asset_server.load("enemy/chiton.png")),
                 ("Thornbiter", asset_server.load("enemy/thornbiter.png")),
-                ("Blightcrawler", asset_server.load("enemy/blightcrawler.png")),
+                ("Needler", asset_server.load("enemy/needler.png")),
+                ("Blightcraw", asset_server.load("enemy/blightcraw.png")),
                 ("Shellfist", asset_server.load("enemy/shellfist.png")),
                 ("Shellwarden", asset_server.load("enemy/shellwarden.png")),
                 ("Hiveborn", asset_server.load("enemy/hiveborn.png")),
                 ("Crawler", asset_server.load("enemy/crawler.png")),
+                (
+                    "Carapacebreaker",
+                    asset_server.load("enemy/carapacebreaker.png"),
+                ),
+                ("Dartmite", asset_server.load("enemy/dartmite.png")),
+                ("Nestling", asset_server.load("enemy/nestling.png")),
+                ("Gargantula", asset_server.load("enemy/gargantula.png")),
+                ("Ironclaw", asset_server.load("enemy/ironclaw.png")),
                 ("Ironcarapace", asset_server.load("enemy/ironcarapace.png")),
             ]),
         }

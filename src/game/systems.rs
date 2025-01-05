@@ -1,8 +1,8 @@
 use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED};
+use crate::game::map::components::PauseWrapper;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
-use crate::game::map::components::PauseWrapper;
 
 pub fn new_game(
     mut commands: Commands,

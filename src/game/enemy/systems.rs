@@ -2,6 +2,7 @@ use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
+use crate::game::weapon::components::{Fence, Wall};
 use crate::game::AppState;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
@@ -9,7 +10,6 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
-use crate::game::weapon::components::{Fence, Wall};
 
 pub fn spawn_enemies(
     mut commands: Commands,

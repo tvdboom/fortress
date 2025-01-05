@@ -2,14 +2,14 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::Enemy;
+use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
-use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
+use bevy_egui::egui::{Align, Frame, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
 use std::ops::Deref;
@@ -475,43 +475,47 @@ pub fn enemy_info_panel(
             .collect::<Vec<_>>();
 
         egui::Window::new("Enemy info")
+            .frame(Frame::default().inner_margin(20.))
             .collapsible(false)
             .open(&mut game_settings.enemy_info)
-            .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
+            .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.6))
             .default_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
+            .min_width(MAP_SIZE.x * 0.6)
             .show(contexts.ctx_mut(), |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(10.);
+                ui.add_space(15.);
 
-                    egui::ScrollArea::vertical()
-                        .max_width(SIZE.x * 0.4)
-                        .show(ui, |ui| {
-                            spawner.enemies.iter().enumerate().for_each(|(i, e)| {
+                egui::ScrollArea::vertical()
+                    .max_width(SIZE.x * 0.4)
+                    .show(ui, |ui| {
+                        spawner.enemies.iter().enumerate().for_each(|(i, e)| {
+                            if i > 0 {
                                 ui.add_space(20.);
-                                ui.horizontal(|ui| {
-                                    ui.add_image(*textures.get(i).unwrap(), [140., 160.]);
+                            }
 
-                                    egui::Grid::new("Enemy info")
-                                        .num_columns(2)
-                                        .spacing([4.0, 4.0])
-                                        .striped(true)
-                                        .show(ui, |ui| {
-                                            ui.label("Name");
-                                            ui.label(e.name);
-                                            ui.end_row();
+                            ui.horizontal(|ui| {
+                                ui.add_image(*textures.get(i).unwrap(), [105., 120.])
+                                    .on_hover_text(e.name);
 
-                                            ui.label("Health");
-                                            ui.label(e.health.to_string());
-                                            ui.end_row();
+                                ui.add_space(20.);
 
-                                            ui.label("Armor");
-                                            ui.label(e.armor.to_string());
-                                            ui.end_row();
-                                        });
-                                });
+                                ui.vertical(|ui| {
+                                    ui.label(format!("Name: {}", e.name));
+                                    ui.label(format!("Health: {}", e.health));
+                                    ui.label(format!("Armor: {}", e.armor))
+                                        .on_hover_text("Armor reduces incoming damage.");
+                                    ui.label(format!("Speed: {}", e.speed))
+                                        .on_hover_text("Faster bugs reach the wall earlier.");
+                                    ui.label(format!("Can fly: {}", e.can_fly))
+                                        .on_hover_text("Flying bugs can pass over constructions.");
+                                    ui.label(format!("Damage: {}", e.damage)).on_hover_text(
+                                        "Damage dealt to constructions or survivors.",
+                                    );
+                                })
                             });
                         });
-                });
+                    });
+
+                ui.add_space(15.);
             });
     }
 }

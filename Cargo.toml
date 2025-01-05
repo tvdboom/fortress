@@ -4,13 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.15"
+bevy = "0.15.1"
 bevy_egui = "0.31.1"
 catppuccin-egui = { version = "5.3.1", default-features = false, features = ["egui29"] }
 image = "0.25.5"
 rand = "0.8.5"
-rand_distr = "0.5.0-beta.2"
-winit = "0.30.7"
+winit = "0.30.8"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
