@@ -1,5 +1,6 @@
 use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::map::components::*;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::AppState;
@@ -13,6 +14,7 @@ use rand::prelude::*;
 pub fn spawn_enemies(
     mut commands: Commands,
     enemy_q: Query<&Enemy>,
+    spawner: Res<EnemySpawner>,
     mut night_stats: ResMut<NightStats>,
     mut next_state: ResMut<NextState<AppState>>,
     asset_server: Res<AssetServer>,
@@ -25,64 +27,58 @@ pub fn spawn_enemies(
         return;
     }
 
-    let mut rng = thread_rng();
-    let enemy = match rng.gen_range(0..1000) * night_stats.day {
-        800..900 => Enemy::walker(),
-        900..950 => Enemy::runner(),
-        950..970 => Enemy::ogre(),
-        970..990 => Enemy::armored_ogre(),
-        990..1000 => Enemy::dragon(),
-        _ => return,
-    };
+    if let Some(enemy) =
+        spawner.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
+    {
+        let x = thread_rng().gen_range(
+            (-SIZE.x + enemy.size.x) * 0.5..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
+        );
 
-    let x = rng.gen_range(
-        (-SIZE.x + enemy.size.x) * 0.5..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
-    );
-
-    commands
-        .spawn((
-            Sprite {
-                image: asset_server.load(&enemy.image),
-                custom_size: Some(enemy.size),
-                ..default()
-            },
-            Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
-            enemy.clone(),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Sprite {
-                        color: Color::from(BLACK),
-                        custom_size: Some(Vec2::new(enemy.size.x * 0.8, enemy.size.y * 0.1)),
-                        ..default()
-                    },
-                    Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
-                ))
-                .with_children(|parent| {
-                    parent.spawn((
+        commands
+            .spawn((
+                Sprite {
+                    image: asset_server.load(enemy.image),
+                    custom_size: Some(enemy.size),
+                    ..default()
+                },
+                Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
+                enemy.clone(),
+            ))
+            .with_children(|parent| {
+                parent
+                    .spawn((
                         Sprite {
-                            color: Color::from(LIME),
-                            custom_size: Some(Vec2::new(
-                                enemy.size.x * 0.8 - 2.0,
-                                enemy.size.y * 0.1 - 2.0,
-                            )),
+                            color: Color::from(BLACK),
+                            custom_size: Some(Vec2::new(enemy.size.x * 0.8, enemy.size.y * 0.1)),
                             ..default()
                         },
-                        Transform::from_xyz(0., 0., 1.6),
-                        EnemyHealth,
-                    ));
-                });
-        });
+                        Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn((
+                            Sprite {
+                                color: Color::from(LIME),
+                                custom_size: Some(Vec2::new(
+                                    enemy.size.x * 0.8 - 2.0,
+                                    enemy.size.y * 0.1 - 2.0,
+                                )),
+                                ..default()
+                            },
+                            Transform::from_xyz(0., 0., 1.6),
+                            EnemyHealth,
+                        ));
+                    });
+            });
 
-    night_stats
-        .enemies
-        .entry(enemy.name.clone())
-        .and_modify(|status| status.spawned += 1)
-        .or_insert_with(|| EnemyStatus {
-            spawned: 1,
-            killed: 0,
-        });
+        night_stats
+            .enemies
+            .entry(enemy.name)
+            .and_modify(|status| status.spawned += 1)
+            .or_insert_with(|| EnemyStatus {
+                spawned: 1,
+                killed: 0,
+            });
+    }
 }
 
 pub fn move_enemies(
@@ -118,7 +114,7 @@ pub fn move_enemies(
 
                             night_stats
                                 .enemies
-                                .entry(enemy.name.clone())
+                                .entry(enemy.name)
                                 .and_modify(|status| status.killed += 1);
                         }
                     }

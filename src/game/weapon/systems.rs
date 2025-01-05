@@ -3,8 +3,8 @@ use crate::game::enemy::components::Enemy;
 use crate::game::map::components::{Fence, Map, Wall};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
-use bevy::prelude::*;
 use crate::utils::collision;
+use bevy::prelude::*;
 
 pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
     if player.fence.max_health > 0. {
@@ -169,15 +169,16 @@ pub fn move_bullets(
             ) {
                 commands.entity(entity).despawn();
 
-                if enemy.health <= bullet.damage as f32 {
+                let damage = bullet.damage - enemy.armor;
+                if enemy.health <= damage {
                     commands.entity(enemy_entity).despawn_recursive();
 
                     night_stats
                         .enemies
-                        .entry(enemy.name.clone())
+                        .entry(enemy.name)
                         .and_modify(|status| status.killed += 1);
                 } else {
-                    enemy.health -= bullet.damage as f32;
+                    enemy.health -= damage;
                 }
             }
         }

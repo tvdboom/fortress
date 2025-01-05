@@ -1,5 +1,4 @@
 use crate::constants::NIGHT_DURATION;
-use crate::game::enemy::components::EnemyType;
 use crate::game::weapon::components::{Weapon, WeaponSettings};
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
@@ -133,7 +132,7 @@ pub struct NightStats {
     pub day: u32,
     pub timer: Timer,
     pub resources: Resources,
-    pub enemies: HashMap<EnemyType, EnemyStatus>,
+    pub enemies: HashMap<&'static str, EnemyStatus>,
 }
 
 impl Default for NightStats {

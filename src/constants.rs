@@ -15,6 +15,10 @@ pub const MAP_SIZE: Vec2 = Vec2::new(
     SIZE.y - MENU_PANEL_SIZE.y - RESOURCES_PANEL_SIZE.y,
 );
 
-pub const NIGHT_DURATION: f32 = 60.;
+// Game settings
 pub const MAX_GAME_SPEED: f32 = 5.;
 pub const GAME_SPEED_STEP: f32 = 0.5;
+
+// Night settings
+pub const NIGHT_DURATION: f32 = 60.; // In seconds
+pub const BETA: f32 = 1.1; // Probability factor decrease for above-level enemies

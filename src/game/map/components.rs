@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 pub struct Images {
-    pub day_night: Handle<Image>,
+    pub bug: Handle<Image>,
     pub day: Handle<Image>,
     pub night: Handle<Image>,
     pub person: Handle<Image>,
-    pub fortress: Handle<Image>,
+    pub wall: Handle<Image>,
     pub fence: Handle<Image>,
     pub lightning: Handle<Image>,
     pub weapon: Handle<Image>,
@@ -22,11 +22,11 @@ impl FromWorld for Images {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
         Self {
-            day_night: asset_server.load("icons/day-and-night.png"),
+            bug: asset_server.load("icons/bug.png"),
             day: asset_server.load("icons/day.png"),
             night: asset_server.load("icons/night.png"),
             person: asset_server.load("icons/user.png"),
-            fortress: asset_server.load("icons/fortress.png"),
+            wall: asset_server.load("icons/wall.png"),
             fence: asset_server.load("icons/fence.png"),
             lightning: asset_server.load("icons/lightning.png"),
             weapon: asset_server.load("icons/rifle.png"),

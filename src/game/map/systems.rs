@@ -5,7 +5,7 @@ use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon};
 use crate::game::{AppState, GameState};
-use crate::utils::{scale_duration, toggle, CustomUi, EnumDisplay};
+use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{RichText, Style, TextStyle, UiBuilder};
@@ -134,7 +134,7 @@ pub fn resources_panel(
     let day_texture = contexts.add_image(images.day.clone_weak());
     let night_texture = contexts.add_image(images.night.clone_weak());
     let person_texture = contexts.add_image(images.person.clone_weak());
-    let fortress_texture = contexts.add_image(images.fortress.clone_weak());
+    let wall_texture = contexts.add_image(images.wall.clone_weak());
     let fence_texture = contexts.add_image(images.fence.clone_weak());
     let bullets_texture = contexts.add_image(images.bullets.clone_weak());
     let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
@@ -167,7 +167,7 @@ pub fn resources_panel(
 
                 ui.add_space(15.);
 
-                ui.add_image(fortress_texture, [20., 20.])
+                ui.add_image(wall_texture, [20., 20.])
                     .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(player.wall.health / player.wall.max_health)
@@ -213,13 +213,19 @@ pub fn resources_panel(
 
                 ui.add_image(gasoline_texture, [20., 20.])
                     .on_hover_text("Gasoline");
-                ui.add(egui::Label::new(format!("{:.0}", player.resources.gasoline)));
+                ui.add(egui::Label::new(format!(
+                    "{:.0}",
+                    player.resources.gasoline
+                )));
 
                 ui.add_space(15.);
 
                 ui.add_image(materials_texture, [20., 20.])
                     .on_hover_text("Materials");
-                ui.add(egui::Label::new(format!("{:.0}", player.resources.materials)));
+                ui.add(egui::Label::new(format!(
+                    "{:.0}",
+                    player.resources.materials
+                )));
 
                 ui.add_space(5.);
                 ui.separator();
@@ -434,7 +440,7 @@ pub fn info_panel(
                                         .get(&player.day)
                                         .unwrap()
                                         .enemies.iter().for_each(|(k, v)| {
-                                            ui.label(k.name());
+                                            ui.label(*k);
                                             ui.label(format!("{} / {}", v.killed, v.spawned));
                                             ui.end_row();
                                         });
@@ -444,7 +450,7 @@ pub fn info_panel(
                         ui.add_space(30.);
 
                         ui.horizontal(|ui| {
-                            ui.add_space(170.);
+                            ui.add_space(190.);
 
                             if ui.add_button("New game").clicked() {
                                 next_state.set(AppState::StartGame);

@@ -57,7 +57,7 @@ pub struct Bullet {
     pub size: Vec2,
     pub speed: f32,
     pub angle: f32,
-    pub damage: u32,
+    pub damage: f32,
     pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,     // Current distance traveled by the bullet
 }
@@ -107,10 +107,10 @@ impl Default for WeaponSettings {
                     },
                     bullet: Bullet {
                         image: "weapon/bullet.png".to_string(),
-                        size: Vec2::new(30., 30.),
+                        size: Vec2::new(30., 5.),
                         speed: 60.,
                         angle: 0.,
-                        damage: 5,
+                        damage: 5.,
                         max_distance: 70.,
                         distance: 0.,
                     },

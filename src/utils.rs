@@ -1,26 +1,12 @@
+use bevy::math::{Vec2, Vec3};
 use bevy_egui::egui;
 use bevy_egui::egui::{epaint, Response, TextureId, Ui, WidgetText};
 use std::time::Duration;
-use bevy::math::{Vec2, Vec3};
 
 /// Scale a Duration by a factor
 pub fn scale_duration(duration: Duration, scale: f32) -> Duration {
     let sec = (duration.as_secs() as f32 + duration.subsec_nanos() as f32 * 1e-9) * scale;
     Duration::new(sec.trunc() as u64, (sec.fract() * 1e9) as u32)
-}
-
-/// Add to get the string name of Enums
-pub trait EnumDisplay {
-    fn name(&self) -> String;
-}
-
-impl<T> EnumDisplay for T
-where
-    T: std::fmt::Debug,
-{
-    fn name(&self) -> String {
-        format!("{:?}", self)
-    }
 }
 
 /// Custom syntax sugar for repetitive UI elements

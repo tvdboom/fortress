@@ -53,6 +53,7 @@ pub fn unpause_game(
 
 pub fn check_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut player: ResMut<Player>,
     mut game_settings: ResMut<GameSettings>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
@@ -78,9 +79,24 @@ pub fn check_keys(
         if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
             if keyboard.just_pressed(KeyCode::ArrowLeft) && game_settings.speed >= GAME_SPEED_STEP {
                 game_settings.speed -= GAME_SPEED_STEP;
+                if game_settings.speed == 0. {
+                    next_game_state.set(GameState::Paused);
+                }
             }
             if keyboard.just_pressed(KeyCode::ArrowRight) && game_settings.speed <= MAX_GAME_SPEED {
                 game_settings.speed += GAME_SPEED_STEP;
+                if game_settings.speed == GAME_SPEED_STEP {
+                    next_game_state.set(GameState::Running);
+                }
+            }
+
+            if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
+                if keyboard.just_pressed(KeyCode::ArrowUp) {
+                    player.day += 1;
+                }
+                if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
+                    player.day -= 1;
+                }
             }
         }
     }
