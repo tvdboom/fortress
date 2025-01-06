@@ -1,18 +1,17 @@
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
-use crate::game::enemy::components::Enemy;
-use crate::game::enemy::spawn::EnemySpawner;
+use crate::game::enemy::components::{Enemy, EnemyManager};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon};
+use crate::game::weapon::components::{Bullet, Weapon, WeaponManager, WeaponName};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{Align, Frame, Layout, RichText, Style, TextStyle, UiBuilder};
+use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use catppuccin_egui;
-use std::ops::Deref;
+use rand::prelude::*;
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -281,8 +280,7 @@ pub fn resources_panel(
                                 next_state.set(GameState::Paused);
                             } else {
                                 weapon_q.iter_mut().for_each(|mut w| {
-                                    let params = player.weapons.settings.get(w.as_ref());
-                                    w.update(params, game_settings.as_ref())
+                                    w.update(player.as_ref(), game_settings.as_ref())
                                 });
                                 next_state.set(GameState::Running);
                             }
@@ -298,6 +296,7 @@ pub fn weapons_panel(
     mut weapon_q: Query<&mut Weapon>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
+    weapons: Res<WeaponManager>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
@@ -324,19 +323,17 @@ pub fn weapons_panel(
 
                 // Sentry gun
                 ui.horizontal(|ui| {
-                    let sg = &mut player.weapons.settings.sentry_gun;
-
-                    ui.add(egui::Label::new(format!("{}: ", sg.name)));
+                    ui.add(egui::Label::new(format!("{:?}: ", WeaponName::SentryGun)));
 
                     let sentry_gun_slider = ui
-                        .add(egui::Slider::new(&mut sg.fire_rate, 0..=sg.max_fire_rate))
+                        .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=weapons.sentry_gun.max_fire_rate))
                         .on_hover_text("Sentry guns shoot N bullets per second.");
 
                     if sentry_gun_slider.changed() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| matches!(*w.deref(), Weapon::SentryGun { .. }))
-                            .for_each(|mut w| w.as_mut().update(sg, game_settings.as_ref()))
+                            .filter(|w| w.name == WeaponName::SentryGun)
+                            .for_each(|mut w| w.as_mut().update(player.as_ref(), game_settings.as_ref()))
                     }
                 });
 
@@ -364,7 +361,7 @@ pub fn weapons_panel(
 
 pub fn info_panel(
     mut contexts: EguiContexts,
-    player: Res<Player>,
+    mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
     images: Local<Images>,
@@ -422,13 +419,24 @@ pub fn info_panel(
                     AppState::EndNight => {
                         ui.heading(format!("You survived night {}!", player.day));
 
-                        ui.add_night_stats(player);
+                        ui.add_space(15.);
+
+                        let new_survivors = thread_rng().gen_range(0..=200 * player.day);
+                        ui.label(format!(
+                            "The night is over. The sun is rising and the bugs are \
+                            retreating. You can now collect resources and upgrade your \
+                            weapons before the next night. During the day, {} survivors \
+                            joined the fortress.", new_survivors));
+
+                        ui.add_night_stats(player.as_ref());
 
                         ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
                             ui.add_space(10.);
 
                             if ui.add_button("Continue").clicked() {
-                                next_state.set(AppState::Day);
+                                player.survivors += new_survivors;
+                                player.day += 1;
+                                next_state.set(AppState::Night);
                             }
                         });
                     },
@@ -437,7 +445,7 @@ pub fn info_panel(
 
                         ui.heading(format!("You survived {} nights!", player.day - 1));
 
-                        ui.add_night_stats(player);
+                        ui.add_night_stats(player.as_ref());
 
                         ui.horizontal(|ui| {
                             ui.add_space(190.);
@@ -464,12 +472,12 @@ pub fn info_panel(
 pub fn enemy_info_panel(
     mut contexts: EguiContexts,
     mut game_settings: ResMut<GameSettings>,
-    spawner: Res<EnemySpawner>,
+    enemies: Res<EnemyManager>,
     images: Local<Images>,
 ) {
     if game_settings.enemy_info {
-        let textures = spawner
-            .enemies
+        let textures = enemies
+            .list
             .iter()
             .map(|e| contexts.add_image(images.enemies.get(e.name).unwrap().clone_weak()))
             .collect::<Vec<_>>();
@@ -486,7 +494,7 @@ pub fn enemy_info_panel(
                 egui::ScrollArea::vertical()
                     .max_width(SIZE.x * 0.4)
                     .show(ui, |ui| {
-                        spawner.enemies.iter().enumerate().for_each(|(i, e)| {
+                        enemies.list.iter().enumerate().for_each(|(i, e)| {
                             if i > 0 {
                                 ui.add_space(20.);
                             }
@@ -502,8 +510,9 @@ pub fn enemy_info_panel(
                                     ui.label(format!("Health: {}", e.health));
                                     ui.label(format!("Armor: {}", e.armor))
                                         .on_hover_text("Armor reduces incoming damage.");
-                                    ui.label(format!("Speed: {}", e.speed))
-                                        .on_hover_text("Faster bugs reach the wall earlier.");
+                                    ui.label(format!("Speed: {}", e.speed)).on_hover_text(
+                                        "As percentage of the map's size per second.",
+                                    );
                                     ui.label(format!("Can fly: {}", e.can_fly))
                                         .on_hover_text("Flying bugs can pass over constructions.");
                                     ui.label(format!("Damage: {}", e.damage)).on_hover_text(

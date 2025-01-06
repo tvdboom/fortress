@@ -1,6 +1,5 @@
 use crate::game::resources::Player;
 use bevy::math::{Vec2, Vec3};
-use bevy::prelude::Res;
 use bevy_egui::egui;
 use bevy_egui::egui::{epaint, Response, TextureId, Ui, WidgetText};
 use std::time::Duration;
@@ -15,7 +14,7 @@ pub fn scale_duration(duration: Duration, scale: f32) -> Duration {
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response;
-    fn add_night_stats(&mut self, player: Res<Player>);
+    fn add_night_stats(&mut self, player: &Player);
 }
 
 impl CustomUi for Ui {
@@ -29,7 +28,7 @@ impl CustomUi for Ui {
         )))
     }
 
-    fn add_night_stats(&mut self, player: Res<Player>) {
+    fn add_night_stats(&mut self, player: &Player) {
         self.add_space(30.);
 
         self.horizontal(|ui| {

@@ -1,8 +1,9 @@
 use crate::constants::NIGHT_DURATION;
-use crate::game::weapon::components::{Weapon, WeaponSettings};
+use crate::game::weapon::components::WeaponName;
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
+use std::cmp::Ordering;
 
 #[derive(Resource)]
 pub struct GameSettings {
@@ -19,7 +20,7 @@ impl Default for GameSettings {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Resources {
     pub bullets: f32,
     pub gasoline: f32,
@@ -32,6 +33,20 @@ impl Default for Resources {
             bullets: 0.,
             gasoline: 0.,
             materials: 0.,
+        }
+    }
+}
+
+impl PartialOrd for Resources {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let bullets_cmp = self.bullets.partial_cmp(&other.bullets)?;
+        let gasoline_cmp = self.gasoline.partial_cmp(&other.gasoline)?;
+        let materials_cmp = self.materials.partial_cmp(&other.materials)?;
+
+        if bullets_cmp == gasoline_cmp && gasoline_cmp == materials_cmp {
+            Some(bullets_cmp)
+        } else {
+            None
         }
     }
 }
@@ -53,9 +68,13 @@ pub struct Fence {
     pub repair_price: Resources,  // Repair => +20 health
 }
 
+pub struct WeaponSettings {
+    pub sentry_gun_fire_rate: u32,
+}
+
 pub struct Weapons {
+    pub spots: Vec<Option<WeaponName>>,
     pub settings: WeaponSettings,
-    pub spots: Vec<Option<Weapon>>,
 }
 
 #[derive(Resource)]
@@ -70,8 +89,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn init(game_settings: &GameSettings) -> Self {
-        let weapon_settings = WeaponSettings::default();
+    pub fn init() -> Self {
         Self {
             day: 1,
             survivors: 100,
@@ -111,14 +129,16 @@ impl Player {
                 materials: 1_000.,
             },
             weapons: Weapons {
-                settings: weapon_settings.clone(),
                 spots: vec![
                     None,
-                    Some(Weapon::sentry_gun(&weapon_settings, game_settings)),
+                    Some(WeaponName::SentryGun),
                     None,
-                    Some(Weapon::sentry_gun(&weapon_settings, game_settings)),
+                    Some(WeaponName::SentryGun),
                     None,
                 ],
+                settings: WeaponSettings {
+                    sentry_gun_fire_rate: 1,
+                },
             },
             stats: HashMap::default(),
         }

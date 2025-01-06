@@ -2,11 +2,18 @@ use crate::constants::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon};
+use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager};
 use crate::utils::collision;
 use bevy::prelude::*;
+use std::cmp::PartialOrd;
 
-pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: Res<AssetServer>) {
+pub fn spawn_weapons(
+    mut commands: Commands,
+    player: Res<Player>,
+    weapons: Res<WeaponManager>,
+    game_settings: Res<GameSettings>,
+    asset_server: Res<AssetServer>,
+) {
     if player.fence.max_health > 0. {
         commands.spawn((
             Sprite {
@@ -47,12 +54,13 @@ pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: 
 
     for (weapon, pos) in player.weapons.spots.iter().zip(positions) {
         if let Some(w) = weapon {
-            let params = player.weapons.settings.get(w);
+            let mut w = weapons.get(&w);
+            w.update(player.as_ref(), game_settings.as_ref());
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&params.image),
-                    custom_size: Some(params.size),
+                    image: asset_server.load(&w.image),
+                    custom_size: Some(w.size),
                     ..default()
                 },
                 Transform::from_xyz(
@@ -60,7 +68,7 @@ pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: 
                     -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
                     2.0,
                 ),
-                w.clone(),
+                w,
             ));
         }
     }
@@ -68,62 +76,72 @@ pub fn spawn_weapons(mut commands: Commands, player: Res<Player>, asset_server: 
 
 pub fn spawn_bullets(
     mut commands: Commands,
-    mut weapon_q: Query<(&Transform, &mut Weapon)>,
+    mut weapon_q: Query<(&mut Transform, &mut Weapon), Without<Enemy>>,
     enemy_q: Query<&Transform, With<Enemy>>,
     map_q: Query<&Sprite, With<Map>>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
+    game_settings: Res<GameSettings>,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
-    for (transform, mut weapon) in weapon_q.iter_mut() {
-        let params = player.weapons.settings.get(weapon.as_ref()).clone();
-
-        if weapon.can_fire(&time)
-            && player.resources.bullets > params.fire_cost.bullets
-            && player.resources.gasoline > params.fire_cost.gasoline
+    for (mut transform, mut weapon) in weapon_q.iter_mut() {
+        // Find the nearest enemy in range
+        if let Some((nearest_enemy, _)) = enemy_q
+            .iter()
+            .filter_map(|enemy| {
+                let distance = transform.translation.distance(enemy.translation);
+                if distance <= map_height / 100. * weapon.bullet.max_distance {
+                    Some((enemy, distance))
+                } else {
+                    None
+                }
+            })
+            .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
         {
-            // Find the nearest enemy in range
-            if let Some((nearest_enemy, distance)) = enemy_q
-                .iter()
-                .map(|enemy| {
-                    let distance = transform.translation.distance(enemy.translation);
-                    (enemy, distance)
-                })
-                .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
-            {
-                // The weapon's fire range is a percentage of the map's height
-                if distance <= map_height / 100. * params.bullet.max_distance {
-                    let mut bullet = params.bullet.clone();
+            // Check if the player has the required resources
+            if player.resources >= weapon.fire_cost {
+                // Compute the angle to the selected enemy
+                let d = nearest_enemy.translation - transform.translation;
+                let angle = d.y.atan2(d.x);
 
-                    // Compute the angle to the nearest enemy
-                    let d = nearest_enemy.translation - transform.translation;
-                    bullet.angle = d.y.atan2(d.x);
+                // Rotate the weapon towards the selected enemy
+                if weapon.rotate(
+                    &angle,
+                    &mut transform,
+                    game_settings.as_ref(),
+                    time.as_ref(),
+                ) {
+                    // Check if the weapon can fire (fire timer is finished)
+                    if weapon.can_fire(&time) {
+                        let mut bullet = weapon.bullet.clone();
+                        bullet.angle = angle;
 
-                    commands.spawn((
-                        Sprite {
-                            image: asset_server.load(&bullet.image),
-                            custom_size: Some(bullet.size),
-                            ..default()
-                        },
-                        Transform {
-                            translation: Vec3::new(
-                                transform.translation.x,
-                                transform.translation.y + 10.,
-                                3.0,
-                            ),
-                            rotation: Quat::from_rotation_z(bullet.angle),
-                            ..default()
-                        },
-                        bullet,
-                    ));
+                        commands.spawn((
+                            Sprite {
+                                image: asset_server.load(&bullet.image),
+                                custom_size: Some(bullet.size),
+                                ..default()
+                            },
+                            Transform {
+                                translation: Vec3::new(
+                                    transform.translation.x,
+                                    transform.translation.y + 10.,
+                                    3.0,
+                                ),
+                                rotation: Quat::from_rotation_z(bullet.angle),
+                                ..default()
+                            },
+                            bullet,
+                        ));
 
-                    night_stats.resources.bullets += params.fire_cost.bullets;
-                    night_stats.resources.gasoline += params.fire_cost.gasoline;
-                    player.resources.bullets -= params.fire_cost.bullets;
-                    player.resources.gasoline -= params.fire_cost.gasoline;
+                        night_stats.resources.bullets += weapon.fire_cost.bullets;
+                        night_stats.resources.gasoline += weapon.fire_cost.gasoline;
+                        player.resources.bullets -= weapon.fire_cost.bullets;
+                        player.resources.gasoline -= weapon.fire_cost.gasoline;
+                    }
                 }
             }
         }

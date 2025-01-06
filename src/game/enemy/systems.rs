@@ -1,6 +1,5 @@
 use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::enemy::spawn::EnemySpawner;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Fence, Wall};
 use crate::game::AppState;
@@ -14,7 +13,7 @@ use rand::prelude::*;
 pub fn spawn_enemies(
     mut commands: Commands,
     enemy_q: Query<&Enemy>,
-    spawner: Res<EnemySpawner>,
+    enemies: Res<EnemyManager>,
     mut night_stats: ResMut<NightStats>,
     mut next_state: ResMut<NextState<AppState>>,
     asset_server: Res<AssetServer>,
@@ -28,7 +27,7 @@ pub fn spawn_enemies(
     }
 
     if let Some(enemy) =
-        spawner.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
+        enemies.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
     {
         let x = thread_rng().gen_range(
             (-SIZE.x + enemy.size.x) * 0.5..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,

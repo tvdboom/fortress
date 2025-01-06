@@ -1,15 +1,13 @@
 use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED};
 use crate::game::map::components::PauseWrapper;
 use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
 
-pub fn new_game(
-    mut commands: Commands,
-    game_settings: Res<GameSettings>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    commands.insert_resource(Player::init(&game_settings));
+pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
+    commands.insert_resource(Player::init());
+    commands.insert_resource(WeaponManager::default());
     commands.insert_resource(NightStats::default());
     next_state.set(GameState::Running);
 }

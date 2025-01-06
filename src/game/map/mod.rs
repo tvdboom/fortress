@@ -15,7 +15,7 @@ impl Plugin for MapPlugin {
             .add_systems(
                 Update,
                 (
-                    (menu_panel, resources_panel, weapons_panel, enemy_info_panel).chain(),
+                    (weapons_panel, menu_panel, resources_panel, enemy_info_panel).chain(),
                     info_panel.run_if(
                         in_state(AppState::StartGame)
                             .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),
