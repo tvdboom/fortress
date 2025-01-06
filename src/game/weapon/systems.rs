@@ -127,8 +127,8 @@ pub fn spawn_bullets(
                             },
                             Transform {
                                 translation: Vec3::new(
-                                    transform.translation.x,
-                                    transform.translation.y + 20.,
+                                    transform.translation.x + weapon.size.x * 0.5 * angle.cos(),
+                                    transform.translation.y + weapon.size.y * 0.5 * angle.sin(),
                                     3.0,
                                 ),
                                 rotation: Quat::from_rotation_z(bullet.angle),

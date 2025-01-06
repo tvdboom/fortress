@@ -2,7 +2,7 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::{Enemy, EnemyManager};
-use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::resources::{FireStrategy, GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
@@ -316,23 +316,43 @@ pub fn weapons_panel(
 
                 ui.add_space(5.);
                 ui.separator();
-                ui.add_space(5.);
 
-                // Sentry gun
-                ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
+                // Machine gun
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::MachineGun,
+                    None => false,
+                }) {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
 
-                    let sentry_gun_slider = ui
-                        .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=5))
-                        .on_hover_text("Sentry guns shoot N bullets per second.");
+                        let sentry_gun_slider = ui
+                            .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=5))
+                            .on_hover_text("Shoot N bullets per second.");
 
-                    if sentry_gun_slider.changed() {
-                        weapon_q
-                            .iter_mut()
-                            .filter(|w| w.name == WeaponName::MachineGun)
-                            .for_each(|mut w| w.as_mut().update(player.as_ref(), game_settings.as_ref()))
-                    }
-                });
+                        if sentry_gun_slider.changed() {
+                            weapon_q
+                                .iter_mut()
+                                .filter(|w| w.name == WeaponName::MachineGun)
+                                .for_each(|mut w| w.as_mut().update(player.as_ref(), game_settings.as_ref()))
+                        }
+                    });
+                }
+
+                // Turret
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::Turret,
+                    None => false,
+                }) {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, "Closest")
+                            .on_hover_text("Fire on the closest enemy.");
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Strongest, "Strongest")
+                            .on_hover_text("Fire on the strongest enemy.");
+                    });
+                }
 
                 if player.fence.max_health > 0. {
                     ui.add_space(5.);
@@ -359,6 +379,8 @@ pub fn weapons_panel(
 
                 ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
                     ui.horizontal(|ui| {
+                        ui.add_space(15.);
+
                         ui.add_image(bullets_texture, [20., 20.]);
                         let bullet_button = ui.add_sized([30., 30.], egui::Button::new("+100")).on_hover_text("Buy 100 bullets for 300 materials.");
                         if bullet_button.clicked() {

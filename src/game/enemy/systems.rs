@@ -58,8 +58,8 @@ pub fn spawn_enemies(
                             Sprite {
                                 color: Color::from(LIME),
                                 custom_size: Some(Vec2::new(
-                                    enemy.size.x * 0.8 - 2.0,
-                                    enemy.size.y * 0.1 - 2.0,
+                                    enemy.size.x * 0.78,
+                                    enemy.size.y * 0.08,
                                 )),
                                 ..default()
                             },

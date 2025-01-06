@@ -13,6 +13,13 @@ pub struct Fence;
 #[derive(Component)]
 pub struct Wall;
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum FireStrategy {
+    NoFire,
+    Closest,
+    Strongest,
+}
+
 #[derive(Component, Clone)]
 pub struct Weapon {
     pub name: WeaponName,
@@ -22,6 +29,7 @@ pub struct Weapon {
     pub price: Resources,
     pub fire_cost: Resources,
     pub fire_timer: Option<Timer>,
+    pub fire_strategy: FireStrategy,
     pub bullet: Bullet,
 }
 
@@ -66,7 +74,8 @@ impl Weapon {
                 self.fire_timer = Some(Timer::from_seconds(
                     2. / game_settings.speed,
                     TimerMode::Repeating,
-                ))
+                ));
+                self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
             }
         }
     }
@@ -104,6 +113,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: None,
+                fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/bullet.png".to_string(),
                     size: Vec2::new(25., 7.),
@@ -128,6 +138,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: None,
+                fire_strategy: FireStrategy::NoFire,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png".to_string(),
                     size: Vec2::new(25., 25.),
