@@ -4,6 +4,7 @@ use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
+use rand::prelude::*;
 
 pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
     commands.insert_resource(Player::init());
@@ -24,6 +25,11 @@ pub fn end_night(mut player: ResMut<Player>, night_stats: Res<NightStats>) {
         .stats
         .entry(night_stats.day)
         .or_insert(night_stats.clone());
+}
+
+pub fn start_day(mut player: ResMut<Player>) {
+    player.day += 1;
+    player.survivors += rand::thread_rng().gen_range(0..=200 * player.day);
 }
 
 pub fn pause_game(
@@ -60,6 +66,15 @@ pub fn check_keys(
 ) {
     if keyboard.just_pressed(KeyCode::KeyE) {
         game_settings.enemy_info = !game_settings.enemy_info;
+    }
+
+    if keyboard.just_pressed(KeyCode::Enter) {
+        match *app_state.get() {
+            AppState::StartGame => next_app_state.set(AppState::Night),
+            AppState::EndNight => next_app_state.set(AppState::Day),
+            AppState::GameOver => next_app_state.set(AppState::StartGame),
+            _ => (),
+        }
     }
 
     if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {

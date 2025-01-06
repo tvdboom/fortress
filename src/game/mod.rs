@@ -20,6 +20,7 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::StartGame), new_game)
             .add_systems(OnEnter(AppState::Night), start_night)
             .add_systems(OnExit(AppState::Night), end_night)
+            .add_systems(OnEnter(AppState::Day), start_day)
             .add_systems(OnEnter(GameState::Paused), pause_game)
             .add_systems(OnEnter(GameState::Running), unpause_game)
             .add_systems(Update, check_keys)

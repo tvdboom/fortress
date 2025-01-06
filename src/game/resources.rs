@@ -130,11 +130,9 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
-                    None,
-                    Some(WeaponName::SentryGun),
-                    None,
-                    Some(WeaponName::SentryGun),
-                    None,
+                    Some(WeaponName::MachineGun),
+                    Some(WeaponName::Turret),
+                    Some(WeaponName::MachineGun),
                 ],
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,

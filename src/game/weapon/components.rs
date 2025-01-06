@@ -3,7 +3,8 @@ use bevy::prelude::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WeaponName {
-    SentryGun,
+    MachineGun,
+    Turret,
 }
 
 #[derive(Component)]
@@ -19,7 +20,6 @@ pub struct Weapon {
     pub size: Vec2,
     pub rotation_speed: f32,
     pub price: Resources,
-    pub max_fire_rate: u32,
     pub fire_cost: Resources,
     pub fire_timer: Option<Timer>,
     pub bullet: Bullet,
@@ -45,27 +45,15 @@ impl Weapon {
         false
     }
 
-    pub fn rotate(
-        &mut self,
-        angle: &f32,
-        transform: &mut Transform,
-        game_settings: &GameSettings,
-        time: &Time,
-    ) -> bool {
+    pub fn is_aiming(&self, angle: &f32, transform: &Transform) -> bool {
         // Accept a 0.1 tolerance (in radians)
-        if (angle - transform.rotation.to_euler(EulerRot::XYZ).2).abs() >= 0.1 {
-            transform.rotation = transform.rotation.slerp(
-                Quat::from_rotation_z(*angle),
-                self.rotation_speed * game_settings.speed * time.delta_secs(),
-            );
-            return false;
-        }
-        true
+        (angle - transform.rotation.to_euler(EulerRot::XYZ).2).abs() < 0.1
     }
 
+    /// Update the weapon's settings based on the player and game settings
     pub fn update(&mut self, player: &Player, game_settings: &GameSettings) {
         match self.name {
-            WeaponName::SentryGun => {
+            WeaponName::MachineGun => {
                 self.fire_timer = match player.weapons.settings.sentry_gun_fire_rate {
                     0 => None,
                     v => Some(Timer::from_seconds(
@@ -74,6 +62,12 @@ impl Weapon {
                     )),
                 };
             }
+            WeaponName::Turret => {
+                self.fire_timer = Some(Timer::from_seconds(
+                    2. / game_settings.speed,
+                    TimerMode::Repeating,
+                ))
+            }
         }
     }
 }
@@ -81,12 +75,14 @@ impl Weapon {
 #[derive(Resource)]
 pub struct WeaponManager {
     pub sentry_gun: Weapon,
+    pub turret: Weapon,
 }
 
 impl WeaponManager {
     pub fn get(&self, name: &WeaponName) -> Weapon {
         match name {
-            WeaponName::SentryGun => self.sentry_gun.clone(),
+            WeaponName::MachineGun => self.sentry_gun.clone(),
+            WeaponName::Turret => self.turret.clone(),
         }
     }
 }
@@ -95,15 +91,14 @@ impl Default for WeaponManager {
     fn default() -> Self {
         Self {
             sentry_gun: Weapon {
-                name: WeaponName::SentryGun,
-                image: "weapon/sentry-gun.png".to_string(),
-                size: Vec2::new(110., 110.),
+                name: WeaponName::MachineGun,
+                image: "weapon/machine-gun.png".to_string(),
+                size: Vec2::new(70., 70.),
                 rotation_speed: 5.,
                 price: Resources {
                     materials: 100.,
                     ..default()
                 },
-                max_fire_rate: 5,
                 fire_cost: Resources {
                     bullets: 1.,
                     ..default()
@@ -111,11 +106,35 @@ impl Default for WeaponManager {
                 fire_timer: None,
                 bullet: Bullet {
                     image: "weapon/bullet.png".to_string(),
-                    size: Vec2::new(30., 5.),
-                    speed: 60.,
+                    size: Vec2::new(25., 7.),
+                    speed: 80.,
                     angle: 0.,
                     damage: 5.,
                     max_distance: 70.,
+                    distance: 0.,
+                },
+            },
+            turret: Weapon {
+                name: WeaponName::Turret,
+                image: "weapon/turret.png".to_string(),
+                size: Vec2::new(90., 90.),
+                rotation_speed: 3.,
+                price: Resources {
+                    materials: 1000.,
+                    ..default()
+                },
+                fire_cost: Resources {
+                    bullets: 30.,
+                    ..default()
+                },
+                fire_timer: None,
+                bullet: Bullet {
+                    image: "weapon/triple-bullet.png".to_string(),
+                    size: Vec2::new(25., 25.),
+                    speed: 60.,
+                    angle: 0.,
+                    damage: 50.,
+                    max_distance: 100.,
                     distance: 0.,
                 },
             },

@@ -1,18 +1,15 @@
-use std::ops::Deref;
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::{Enemy, EnemyManager};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon, WeaponManager, WeaponName};
+use crate::game::weapon::components::{Bullet, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
-use catppuccin_egui;
-use rand::prelude::*;
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -295,12 +292,13 @@ pub fn weapons_panel(
     mut weapon_q: Query<&mut Weapon>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
-    weapons: Res<WeaponManager>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
     let weapon_texture = contexts.add_image(images.weapon.clone_weak());
     let lightning_texture = contexts.add_image(images.lightning.clone_weak());
+    let bullets_texture = contexts.add_image(images.bullets.clone_weak());
+    let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
 
     egui::SidePanel::right("Weapons panel")
         .exact_width(WEAPONS_PANEL_SIZE.x)
@@ -322,16 +320,16 @@ pub fn weapons_panel(
 
                 // Sentry gun
                 ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(format!("{:?}: ", WeaponName::SentryGun)));
+                    ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
 
                     let sentry_gun_slider = ui
-                        .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=weapons.sentry_gun.max_fire_rate))
+                        .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=5))
                         .on_hover_text("Sentry guns shoot N bullets per second.");
 
                     if sentry_gun_slider.changed() {
                         weapon_q
                             .iter_mut()
-                            .filter(|w| w.name == WeaponName::SentryGun)
+                            .filter(|w| w.name == WeaponName::MachineGun)
                             .for_each(|mut w| w.as_mut().update(player.as_ref(), game_settings.as_ref()))
                     }
                 });
@@ -354,13 +352,37 @@ pub fn weapons_panel(
                         });
                     });
                 }
+
+                ui.add_space(5.);
+                ui.separator();
+                ui.add_space(5.);
+
+                ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_image(bullets_texture, [20., 20.]);
+                        let bullet_button = ui.add_sized([30., 30.], egui::Button::new("+100")).on_hover_text("Buy 100 bullets for 300 materials.");
+                        if bullet_button.clicked() {
+                            player.resources.bullets += 100.;
+                            player.resources.materials -= 300.;
+                        }
+
+                        ui.add_space(15.);
+
+                        ui.add_image(gasoline_texture, [20., 20.]);
+                        let gasoline_button = ui.add_sized([30., 30.], egui::Button::new("+100")).on_hover_text("Buy 100 gasoline for 300 materials.");
+                        if gasoline_button.clicked() {
+                            player.resources.gasoline += 100.;
+                            player.resources.materials -= 300.;
+                        }
+                    });
+                });
             });
         });
 }
 
 pub fn info_panel(
     mut contexts: EguiContexts,
-    mut player: ResMut<Player>,
+    player: Res<Player>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
     images: Local<Images>,
@@ -420,12 +442,10 @@ pub fn info_panel(
 
                         ui.add_space(15.);
 
-                        let new_survivors = thread_rng().gen_range(0..=200 * player.day);
-                        ui.label(format!(
+                        ui.label(
                             "The night is over. The sun is rising and the bugs are \
                             retreating. You can now collect resources and upgrade your \
-                            weapons before the next night. During the day, {} survivors \
-                            joined the fortress.", new_survivors));
+                            weapons before the next night.");
 
                         ui.add_night_stats(player.as_ref());
 
@@ -433,8 +453,6 @@ pub fn info_panel(
                             ui.add_space(10.);
 
                             if ui.add_button("Continue").clicked() {
-                                player.survivors += new_survivors;
-                                player.day += 1;
                                 next_state.set(AppState::Night);
                             }
                         });

@@ -6,6 +6,7 @@ use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager
 use crate::utils::collision;
 use bevy::prelude::*;
 use std::cmp::PartialOrd;
+use std::f32::consts::PI;
 
 pub fn spawn_weapons(
     mut commands: Commands,
@@ -63,11 +64,15 @@ pub fn spawn_weapons(
                     custom_size: Some(w.size),
                     ..default()
                 },
-                Transform::from_xyz(
-                    -SIZE.x * 0.5 + pos,
-                    -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
-                    2.0,
-                ),
+                Transform {
+                    translation: Vec3::new(
+                        -SIZE.x * 0.5 + pos,
+                        -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
+                        2.0,
+                    ),
+                    rotation: Quat::from_rotation_z(PI * 0.5),
+                    ..default()
+                },
                 w,
             ));
         }
@@ -108,12 +113,7 @@ pub fn spawn_bullets(
                 let angle = d.y.atan2(d.x);
 
                 // Rotate the weapon towards the selected enemy
-                if weapon.rotate(
-                    &angle,
-                    &mut transform,
-                    game_settings.as_ref(),
-                    time.as_ref(),
-                ) {
+                if weapon.is_aiming(&angle, &transform) {
                     // Check if the weapon can fire (fire timer is finished)
                     if weapon.can_fire(&time) {
                         let mut bullet = weapon.bullet.clone();
@@ -128,7 +128,7 @@ pub fn spawn_bullets(
                             Transform {
                                 translation: Vec3::new(
                                     transform.translation.x,
-                                    transform.translation.y + 10.,
+                                    transform.translation.y + 20.,
                                     3.0,
                                 ),
                                 rotation: Quat::from_rotation_z(bullet.angle),
@@ -143,8 +143,22 @@ pub fn spawn_bullets(
                         player.resources.gasoline -= weapon.fire_cost.gasoline;
                     }
                 }
+
+                // Rotate towards the enemy
+                transform.rotation = transform.rotation.slerp(
+                    Quat::from_rotation_z(angle),
+                    weapon.rotation_speed * game_settings.speed * time.delta_secs(),
+                );
+
+                continue;
             }
         }
+
+        // If the weapon couldn't shoot, return to the default position
+        transform.rotation = transform.rotation.slerp(
+            Quat::from_rotation_z(PI * 0.5),
+            weapon.rotation_speed * game_settings.speed * time.delta_secs(),
+        );
     }
 }
 
