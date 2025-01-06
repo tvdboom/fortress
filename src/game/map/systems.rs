@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
@@ -21,8 +22,6 @@ pub fn set_style(mut contexts: EguiContexts) {
     style.text_styles.get_mut(&TextStyle::Button).unwrap().size = NORMAL_FONT_SIZE;
     style.text_styles.get_mut(&TextStyle::Heading).unwrap().size = LARGE_FONT_SIZE;
     context.set_style(style);
-
-    catppuccin_egui::set_theme(context, catppuccin_egui::FRAPPE);
 }
 
 pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
