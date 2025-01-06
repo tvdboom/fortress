@@ -2,8 +2,8 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::{Enemy, EnemyManager};
-use crate::game::resources::{FireStrategy, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Weapon, WeaponName};
+use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::weapon::components::{Bullet, FireStrategy, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
@@ -275,9 +275,7 @@ pub fn resources_panel(
                             if game_settings.speed == 0. {
                                 next_state.set(GameState::Paused);
                             } else {
-                                weapon_q.iter_mut().for_each(|mut w| {
-                                    w.update(player.as_ref(), game_settings.as_ref())
-                                });
+                                weapon_q.iter_mut().for_each(|mut w| w.update(&player));
                                 next_state.set(GameState::Running);
                             }
                         }
@@ -291,7 +289,6 @@ pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
     mut player: ResMut<Player>,
-    game_settings: Res<GameSettings>,
     app_state: Res<State<AppState>>,
     images: Local<Images>,
 ) {
@@ -331,10 +328,11 @@ pub fn weapons_panel(
                             .on_hover_text("Shoot N bullets per second.");
 
                         if sentry_gun_slider.changed() {
+                            // Sentry guns must be updated only when changed to not reset timer
                             weapon_q
                                 .iter_mut()
                                 .filter(|w| w.name == WeaponName::MachineGun)
-                                .for_each(|mut w| w.as_mut().update(player.as_ref(), game_settings.as_ref()))
+                                .for_each(|mut w| w.as_mut().update(&player));
                         }
                     });
                 }
@@ -346,13 +344,21 @@ pub fn weapons_panel(
                 }) {
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
-                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::NoFire, "None")
+                            .on_hover_text("Don't fire.");
                         ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, "Closest")
                             .on_hover_text("Fire on the closest enemy.");
                         ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Strongest, "Strongest")
                             .on_hover_text("Fire on the strongest enemy.");
                     });
                 }
+
+                // Update all weapons with the selected settings
+                weapon_q
+                    .iter_mut()
+                    .filter(|w| w.name != WeaponName::MachineGun)
+                    .for_each(|mut w| w.as_mut().update(&player));
 
                 if player.fence.max_health > 0. {
                     ui.add_space(5.);
@@ -379,10 +385,11 @@ pub fn weapons_panel(
 
                 ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
                     ui.horizontal(|ui| {
-                        ui.add_space(15.);
+                        ui.add_space(50.);
 
-                        ui.add_image(bullets_texture, [20., 20.]);
-                        let bullet_button = ui.add_sized([30., 30.], egui::Button::new("+100")).on_hover_text("Buy 100 bullets for 300 materials.");
+                        ui.add_image(bullets_texture, [20., 25.]);
+                        let bullet_button = ui.add_sized([30., 30.], egui::Button::new("+100"))
+                            .on_hover_text("Buy 100 bullets for 300 materials.");
                         if bullet_button.clicked() {
                             player.resources.bullets += 100.;
                             player.resources.materials -= 300.;
@@ -391,7 +398,8 @@ pub fn weapons_panel(
                         ui.add_space(15.);
 
                         ui.add_image(gasoline_texture, [20., 20.]);
-                        let gasoline_button = ui.add_sized([30., 30.], egui::Button::new("+100")).on_hover_text("Buy 100 gasoline for 300 materials.");
+                        let gasoline_button = ui.add_sized([30., 30.], egui::Button::new("+100"))
+                            .on_hover_text("Buy 100 gasoline for 300 materials.");
                         if gasoline_button.clicked() {
                             player.resources.gasoline += 100.;
                             player.resources.materials -= 300.;
@@ -469,7 +477,7 @@ pub fn info_panel(
                             retreating. You can now collect resources and upgrade your \
                             weapons before the next night.");
 
-                        ui.add_night_stats(player.as_ref());
+                        ui.add_night_stats(&player);
 
                         ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
                             ui.add_space(10.);
@@ -484,7 +492,7 @@ pub fn info_panel(
 
                         ui.heading(format!("You survived {} nights!", player.day - 1));
 
-                        ui.add_night_stats(player.as_ref());
+                        ui.add_night_stats(&player);
 
                         ui.horizontal(|ui| {
                             ui.add_space(190.);

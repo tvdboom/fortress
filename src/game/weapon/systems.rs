@@ -5,14 +5,12 @@ use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager};
 use crate::utils::collision;
 use bevy::prelude::*;
-use std::cmp::PartialOrd;
 use std::f32::consts::PI;
 
 pub fn spawn_weapons(
     mut commands: Commands,
     player: Res<Player>,
     weapons: Res<WeaponManager>,
-    game_settings: Res<GameSettings>,
     asset_server: Res<AssetServer>,
 ) {
     if player.fence.max_health > 0. {
@@ -56,7 +54,7 @@ pub fn spawn_weapons(
     for (weapon, pos) in player.weapons.spots.iter().zip(positions) {
         if let Some(w) = weapon {
             let mut w = weapons.get(&w);
-            w.update(player.as_ref(), game_settings.as_ref());
+            w.update(&player);
 
             commands.spawn((
                 Sprite {
@@ -82,7 +80,7 @@ pub fn spawn_weapons(
 pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon), Without<Enemy>>,
-    enemy_q: Query<&Transform, With<Enemy>>,
+    enemy_q: Query<(&Transform, &Enemy)>,
     map_q: Query<&Sprite, With<Map>>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
@@ -93,29 +91,17 @@ pub fn spawn_bullets(
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
-        // Find the nearest enemy in range
-        if let Some((nearest_enemy, _)) = enemy_q
-            .iter()
-            .filter_map(|enemy| {
-                let distance = transform.translation.distance(enemy.translation);
-                if distance <= map_height / 100. * weapon.bullet.max_distance {
-                    Some((enemy, distance))
-                } else {
-                    None
-                }
-            })
-            .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
-        {
-            // Check if the player has the required resources
+        // Select an enemy in range
+        if let Some(enemy_t) = weapon.select_target(&transform, &enemy_q, map_height) {
             if player.resources >= weapon.fire_cost {
                 // Compute the angle to the selected enemy
-                let d = nearest_enemy.translation - transform.translation;
+                let d = enemy_t.translation - transform.translation;
                 let angle = d.y.atan2(d.x);
 
                 // Rotate the weapon towards the selected enemy
                 if weapon.is_aiming(&angle, &transform) {
                     // Check if the weapon can fire (fire timer is finished)
-                    if weapon.can_fire(&time) {
+                    if weapon.can_fire(&time, &game_settings) {
                         let mut bullet = weapon.bullet.clone();
                         bullet.angle = angle;
 

@@ -1,4 +1,6 @@
+use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, Player, Resources};
+use crate::utils::scale_duration;
 use bevy::prelude::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -13,7 +15,7 @@ pub struct Fence;
 #[derive(Component)]
 pub struct Wall;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum FireStrategy {
     NoFire,
     Closest,
@@ -45,36 +47,59 @@ pub struct Bullet {
 }
 
 impl Weapon {
-    pub fn can_fire(&mut self, time: &Res<Time>) -> bool {
+    pub fn select_target(
+        &self,
+        transform: &Transform,
+        enemy_q: &Query<(&Transform, &Enemy)>,
+        map_height: f32,
+    ) -> Option<Transform> {
+        let enemies = enemy_q.iter().filter_map(|(enemy_t, enemy)| {
+            let distance = transform.translation.distance(enemy_t.translation);
+            if distance <= map_height / 100. * self.bullet.max_distance {
+                Some((enemy_t, enemy, distance))
+            } else {
+                None
+            }
+        });
+
+        let enemies = match self.fire_strategy {
+            FireStrategy::NoFire => None,
+            FireStrategy::Closest => {
+                enemies.min_by(|(_, _, d1), (_, _, d2)| d1.partial_cmp(d2).unwrap())
+            }
+            FireStrategy::Strongest => enemies.max_by(|(_, e1, _), (_, e2, _)| {
+                e1.max_health.partial_cmp(&e2.max_health).unwrap()
+            }),
+        };
+
+        enemies.map(|(e, _, _)| e.clone())
+    }
+
+    /// Whether the weapon's timer is finished
+    pub fn can_fire(&mut self, time: &Time, game_settings: &GameSettings) -> bool {
         if let Some(ref mut timer) = &mut self.fire_timer {
-            timer.tick(time.delta());
+            timer.tick(scale_duration(time.delta(), game_settings.speed));
             return timer.finished();
         }
         false
     }
 
+    /// Whether the weapon points at the given angle
     pub fn is_aiming(&self, angle: &f32, transform: &Transform) -> bool {
         // Accept a 0.1 tolerance (in radians)
         (angle - transform.rotation.to_euler(EulerRot::XYZ).2).abs() < 0.1
     }
 
     /// Update the weapon's settings based on the player and game settings
-    pub fn update(&mut self, player: &Player, game_settings: &GameSettings) {
+    pub fn update(&mut self, player: &Player) {
         match self.name {
             WeaponName::MachineGun => {
                 self.fire_timer = match player.weapons.settings.sentry_gun_fire_rate {
                     0 => None,
-                    v => Some(Timer::from_seconds(
-                        1. / v as f32 / game_settings.speed,
-                        TimerMode::Repeating,
-                    )),
+                    v => Some(Timer::from_seconds(1. / v as f32, TimerMode::Repeating)),
                 };
             }
             WeaponName::Turret => {
-                self.fire_timer = Some(Timer::from_seconds(
-                    2. / game_settings.speed,
-                    TimerMode::Repeating,
-                ));
                 self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
             }
         }
@@ -137,7 +162,7 @@ impl Default for WeaponManager {
                     bullets: 30.,
                     ..default()
                 },
-                fire_timer: None,
+                fire_timer: Some(Timer::from_seconds(2., TimerMode::Repeating)),
                 fire_strategy: FireStrategy::NoFire,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png".to_string(),
