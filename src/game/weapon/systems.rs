@@ -1,14 +1,13 @@
 use crate::constants::*;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::Map;
+use crate::game::map::components::{AnimationComponent, Map};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{
-    Bullet, DetonationType, Fence, TargetSelection, Wall, Weapon, WeaponManager,
-};
-use crate::utils::{collision, get_highest_density_point};
+use crate::game::weapon::components::*;
+use crate::utils::collision;
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
+use crate::game::components::Images;
 
 pub fn spawn_weapons(
     mut commands: Commands,
@@ -123,31 +122,22 @@ pub fn spawn_bullets(
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
-        // Select an enemy in range
+        // Select a target in range
         if let Some(enemy_t) = weapon.select_target(&transform, &enemy_q, &player, map_height) {
             if player.resources >= weapon.fire_cost {
                 // Compute the angle to the selected enemy
                 let d = enemy_t.translation - transform.translation;
                 let angle = d.y.atan2(d.x);
 
-                // Rotate the weapon towards the selected enemy
+                // Rotate the weapon towards the selected target
                 if weapon.is_aiming(&angle, &transform) {
                     // Check if the weapon can fire (fire timer is finished)
                     if weapon.can_fire(&time, &game_settings) {
                         let mut bullet = weapon.bullet.clone();
                         bullet.angle = angle;
 
-                        match bullet.target {
-                            TargetSelection::Density { .. } => {
-                                if let DetonationType::Explosion(r) = bullet.detonation {
-                                    bullet.target = TargetSelection::Density(
-                                        get_highest_density_point(&enemy_q, r),
-                                    );
-                                } else {
-                                    panic!("A bullet with density target selection must have an explosion detonation type.");
-                                }
-                            }
-                            _ => (),
+                        if matches!(weapon.fire_strategy, FireStrategy::Density {..}) {
+                            bullet.max_distance = d.length();
                         }
 
                         commands.spawn((
@@ -201,6 +191,8 @@ pub fn move_bullets(
     time: Res<Time>,
     settings: Res<GameSettings>,
     mut night_stats: ResMut<NightStats>,
+    images: Local<Images>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
 
@@ -222,8 +214,8 @@ pub fn move_bullets(
         // Pythagoras to get distance traveled
         bullet.distance += (dx.powi(2) + dy.powi(2)).sqrt();
 
-        match bullet.target {
-            TargetSelection::Straight => {
+        match bullet.detonation {
+            Detonation::SingleTarget => {
                 // If the bullet collided with an enemy -> resolve and despawn
                 for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
                     // Bullets with only flak damage can't hit ground units
@@ -246,16 +238,45 @@ pub fn move_bullets(
                         break;
                     }
                 }
-            }
-            TargetSelection::Density(location) => {
-                if transform.translation.distance(location) <= 10. {
-                    commands.entity(entity).despawn();
+            },
+            Detonation::Explosion(r) if bullet.distance >= bullet.max_distance => {
+                commands.entity(entity).despawn();
 
-                    // Resolve the impact on all enemies in radius
-                    // enemy_q.iter().for_each()
-                }
-            }
-            _ => unimplemented!(),
+                let texture =
+                    TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
+
+                commands.spawn((
+                    Sprite::from_atlas_image(
+                        images.explosion1.clone_weak(),
+                        TextureAtlas {
+                            layout: texture_atlas_layouts.add(texture.clone()),
+                            index: 1,
+                        },
+                    ),
+                    Transform::from_scale(Vec3::splat(0.3))
+                        .with_translation(transform.translation),
+                    AnimationComponent {
+                        timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                        indices: 25,
+                    },
+                ));
+
+                // Resolve the impact on all enemies in radius
+                enemy_q.iter_mut()
+                    .filter(|(&t, _, _)| t.translation.distance(transform.translation) <= r)
+                    .for_each(|(_, enemy_entity, mut enemy)| {
+                        resolve_enemy_impact(
+                            &mut commands,
+                            &mut bullet,
+                            enemy_entity,
+                            &mut enemy,
+                            &mut night_stats,
+                        )
+                    });
+
+                break;
+                },
+            _ => (),
         }
 
         // If the bullet traveled more than max distance or left window boundaries -> despawn

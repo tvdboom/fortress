@@ -23,6 +23,7 @@ pub enum FireStrategy {
     NoFire,
     Closest,
     Strongest,
+    Density,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -60,14 +61,7 @@ impl Damage {
 }
 
 #[derive(Clone)]
-pub enum TargetSelection {
-    Straight,
-    Density(Vec3), // Value is location of the target
-    Homing(Enemy), // Value is the target
-}
-
-#[derive(Clone)]
-pub enum DetonationType {
+pub enum Detonation {
     SingleTarget,
     Explosion(f32), // Value is the radius of explosion
 }
@@ -79,8 +73,7 @@ pub struct Bullet {
     pub speed: f32,
     pub angle: f32,
     pub damage: Damage,
-    pub target: TargetSelection,
-    pub detonation: DetonationType,
+    pub detonation: Detonation,
     pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,     // Current distance traveled by the bullet
 }
@@ -89,9 +82,7 @@ pub struct Bullet {
 pub struct Landmine {
     pub image: String,
     pub size: Vec2,
-    pub sensibility: f32,
     pub damage: Damage,
-    pub explosion_timer: Timer,
 }
 
 impl Weapon {
@@ -126,6 +117,12 @@ impl Weapon {
             }
             FireStrategy::Strongest => enemies.max_by(|(_, e1, _), (_, e2, _)| {
                 e1.max_health.partial_cmp(&e2.max_health).unwrap()
+            }),
+            FireStrategy::Density => enemies.min_by_key(|(t1, _, _)| {
+                enemy_q
+                    .iter()
+                    .map(|(&t2, _)| t1.translation.distance(t2.translation) as u32)
+                    .sum::<u32>()
             }),
         };
 
@@ -243,8 +240,7 @@ impl Default for WeaponManager {
                         piercing: 0.,
                         flak: 0.,
                     },
-                    target: TargetSelection::Straight,
-                    detonation: DetonationType::SingleTarget,
+                    detonation: Detonation::SingleTarget,
                     max_distance: 70.,
                     distance: 0.,
                 },
@@ -274,8 +270,7 @@ impl Default for WeaponManager {
                         piercing: 0.,
                         flak: 0.,
                     },
-                    target: TargetSelection::Straight,
-                    detonation: DetonationType::SingleTarget,
+                    detonation: Detonation::SingleTarget,
                     max_distance: 120.,
                     distance: 0.,
                 },
@@ -294,7 +289,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
-                fire_strategy: FireStrategy::Closest,
+                fire_strategy: FireStrategy::Density,
                 bullet: Bullet {
                     image: "weapon/mortar-bullet.png".to_string(),
                     size: Vec2::new(25., 10.),
@@ -305,8 +300,7 @@ impl Default for WeaponManager {
                         piercing: 5.,
                         flak: 0.,
                     },
-                    target: TargetSelection::Density(Vec3::new(0., 0., 0.)),
-                    detonation: DetonationType::Explosion(30.),
+                    detonation: Detonation::Explosion(30.),
                     max_distance: 180.,
                     distance: 0.,
                 },
@@ -336,8 +330,7 @@ impl Default for WeaponManager {
                         piercing: 10.,
                         flak: 0.,
                     },
-                    target: TargetSelection::Straight,
-                    detonation: DetonationType::SingleTarget,
+                    detonation: Detonation::SingleTarget,
                     max_distance: 100.,
                     distance: 0.,
                 },
@@ -345,13 +338,11 @@ impl Default for WeaponManager {
             landmine: Landmine {
                 image: "weapon/landmine.png".to_string(),
                 size: Vec2::new(30., 20.),
-                sensibility: 50.,
                 damage: Damage {
                     value: 50.,
                     piercing: 20.,
                     flak: 0.,
                 },
-                explosion_timer: Timer::from_seconds(3., TimerMode::Once),
             },
         }
     }
