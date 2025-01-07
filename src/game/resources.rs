@@ -1,4 +1,5 @@
 use crate::constants::NIGHT_DURATION;
+use crate::game::enemy::components::Size;
 use crate::game::weapon::components::{FireStrategy, WeaponName};
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
@@ -71,6 +72,7 @@ pub struct Fence {
 pub struct WeaponSettings {
     pub sentry_gun_fire_rate: u32,
     pub turret_fire_strategy: FireStrategy,
+    pub landmine_sensibility: Size,
 }
 
 pub struct Weapons {
@@ -140,6 +142,7 @@ impl Player {
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
                     turret_fire_strategy: FireStrategy::NoFire,
+                    landmine_sensibility: Size::Medium,
                 },
             },
             stats: HashMap::default(),

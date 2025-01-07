@@ -1,7 +1,7 @@
 use super::components::*;
 use crate::constants::*;
 use crate::game::components::*;
-use crate::game::enemy::components::{Enemy, EnemyManager};
+use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, FireStrategy, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
@@ -360,24 +360,36 @@ pub fn weapons_panel(
                     .filter(|w| w.name != WeaponName::MachineGun)
                     .for_each(|mut w| w.as_mut().update(&player));
 
-                if player.fence.max_health > 0. {
-                    ui.add_space(5.);
-                    ui.separator();
-                    ui.add_space(5.);
+                ui.add_space(5.);
+                ui.separator();
+                ui.add_space(5.);
 
-                    ui.add_enabled_ui(player.fence.health > 0., |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add(egui::Label::new("Enable electric fence: "));
-                            ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
-                                "The electric fence does damage to adjacent enemies, but costs gasoline.",
-                            );
+                ui.add_enabled_ui(player.fence.health > 0., |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new("Enable electric fence: "));
+                        ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
+                            "The electric fence does damage to adjacent enemies, but costs gasoline.",
+                        );
 
-                            if player.fence.enabled {
-                                ui.add_image(lightning_texture, [20., 20.]);
-                            }
-                        });
+                        if player.fence.enabled {
+                            ui.add_image(lightning_texture, [20., 20.]);
+                        }
                     });
-                }
+                });
+
+                ui.add_space(5.);
+
+                ui.add_enabled_ui(player.weapons.landmines > 0, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new("Landmine: "));
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Small, "Small")
+                            .on_hover_text("Detonate for all enemies.");
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Medium, "Medium")
+                            .on_hover_text("Detonate for medium and large enemies.");
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Large, "Large")
+                            .on_hover_text("Detonate only for large enemies.");
+                    });
+                });
 
                 ui.add_space(5.);
                 ui.separator();
@@ -587,12 +599,38 @@ pub fn enemy_info_panel(
     }
 }
 
+pub fn run_animations(
+    mut commands: Commands,
+    mut query_a: Query<(Entity, &mut AnimationComponent, &mut Sprite), With<AnimationComponent>>,
+    game_settings: Res<GameSettings>,
+    time: Res<Time>,
+) {
+    for (entity, mut animation, mut sprite) in query_a.iter_mut() {
+        animation
+            .timer
+            .tick(scale_duration(time.delta(), game_settings.speed));
+
+        if animation.timer.just_finished() {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index += 1;
+                if atlas.index == animation.indices {
+                    commands.entity(entity).despawn();
+                }
+            }
+        }
+    }
+}
+
 pub fn clear_map(
     mut commands: Commands,
+    animation_q: Query<Entity, With<AnimationComponent>>,
     weapon_q: Query<Entity, With<Weapon>>,
     bullet_q: Query<Entity, With<Bullet>>,
     enemy_q: Query<Entity, With<Enemy>>,
 ) {
+    animation_q
+        .iter()
+        .for_each(|a| commands.entity(a).despawn());
     weapon_q.iter().for_each(|w| commands.entity(w).despawn());
     bullet_q.iter().for_each(|b| commands.entity(b).despawn());
     enemy_q

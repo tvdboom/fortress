@@ -17,6 +17,7 @@ pub struct Images {
     pub spot: Handle<Image>,
     pub hourglass: Handle<Image>,
     pub clock: Handle<Image>,
+    pub explosion1: Handle<Image>,
     pub game_over: Handle<Image>,
     pub enemies: HashMap<&'static str, Handle<Image>>,
 }
@@ -35,9 +36,10 @@ impl FromWorld for Images {
             bullets: asset_server.load("icons/bullet.png"),
             gasoline: asset_server.load("icons/gasoline.png"),
             materials: asset_server.load("icons/brick.png"),
+            spot: asset_server.load("icons/spot.png"),
             hourglass: asset_server.load("icons/hourglass.png"),
             clock: asset_server.load("icons/clock.png"),
-            spot: asset_server.load("icons/spot.png"),
+            explosion1: asset_server.load("weapon/explosion1.png"),
             game_over: asset_server.load("map/game-over.png"),
             enemies: HashMap::from([
                 ("Dartling", asset_server.load("enemy/dartling.png")),

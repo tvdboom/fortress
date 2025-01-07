@@ -1,9 +1,11 @@
 use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::game::components::Images;
+use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Fence, Wall};
+use crate::game::weapon::components::{Fence, Landmine, Wall};
 use crate::game::AppState;
-use crate::utils::scale_duration;
+use crate::utils::{collision, scale_duration};
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -38,15 +40,14 @@ pub fn spawn_enemies(
             enemies.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
         {
             let x = thread_rng().gen_range(
-                (-SIZE.x + enemy.size.x) * 0.5
-                    ..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
+                (-SIZE.x + enemy.dim.x) * 0.5..=(SIZE.x - enemy.dim.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
             );
 
             commands
                 .spawn((
                     Sprite {
                         image: asset_server.load(enemy.image),
-                        custom_size: Some(enemy.size),
+                        custom_size: Some(enemy.dim),
                         ..default()
                     },
                     Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
@@ -57,21 +58,18 @@ pub fn spawn_enemies(
                         .spawn((
                             Sprite {
                                 color: Color::from(BLACK),
-                                custom_size: Some(Vec2::new(
-                                    enemy.size.x * 0.8,
-                                    enemy.size.y * 0.1,
-                                )),
+                                custom_size: Some(Vec2::new(enemy.dim.x * 0.8, enemy.dim.y * 0.1)),
                                 ..default()
                             },
-                            Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
+                            Transform::from_xyz(0., enemy.dim.y * 0.5 - 5.0, 1.5),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
                                 Sprite {
                                     color: Color::from(LIME),
                                     custom_size: Some(Vec2::new(
-                                        enemy.size.x * 0.78,
-                                        enemy.size.y * 0.08,
+                                        enemy.dim.x * 0.78,
+                                        enemy.dim.y * 0.08,
                                     )),
                                     ..default()
                                 },
@@ -96,6 +94,7 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut commands: Commands,
     mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
+    mut landmine_q: Query<(Entity, &Transform, &Landmine), (With<Landmine>, Without<Enemy>)>,
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
@@ -103,6 +102,8 @@ pub fn move_enemies(
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
     mut night_stats: ResMut<NightStats>,
+    images: Local<Images>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
         let new_pos = transform.translation.y
@@ -161,7 +162,7 @@ pub fn move_enemies(
             }
         }
 
-        if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.size.y * 0.5 {
+        if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
                 player.survivors -= enemy.damage as u32;
                 commands.entity(enemy_entity).despawn_recursive();
@@ -171,6 +172,48 @@ pub fn move_enemies(
             }
         } else {
             transform.translation.y = new_pos;
+
+            // Check collision with landmines
+            if !enemy.can_fly && enemy.size >= player.weapons.settings.landmine_sensibility {
+                for (landmine_entity, landmine_t, landmine) in landmine_q.iter() {
+                    if collision(
+                        &transform.translation,
+                        &enemy.dim,
+                        &landmine_t.translation,
+                        &landmine.size,
+                    ) {
+                        commands.entity(landmine_entity).despawn();
+
+                        commands.spawn((
+                            Sprite::from_atlas_image(
+                                images.explosion1.clone_weak(),
+                                TextureAtlas {
+                                    layout: texture_atlas_layouts.add(
+                                        TextureAtlasLayout::from_grid(UVec2::splat(24), 5, 5, None, None)
+                                    ),
+                                    index: 1,
+                                },
+                            ),
+                            Transform::from_translation(landmine_t.translation),
+                            AnimationComponent {
+                                timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+                                indices: 25,
+                            },
+                        ));
+
+                        if enemy.health > landmine.damage {
+                            enemy.health -= landmine.damage;
+                        } else {
+                            commands.entity(enemy_entity).despawn_recursive();
+
+                            night_stats
+                                .enemies
+                                .entry(enemy.name)
+                                .and_modify(|status| status.killed += 1);
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -185,7 +228,7 @@ pub fn update_enemy_health_bars(
             for child in children_q.iter_descendants(entity) {
                 if let Ok((mut transform, mut sprite)) = health_q.get_mut(child) {
                     if let Some(size) = sprite.custom_size.as_mut() {
-                        let full_size = enemy.size.x * 0.8 - 2.0;
+                        let full_size = enemy.dim.x * 0.8 - 2.0;
                         size.x = full_size * enemy.health / enemy.max_health;
                         transform.translation.x = (size.x - full_size) * 0.5;
                     }

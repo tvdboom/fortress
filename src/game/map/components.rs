@@ -8,3 +8,9 @@ pub struct PauseWrapper;
 
 #[derive(Component)]
 pub struct PauseText;
+
+#[derive(Component)]
+pub struct AnimationComponent {
+    pub timer: Timer,
+    pub indices: usize,
+}

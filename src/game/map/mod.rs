@@ -11,11 +11,12 @@ impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, (set_style, draw_map))
             .add_systems(OnEnter(AppState::StartGame), clear_map)
-            .add_systems(OnEnter(AppState::Night), clear_map)
+            .add_systems(OnEnter(AppState::Day), clear_map)
             .add_systems(
                 Update,
                 (
                     (weapons_panel, menu_panel, resources_panel, enemy_info_panel).chain(),
+                    run_animations,
                     info_panel.run_if(
                         in_state(AppState::StartGame)
                             .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),

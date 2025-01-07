@@ -214,7 +214,7 @@ pub fn move_bullets(
                 &transform.translation,
                 &bullet.size,
                 &transform_enemy.translation,
-                &enemy.size,
+                &enemy.dim,
             ) {
                 commands.entity(entity).despawn();
 
