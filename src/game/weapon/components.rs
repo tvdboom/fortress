@@ -2,10 +2,12 @@ use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
+use std::time::Duration;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WeaponName {
     MachineGun,
+    AAA,
     Turret,
 }
 
@@ -22,6 +24,13 @@ pub enum FireStrategy {
     Strongest,
 }
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum AAAFireStrategy {
+    NoFire,
+    Ground,
+    Airborne,
+}
+
 #[derive(Component, Clone)]
 pub struct Weapon {
     pub name: WeaponName,
@@ -35,13 +44,27 @@ pub struct Weapon {
     pub bullet: Bullet,
 }
 
+#[derive(Clone)]
+pub struct Damage {
+    pub value: f32,
+    pub piercing: f32,
+    pub flak: f32,
+}
+
+impl Damage {
+    pub fn calculate(&self, enemy: &Enemy) -> f32 {
+        self.value - (enemy.armor - self.piercing).max(0.)
+            + (if enemy.can_fly { self.flak } else { 0. })
+    }
+}
+
 #[derive(Component, Clone)]
 pub struct Bullet {
     pub image: String,
     pub size: Vec2,
     pub speed: f32,
     pub angle: f32,
-    pub damage: f32,
+    pub damage: Damage,
     pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,     // Current distance traveled by the bullet
 }
@@ -51,7 +74,7 @@ pub struct Landmine {
     pub image: String,
     pub size: Vec2,
     pub sensibility: f32,
-    pub damage: f32,
+    pub damage: Damage,
     pub explosion_timer: Timer,
 }
 
@@ -60,9 +83,18 @@ impl Weapon {
         &self,
         transform: &Transform,
         enemy_q: &Query<(&Transform, &Enemy)>,
+        player: &Player,
         map_height: f32,
     ) -> Option<Transform> {
         let enemies = enemy_q.iter().filter_map(|(enemy_t, enemy)| {
+            // Special case => AAA's don't shoot ground units when strategy is Airborne
+            if self.name == WeaponName::AAA
+                && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
+                && !enemy.can_fly
+            {
+                return None;
+            }
+
             let distance = transform.translation.distance(enemy_t.translation);
             if distance <= map_height / 100. * self.bullet.max_distance {
                 Some((enemy_t, enemy, distance))
@@ -106,13 +138,41 @@ impl Weapon {
     pub fn update(&mut self, player: &Player) {
         match self.name {
             WeaponName::MachineGun => {
-                self.fire_timer = match player.weapons.settings.sentry_gun_fire_rate {
-                    0 => None,
-                    v => Some(Timer::from_seconds(1. / v as f32, TimerMode::Once)),
+                match player.weapons.settings.sentry_gun_fire_rate {
+                    0 => self.fire_timer = None,
+                    v => {
+                        if let Some(ref mut timer) = self.fire_timer {
+                            timer.set_duration(Duration::from_secs_f32(1. / v as f32));
+                        } else {
+                            self.fire_timer =
+                                Some(Timer::from_seconds(1. / v as f32, TimerMode::Once))
+                        }
+                    }
                 };
             }
             WeaponName::Turret => {
                 self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
+            }
+            WeaponName::AAA => {
+                match player.weapons.settings.aaa_fire_strategy {
+                    AAAFireStrategy::NoFire => self.fire_strategy = FireStrategy::NoFire,
+                    AAAFireStrategy::Ground => {
+                        self.fire_strategy = FireStrategy::Closest;
+                        self.bullet.damage = Damage {
+                            value: 5.,
+                            piercing: 0.,
+                            flak: 0.,
+                        }
+                    }
+                    AAAFireStrategy::Airborne => {
+                        self.fire_strategy = FireStrategy::Closest;
+                        self.bullet.damage = Damage {
+                            value: 0.,
+                            piercing: 0.,
+                            flak: 20.,
+                        }
+                    }
+                };
             }
         }
     }
@@ -121,6 +181,7 @@ impl Weapon {
 #[derive(Resource)]
 pub struct WeaponManager {
     pub machine_gun: Weapon,
+    pub aaa: Weapon,
     pub turret: Weapon,
     pub landmine: Landmine,
 }
@@ -129,6 +190,7 @@ impl WeaponManager {
     pub fn get(&self, name: &WeaponName) -> Weapon {
         match name {
             WeaponName::MachineGun => self.machine_gun.clone(),
+            WeaponName::AAA => self.aaa.clone(),
             WeaponName::Turret => self.turret.clone(),
         }
     }
@@ -157,8 +219,41 @@ impl Default for WeaponManager {
                     size: Vec2::new(25., 7.),
                     speed: 80.,
                     angle: 0.,
-                    damage: 5.,
+                    damage: Damage {
+                        value: 5.,
+                        piercing: 0.,
+                        flak: 0.,
+                    },
                     max_distance: 70.,
+                    distance: 0.,
+                },
+            },
+            aaa: Weapon {
+                name: WeaponName::AAA,
+                image: "weapon/aaa.png".to_string(),
+                size: Vec2::new(80., 80.),
+                rotation_speed: 5.,
+                price: Resources {
+                    materials: 300.,
+                    ..default()
+                },
+                fire_cost: Resources {
+                    bullets: 5.,
+                    ..default()
+                },
+                fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
+                fire_strategy: FireStrategy::Closest,
+                bullet: Bullet {
+                    image: "weapon/shell.png".to_string(),
+                    size: Vec2::new(20., 7.),
+                    speed: 120.,
+                    angle: 0.,
+                    damage: Damage {
+                        value: 5.,
+                        piercing: 0.,
+                        flak: 0.,
+                    },
+                    max_distance: 120.,
                     distance: 0.,
                 },
             },
@@ -182,7 +277,11 @@ impl Default for WeaponManager {
                     size: Vec2::new(25., 25.),
                     speed: 60.,
                     angle: 0.,
-                    damage: 50.,
+                    damage: Damage {
+                        value: 50.,
+                        piercing: 10.,
+                        flak: 0.,
+                    },
                     max_distance: 100.,
                     distance: 0.,
                 },
@@ -191,7 +290,11 @@ impl Default for WeaponManager {
                 image: "weapon/landmine.png".to_string(),
                 size: Vec2::new(30., 20.),
                 sensibility: 50.,
-                damage: 100.,
+                damage: Damage {
+                    value: 50.,
+                    piercing: 20.,
+                    flak: 0.,
+                },
                 explosion_timer: Timer::from_seconds(3., TimerMode::Once),
             },
         }

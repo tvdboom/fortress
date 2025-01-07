@@ -91,12 +91,13 @@ pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
     }
 }
 
+/// AABB collision detection
 pub fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
-    let p1_min = pos1 - Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
-    let p1_max = pos1 + Vec3::new(size1.x / 2.0, size1.y / 2.0, 0.0);
+    let p1_min = pos1 - Vec3::new(size1.x / 3.0, size1.y / 3.0, 0.0);
+    let p1_max = pos1 + Vec3::new(size1.x / 3.0, size1.y / 3.0, 0.0);
 
-    let p2_min = pos2 - Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
-    let p2_max = pos2 + Vec3::new(size2.x / 2.0, size2.y / 2.0, 0.0);
+    let p2_min = pos2 - Vec3::new(size2.x / 3.0, size2.y / 3.0, 0.0);
+    let p2_max = pos2 + Vec3::new(size2.x / 3.0, size2.y / 3.0, 0.0);
 
     p1_max.x > p2_min.x && p1_min.x < p2_max.x && p1_max.y > p2_min.y && p1_min.y < p2_max.y
 }

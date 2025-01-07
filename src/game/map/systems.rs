@@ -3,7 +3,7 @@ use crate::constants::*;
 use crate::game::components::*;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, FireStrategy, Weapon, WeaponName};
+use crate::game::weapon::components::{AAAFireStrategy, Bullet, FireStrategy, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi};
 use bevy::color::palettes::basic::WHITE;
@@ -323,17 +323,25 @@ pub fn weapons_panel(
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
 
-                        let sentry_gun_slider = ui
-                            .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=MAX_MACHINE_GUN_FIRE_RATE))
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=MAX_MACHINE_GUN_FIRE_RATE))
                             .on_hover_text("Shoot N bullets per second.");
+                    });
+                }
 
-                        if sentry_gun_slider.changed() {
-                            // Sentry guns must be updated only when changed to not reset timer
-                            weapon_q
-                                .iter_mut()
-                                .filter(|w| w.name == WeaponName::MachineGun)
-                                .for_each(|mut w| w.as_mut().update(&player));
-                        }
+                // AAA
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::AAA,
+                    None => false,
+                }) {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::NoFire, "None")
+                            .on_hover_text("Don't fire.");
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Ground, "Ground")
+                            .on_hover_text("Fire at all enemies dealing reduced damage.");
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Airborne, "Airborne")
+                            .on_hover_text("Fire only at flying enemies, dealing more damage.");
                     });
                 }
 
@@ -357,7 +365,6 @@ pub fn weapons_panel(
                 // Update all weapons with the selected settings
                 weapon_q
                     .iter_mut()
-                    .filter(|w| w.name != WeaponName::MachineGun)
                     .for_each(|mut w| w.as_mut().update(&player));
 
                 ui.add_space(5.);

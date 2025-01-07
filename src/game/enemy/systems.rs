@@ -94,7 +94,7 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut commands: Commands,
     mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
-    mut landmine_q: Query<(Entity, &Transform, &Landmine), (With<Landmine>, Without<Enemy>)>,
+    landmine_q: Query<(Entity, &Transform, &Landmine), (With<Landmine>, Without<Enemy>)>,
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
@@ -182,27 +182,31 @@ pub fn move_enemies(
                         &landmine_t.translation,
                         &landmine.size,
                     ) {
+                        let texture =
+                            TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
+
+                        player.weapons.landmines -= 1;
                         commands.entity(landmine_entity).despawn();
 
                         commands.spawn((
                             Sprite::from_atlas_image(
                                 images.explosion1.clone_weak(),
                                 TextureAtlas {
-                                    layout: texture_atlas_layouts.add(
-                                        TextureAtlasLayout::from_grid(UVec2::splat(24), 5, 5, None, None)
-                                    ),
+                                    layout: texture_atlas_layouts.add(texture.clone()),
                                     index: 1,
                                 },
                             ),
-                            Transform::from_translation(landmine_t.translation),
+                            Transform::from_scale(Vec3::splat(0.3))
+                                .with_translation(landmine_t.translation),
                             AnimationComponent {
-                                timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
                                 indices: 25,
                             },
                         ));
 
-                        if enemy.health > landmine.damage {
-                            enemy.health -= landmine.damage;
+                        let damage = landmine.damage.calculate(&enemy);
+                        if enemy.health > damage {
+                            enemy.health -= damage;
                         } else {
                             commands.entity(enemy_entity).despawn_recursive();
 

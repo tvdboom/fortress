@@ -2,7 +2,7 @@ pub mod components;
 pub mod systems;
 
 use crate::game::map::systems::*;
-use crate::game::AppState;
+use crate::game::{AppState, GameState};
 use bevy::prelude::*;
 
 pub struct MapPlugin;
@@ -16,11 +16,11 @@ impl Plugin for MapPlugin {
                 Update,
                 (
                     (weapons_panel, menu_panel, resources_panel, enemy_info_panel).chain(),
-                    run_animations,
                     info_panel.run_if(
                         in_state(AppState::StartGame)
                             .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),
                     ),
+                    run_animations.run_if(in_state(GameState::Running)),
                 ),
             );
     }

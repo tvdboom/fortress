@@ -4,7 +4,6 @@ use crate::game::map::components::Map;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager};
 use crate::utils::collision;
-use bevy::math::NormedVectorSpace;
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
@@ -123,7 +122,7 @@ pub fn spawn_bullets(
 
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select an enemy in range
-        if let Some(enemy_t) = weapon.select_target(&transform, &enemy_q, map_height) {
+        if let Some(enemy_t) = weapon.select_target(&transform, &enemy_q, &player, map_height) {
             if player.resources >= weapon.fire_cost {
                 // Compute the angle to the selected enemy
                 let d = enemy_t.translation - transform.translation;
@@ -210,15 +209,18 @@ pub fn move_bullets(
 
         // If the bullet collided with an enemy -> resolve and despawn
         for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
-            if collision(
-                &transform.translation,
-                &bullet.size,
-                &transform_enemy.translation,
-                &enemy.dim,
-            ) {
+            // Bullets with only flak damage can't hit ground units
+            if (bullet.damage.value > 0. || enemy.can_fly)
+                && collision(
+                    &transform.translation,
+                    &bullet.size,
+                    &transform_enemy.translation,
+                    &enemy.dim,
+                )
+            {
                 commands.entity(entity).despawn();
 
-                let damage = bullet.damage - enemy.armor;
+                let damage = bullet.damage.calculate(&enemy);
                 if enemy.health <= damage {
                     commands.entity(enemy_entity).despawn_recursive();
 
@@ -229,6 +231,8 @@ pub fn move_bullets(
                 } else {
                     enemy.health -= damage;
                 }
+
+                break;
             }
         }
 
