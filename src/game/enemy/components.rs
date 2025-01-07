@@ -31,13 +31,15 @@ impl EnemyManager {
             .iter()
             .map(|&enemy| {
                 if enemy.strength <= day as f32 {
-                    // Linearly increase probability before day
+                    // Enemies with less strength than the day can still
+                    // spawn but with linearly decreasing probabilities
                     enemy.strength / day as f32
                 } else {
                     // Exponentially decrease probability after day. The decay is less
                     // steep as time progresses, increasing the probability of stronger
                     // enemies over time
-                    (-BETA * (1. - time / NIGHT_DURATION) * (enemy.strength - day as f32)).exp()
+                    (-BETA * (1. - time / NIGHT_DURATION) * (enemy.strength - day as f32).powi(3))
+                        .exp()
                 }
             })
             .collect()

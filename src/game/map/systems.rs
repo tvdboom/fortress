@@ -324,7 +324,7 @@ pub fn weapons_panel(
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
 
                         let sentry_gun_slider = ui
-                            .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=5))
+                            .add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=MAX_MACHINE_GUN_FIRE_RATE))
                             .on_hover_text("Shoot N bullets per second.");
 
                         if sentry_gun_slider.changed() {
@@ -416,13 +416,20 @@ pub fn info_panel(
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
     images: Local<Images>,
+    window: Query<&Window>,
 ) {
+    let window_size = window.single().size();
     let game_over_texture = contexts.add_image(images.game_over.clone_weak());
 
     egui::Window::new("info panel")
         .title_bar(false)
         .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
-        .fixed_pos((MAP_SIZE.x * 0.2, MAP_SIZE.y * 0.2))
+        .fixed_pos(
+            (
+                (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5  - MAP_SIZE.x * 0.3,
+                (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
+            )
+        )
         .show(contexts.ctx_mut(), |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(10.);
@@ -495,7 +502,7 @@ pub fn info_panel(
                         ui.add_night_stats(&player);
 
                         ui.horizontal(|ui| {
-                            ui.add_space(190.);
+                            ui.add_space(205.);
 
                             if ui.add_button("New game").clicked() {
                                 next_state.set(AppState::StartGame);
@@ -521,7 +528,10 @@ pub fn enemy_info_panel(
     mut game_settings: ResMut<GameSettings>,
     enemies: Res<EnemyManager>,
     images: Local<Images>,
+    window: Query<&Window>,
 ) {
+    let window_size = window.single().size();
+
     if game_settings.enemy_info {
         let textures = enemies
             .list
@@ -532,9 +542,11 @@ pub fn enemy_info_panel(
         egui::Window::new("Enemy info")
             .collapsible(false)
             .open(&mut game_settings.enemy_info)
-            .fixed_size((MAP_SIZE.x * 0.8, MAP_SIZE.y * 0.6))
-            .default_pos((MAP_SIZE.x * 0.35, MAP_SIZE.y * 0.1))
-            .min_width(MAP_SIZE.x * 0.6)
+            .fixed_size((MAP_SIZE.x * 0.3, MAP_SIZE.y * 0.6))
+            .default_pos((
+                (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5 - MAP_SIZE.x * 0.15,
+                (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
+            ))
             .show(contexts.ctx_mut(), |ui| {
                 ui.add_space(15.);
 

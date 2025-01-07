@@ -4,7 +4,9 @@ use crate::game::map::components::Map;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager};
 use crate::utils::collision;
+use bevy::math::NormedVectorSpace;
 use bevy::prelude::*;
+use rand::prelude::*;
 use std::f32::consts::PI;
 
 pub fn spawn_weapons(
@@ -43,6 +45,7 @@ pub fn spawn_weapons(
         Wall,
     ));
 
+    // Spawn spots
     let positions = player
         .weapons
         .spots
@@ -72,6 +75,34 @@ pub fn spawn_weapons(
                     ..default()
                 },
                 w,
+            ));
+        }
+    }
+
+    // Spawn landmines
+    let mut positions = vec![];
+    let size = weapons.landmine.size;
+    while positions.len() < player.weapons.landmines as usize {
+        let x = thread_rng()
+            .gen_range(-SIZE.x * 0.5 + size.x..=SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x - size.x);
+        let y = thread_rng().gen_range(
+            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.6
+                ..=SIZE.y * 0.5 - MENU_PANEL_SIZE.y - size.y,
+        );
+        let pos = Vec2::new(x, y);
+
+        // Check landmines spawn at a minimum distance from each other
+        if positions.iter().all(|&v| pos.distance(v) >= 2. * size.x) {
+            positions.push(pos);
+
+            commands.spawn((
+                Sprite {
+                    image: asset_server.load(&weapons.landmine.image),
+                    custom_size: Some(weapons.landmine.size),
+                    ..default()
+                },
+                Transform::from_xyz(pos.x, pos.y, 1.5),
+                weapons.landmine.clone(),
             ));
         }
     }

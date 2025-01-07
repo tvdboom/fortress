@@ -4,7 +4,6 @@ use bevy::prelude::{FromWorld, World};
 use std::collections::HashMap;
 
 pub struct Images {
-    pub bug: Handle<Image>,
     pub day: Handle<Image>,
     pub night: Handle<Image>,
     pub person: Handle<Image>,
@@ -26,7 +25,6 @@ impl FromWorld for Images {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
         Self {
-            bug: asset_server.load("icons/bug.png"),
             day: asset_server.load("icons/day.png"),
             night: asset_server.load("icons/night.png"),
             person: asset_server.load("icons/user.png"),

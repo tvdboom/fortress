@@ -23,4 +23,8 @@ pub const GAME_SPEED_STEP: f32 = 0.5;
 pub const NIGHT_DURATION: f32 = 60.; // In seconds
 pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
 pub const NO_SPAWN_STEP: f32 = 0.1; // Probability spawning decrease per night
-pub const BETA: f32 = 3.5; // Probability factor decrease for above-level enemies
+pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
+
+// Weapon settings
+pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
+pub const MAX_LANDMINES: u32 = 25;

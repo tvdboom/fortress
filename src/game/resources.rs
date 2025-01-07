@@ -75,6 +75,7 @@ pub struct WeaponSettings {
 
 pub struct Weapons {
     pub spots: Vec<Option<WeaponName>>,
+    pub landmines: u32,
     pub settings: WeaponSettings,
 }
 
@@ -135,6 +136,7 @@ impl Player {
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
                 ],
+                landmines: 60,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
                     turret_fire_strategy: FireStrategy::NoFire,
@@ -155,6 +157,7 @@ pub struct EnemyStatus {
 pub struct NightStats {
     pub day: u32,
     pub timer: Timer,
+    pub spawn_timer: Timer,
     pub resources: Resources,
     pub enemies: HashMap<&'static str, EnemyStatus>,
 }
@@ -164,6 +167,7 @@ impl Default for NightStats {
         Self {
             day: 1,
             timer: Timer::from_seconds(NIGHT_DURATION, TimerMode::Once),
+            spawn_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
             resources: Resources::default(),
             enemies: HashMap::default(),
         }

@@ -1,7 +1,7 @@
 use crate::game::resources::Player;
 use bevy::math::{Vec2, Vec3};
 use bevy_egui::egui;
-use bevy_egui::egui::{epaint, Response, TextureId, Ui, WidgetText};
+use bevy_egui::egui::{epaint, Response, RichText, TextureId, Ui, WidgetText};
 use std::time::Duration;
 
 /// Scale a Duration by a factor
@@ -32,14 +32,14 @@ impl CustomUi for Ui {
         self.add_space(30.);
 
         self.horizontal(|ui| {
-            ui.add_space(200.);
+            ui.add_space(220.);
             egui::Grid::new("night stats")
                 .num_columns(2)
                 .spacing([40.0, 4.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label("Enemy");
-                    ui.label("Killed / Spawned");
+                    ui.label(RichText::new("Enemy").strong());
+                    ui.label(RichText::new("Killed / Spawned").strong());
                     ui.end_row();
 
                     player

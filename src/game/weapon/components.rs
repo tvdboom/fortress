@@ -15,7 +15,7 @@ pub struct Fence;
 #[derive(Component)]
 pub struct Wall;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum FireStrategy {
     NoFire,
     Closest,
@@ -44,6 +44,15 @@ pub struct Bullet {
     pub damage: f32,
     pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,     // Current distance traveled by the bullet
+}
+
+#[derive(Component, Clone)]
+pub struct Landmine {
+    pub image: String,
+    pub size: Vec2,
+    pub sensibility: f32,
+    pub damage: f32,
+    pub explosion_timer: Timer,
 }
 
 impl Weapon {
@@ -79,7 +88,10 @@ impl Weapon {
     pub fn can_fire(&mut self, time: &Time, game_settings: &GameSettings) -> bool {
         if let Some(ref mut timer) = &mut self.fire_timer {
             timer.tick(scale_duration(time.delta(), game_settings.speed));
-            return timer.finished();
+            if timer.finished() {
+                timer.reset(); // Start reload
+                return true;
+            }
         }
         false
     }
@@ -96,7 +108,7 @@ impl Weapon {
             WeaponName::MachineGun => {
                 self.fire_timer = match player.weapons.settings.sentry_gun_fire_rate {
                     0 => None,
-                    v => Some(Timer::from_seconds(1. / v as f32, TimerMode::Repeating)),
+                    v => Some(Timer::from_seconds(1. / v as f32, TimerMode::Once)),
                 };
             }
             WeaponName::Turret => {
@@ -108,14 +120,15 @@ impl Weapon {
 
 #[derive(Resource)]
 pub struct WeaponManager {
-    pub sentry_gun: Weapon,
+    pub machine_gun: Weapon,
     pub turret: Weapon,
+    pub landmine: Landmine,
 }
 
 impl WeaponManager {
     pub fn get(&self, name: &WeaponName) -> Weapon {
         match name {
-            WeaponName::MachineGun => self.sentry_gun.clone(),
+            WeaponName::MachineGun => self.machine_gun.clone(),
             WeaponName::Turret => self.turret.clone(),
         }
     }
@@ -124,7 +137,7 @@ impl WeaponManager {
 impl Default for WeaponManager {
     fn default() -> Self {
         Self {
-            sentry_gun: Weapon {
+            machine_gun: Weapon {
                 name: WeaponName::MachineGun,
                 image: "weapon/machine-gun.png".to_string(),
                 size: Vec2::new(70., 70.),
@@ -162,7 +175,7 @@ impl Default for WeaponManager {
                     bullets: 30.,
                     ..default()
                 },
-                fire_timer: Some(Timer::from_seconds(2., TimerMode::Repeating)),
+                fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
                 fire_strategy: FireStrategy::NoFire,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png".to_string(),
@@ -173,6 +186,13 @@ impl Default for WeaponManager {
                     max_distance: 100.,
                     distance: 0.,
                 },
+            },
+            landmine: Landmine {
+                image: "weapon/landmine.png".to_string(),
+                size: Vec2::new(30., 20.),
+                sensibility: 50.,
+                damage: 100.,
+                explosion_timer: Timer::from_seconds(3., TimerMode::Once),
             },
         }
     }

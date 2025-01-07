@@ -3,6 +3,7 @@ use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE}
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Fence, Wall};
 use crate::game::AppState;
+use crate::utils::scale_duration;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -16,7 +17,9 @@ pub fn spawn_enemies(
     enemies: Res<EnemyManager>,
     mut night_stats: ResMut<NightStats>,
     mut next_state: ResMut<NextState<AppState>>,
+    game_settings: Res<GameSettings>,
     asset_server: Res<AssetServer>,
+    time: Res<Time>,
 ) {
     // Stop spawning enemies when the night timer has finished
     if night_stats.timer.finished() {
@@ -26,57 +29,67 @@ pub fn spawn_enemies(
         return;
     }
 
-    if let Some(enemy) =
-        enemies.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
-    {
-        let x = thread_rng().gen_range(
-            (-SIZE.x + enemy.size.x) * 0.5..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
-        );
+    night_stats
+        .spawn_timer
+        .tick(scale_duration(time.delta(), game_settings.speed));
 
-        commands
-            .spawn((
-                Sprite {
-                    image: asset_server.load(enemy.image),
-                    custom_size: Some(enemy.size),
-                    ..default()
-                },
-                Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
-                enemy.clone(),
-            ))
-            .with_children(|parent| {
-                parent
-                    .spawn((
-                        Sprite {
-                            color: Color::from(BLACK),
-                            custom_size: Some(Vec2::new(enemy.size.x * 0.8, enemy.size.y * 0.1)),
-                            ..default()
-                        },
-                        Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
-                    ))
-                    .with_children(|parent| {
-                        parent.spawn((
+    if night_stats.spawn_timer.just_finished() {
+        if let Some(enemy) =
+            enemies.choose_enemy(night_stats.day, night_stats.timer.elapsed().as_secs_f32())
+        {
+            let x = thread_rng().gen_range(
+                (-SIZE.x + enemy.size.x) * 0.5
+                    ..=(SIZE.x - enemy.size.x) * 0.5 - WEAPONS_PANEL_SIZE.x,
+            );
+
+            commands
+                .spawn((
+                    Sprite {
+                        image: asset_server.load(enemy.image),
+                        custom_size: Some(enemy.size),
+                        ..default()
+                    },
+                    Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
+                    enemy.clone(),
+                ))
+                .with_children(|parent| {
+                    parent
+                        .spawn((
                             Sprite {
-                                color: Color::from(LIME),
+                                color: Color::from(BLACK),
                                 custom_size: Some(Vec2::new(
-                                    enemy.size.x * 0.78,
-                                    enemy.size.y * 0.08,
+                                    enemy.size.x * 0.8,
+                                    enemy.size.y * 0.1,
                                 )),
                                 ..default()
                             },
-                            Transform::from_xyz(0., 0., 1.6),
-                            EnemyHealth,
-                        ));
-                    });
-            });
+                            Transform::from_xyz(0., enemy.size.y * 0.5 - 5.0, 1.5),
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn((
+                                Sprite {
+                                    color: Color::from(LIME),
+                                    custom_size: Some(Vec2::new(
+                                        enemy.size.x * 0.78,
+                                        enemy.size.y * 0.08,
+                                    )),
+                                    ..default()
+                                },
+                                Transform::from_xyz(0., 0., 1.6),
+                                EnemyHealth,
+                            ));
+                        });
+                });
 
-        night_stats
-            .enemies
-            .entry(enemy.name)
-            .and_modify(|status| status.spawned += 1)
-            .or_insert_with(|| EnemyStatus {
-                spawned: 1,
-                killed: 0,
-            });
+            night_stats
+                .enemies
+                .entry(enemy.name)
+                .and_modify(|status| status.spawned += 1)
+                .or_insert_with(|| EnemyStatus {
+                    spawned: 1,
+                    killed: 0,
+                });
+        }
     }
 }
 
@@ -150,7 +163,7 @@ pub fn move_enemies(
 
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.size.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
-                player.survivors -= (enemy.damage * game_settings.speed) as u32;
+                player.survivors -= enemy.damage as u32;
                 commands.entity(enemy_entity).despawn_recursive();
             } else {
                 player.survivors = 0;
