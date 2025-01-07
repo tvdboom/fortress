@@ -135,12 +135,13 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
+                    Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
                     Some(WeaponName::MachineGun),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
                 ],
-                landmines: 60,
+                landmines: 10,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
                     aaa_fire_strategy: AAAFireStrategy::Ground,

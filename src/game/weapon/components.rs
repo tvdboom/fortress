@@ -8,6 +8,7 @@ use std::time::Duration;
 pub enum WeaponName {
     MachineGun,
     AAA,
+    Mortar,
     Turret,
 }
 
@@ -58,6 +59,19 @@ impl Damage {
     }
 }
 
+#[derive(Clone)]
+pub enum TargetSelection {
+    Straight,
+    Density(Vec3), // Value is location of the target
+    Homing(Enemy), // Value is the target
+}
+
+#[derive(Clone)]
+pub enum DetonationType {
+    SingleTarget,
+    Explosion(f32), // Value is the radius of explosion
+}
+
 #[derive(Component, Clone)]
 pub struct Bullet {
     pub image: String,
@@ -65,6 +79,8 @@ pub struct Bullet {
     pub speed: f32,
     pub angle: f32,
     pub damage: Damage,
+    pub target: TargetSelection,
+    pub detonation: DetonationType,
     pub max_distance: f32, // 0-100 as percentage of map's height
     pub distance: f32,     // Current distance traveled by the bullet
 }
@@ -150,9 +166,6 @@ impl Weapon {
                     }
                 };
             }
-            WeaponName::Turret => {
-                self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
-            }
             WeaponName::AAA => {
                 match player.weapons.settings.aaa_fire_strategy {
                     AAAFireStrategy::NoFire => self.fire_strategy = FireStrategy::NoFire,
@@ -174,6 +187,10 @@ impl Weapon {
                     }
                 };
             }
+            WeaponName::Mortar => (),
+            WeaponName::Turret => {
+                self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
+            }
         }
     }
 }
@@ -182,6 +199,7 @@ impl Weapon {
 pub struct WeaponManager {
     pub machine_gun: Weapon,
     pub aaa: Weapon,
+    pub mortar: Weapon,
     pub turret: Weapon,
     pub landmine: Landmine,
 }
@@ -191,6 +209,7 @@ impl WeaponManager {
         match name {
             WeaponName::MachineGun => self.machine_gun.clone(),
             WeaponName::AAA => self.aaa.clone(),
+            WeaponName::Mortar => self.mortar.clone(),
             WeaponName::Turret => self.turret.clone(),
         }
     }
@@ -224,6 +243,8 @@ impl Default for WeaponManager {
                         piercing: 0.,
                         flak: 0.,
                     },
+                    target: TargetSelection::Straight,
+                    detonation: DetonationType::SingleTarget,
                     max_distance: 70.,
                     distance: 0.,
                 },
@@ -253,7 +274,40 @@ impl Default for WeaponManager {
                         piercing: 0.,
                         flak: 0.,
                     },
+                    target: TargetSelection::Straight,
+                    detonation: DetonationType::SingleTarget,
                     max_distance: 120.,
+                    distance: 0.,
+                },
+            },
+            mortar: Weapon {
+                name: WeaponName::Mortar,
+                image: "weapon/mortar.png".to_string(),
+                size: Vec2::new(70., 70.),
+                rotation_speed: 3.,
+                price: Resources {
+                    materials: 400.,
+                    ..default()
+                },
+                fire_cost: Resources {
+                    bullets: 15.,
+                    ..default()
+                },
+                fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
+                fire_strategy: FireStrategy::Closest,
+                bullet: Bullet {
+                    image: "weapon/mortar-bullet.png".to_string(),
+                    size: Vec2::new(25., 10.),
+                    speed: 60.,
+                    angle: 0.,
+                    damage: Damage {
+                        value: 50.,
+                        piercing: 5.,
+                        flak: 0.,
+                    },
+                    target: TargetSelection::Density(Vec3::new(0., 0., 0.)),
+                    detonation: DetonationType::Explosion(30.),
+                    max_distance: 180.,
                     distance: 0.,
                 },
             },
@@ -282,6 +336,8 @@ impl Default for WeaponManager {
                         piercing: 10.,
                         flak: 0.,
                     },
+                    target: TargetSelection::Straight,
+                    detonation: DetonationType::SingleTarget,
                     max_distance: 100.,
                     distance: 0.,
                 },

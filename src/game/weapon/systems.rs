@@ -2,8 +2,10 @@ use crate::constants::*;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::Map;
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Bullet, Fence, Wall, Weapon, WeaponManager};
-use crate::utils::collision;
+use crate::game::weapon::components::{
+    Bullet, DetonationType, Fence, TargetSelection, Wall, Weapon, WeaponManager,
+};
+use crate::utils::{collision, get_highest_density_point};
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
@@ -135,6 +137,19 @@ pub fn spawn_bullets(
                         let mut bullet = weapon.bullet.clone();
                         bullet.angle = angle;
 
+                        match bullet.target {
+                            TargetSelection::Density { .. } => {
+                                if let DetonationType::Explosion(r) = bullet.detonation {
+                                    bullet.target = TargetSelection::Density(
+                                        get_highest_density_point(&enemy_q, r),
+                                    );
+                                } else {
+                                    panic!("A bullet with density target selection must have an explosion detonation type.");
+                                }
+                            }
+                            _ => (),
+                        }
+
                         commands.spawn((
                             Sprite {
                                 image: asset_server.load(&bullet.image),
@@ -207,33 +222,40 @@ pub fn move_bullets(
         // Pythagoras to get distance traveled
         bullet.distance += (dx.powi(2) + dy.powi(2)).sqrt();
 
-        // If the bullet collided with an enemy -> resolve and despawn
-        for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
-            // Bullets with only flak damage can't hit ground units
-            if (bullet.damage.value > 0. || enemy.can_fly)
-                && collision(
-                    &transform.translation,
-                    &bullet.size,
-                    &transform_enemy.translation,
-                    &enemy.dim,
-                )
-            {
-                commands.entity(entity).despawn();
-
-                let damage = bullet.damage.calculate(&enemy);
-                if enemy.health <= damage {
-                    commands.entity(enemy_entity).despawn_recursive();
-
-                    night_stats
-                        .enemies
-                        .entry(enemy.name)
-                        .and_modify(|status| status.killed += 1);
-                } else {
-                    enemy.health -= damage;
+        match bullet.target {
+            TargetSelection::Straight => {
+                // If the bullet collided with an enemy -> resolve and despawn
+                for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
+                    // Bullets with only flak damage can't hit ground units
+                    if (bullet.damage.value > 0. || enemy.can_fly)
+                        && collision(
+                            &transform.translation,
+                            &bullet.size,
+                            &transform_enemy.translation,
+                            &enemy.dim,
+                        )
+                    {
+                        commands.entity(entity).despawn();
+                        resolve_enemy_impact(
+                            &mut commands,
+                            &mut bullet,
+                            enemy_entity,
+                            &mut enemy,
+                            &mut night_stats,
+                        );
+                        break;
+                    }
                 }
-
-                break;
             }
+            TargetSelection::Density(location) => {
+                if transform.translation.distance(location) <= 10. {
+                    commands.entity(entity).despawn();
+
+                    // Resolve the impact on all enemies in radius
+                    // enemy_q.iter().for_each()
+                }
+            }
+            _ => unimplemented!(),
         }
 
         // If the bullet traveled more than max distance or left window boundaries -> despawn
@@ -260,5 +282,25 @@ pub fn update_fence_resources(
         } else {
             player.fence.enabled = false;
         }
+    }
+}
+
+fn resolve_enemy_impact(
+    commands: &mut Commands,
+    bullet: &mut Bullet,
+    enemy_entity: Entity,
+    enemy: &mut Enemy,
+    night_stats: &mut NightStats,
+) {
+    let damage = bullet.damage.calculate(enemy);
+    if enemy.health <= damage {
+        commands.entity(enemy_entity).despawn_recursive();
+
+        night_stats
+            .enemies
+            .entry(enemy.name)
+            .and_modify(|status| status.killed += 1);
+    } else {
+        enemy.health -= damage;
     }
 }

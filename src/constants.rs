@@ -26,5 +26,6 @@ pub const NO_SPAWN_STEP: f32 = 0.1; // Probability spawning decrease per night
 pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 
 // Weapon settings
+pub const MAX_SPOTS: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_LANDMINES: u32 = 25;

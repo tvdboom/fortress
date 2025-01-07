@@ -1,5 +1,7 @@
+use crate::game::enemy::components::Enemy;
 use crate::game::resources::Player;
 use bevy::math::{Vec2, Vec3};
+use bevy::prelude::{Query, Transform};
 use bevy_egui::egui;
 use bevy_egui::egui::{epaint, Response, RichText, TextureId, Ui, WidgetText};
 use std::time::Duration;
@@ -100,4 +102,18 @@ pub fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
     let p2_max = pos2 + Vec3::new(size2.x / 3.0, size2.y / 3.0, 0.0);
 
     p1_max.x > p2_min.x && p1_min.x < p2_max.x && p1_max.y > p2_min.y && p1_min.y < p2_max.y
+}
+
+pub fn get_highest_density_point(enemies: &Query<(&Transform, &Enemy)>, radius: f32) -> Vec3 {
+    let enemy = enemies.iter().max_by_key(|(t1, _)| {
+        enemies
+            .iter()
+            .filter(|(&t2, _)| t1.translation.distance(t2.translation) <= radius)
+            .count()
+    });
+
+    enemy
+        .expect("Failed getting highest density point.")
+        .0
+        .translation
 }
