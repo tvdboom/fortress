@@ -1,13 +1,13 @@
 use crate::constants::*;
+use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::{AnimationComponent, Map};
+use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
 use crate::utils::collision;
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
-use crate::game::components::Images;
 
 pub fn spawn_weapons(
     mut commands: Commands,
@@ -62,7 +62,7 @@ pub fn spawn_weapons(
             commands.spawn((
                 Sprite {
                     image: asset_server.load(&w.image),
-                    custom_size: Some(w.size),
+                    custom_size: Some(w.dim),
                     ..default()
                 },
                 Transform {
@@ -81,7 +81,7 @@ pub fn spawn_weapons(
 
     // Spawn landmines
     let mut positions = vec![];
-    let size = weapons.landmine.size;
+    let size = weapons.landmine.dim;
     while positions.len() < player.weapons.landmines as usize {
         let x = thread_rng()
             .gen_range(-SIZE.x * 0.5 + size.x..=SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x - size.x);
@@ -98,7 +98,7 @@ pub fn spawn_weapons(
             commands.spawn((
                 Sprite {
                     image: asset_server.load(&weapons.landmine.image),
-                    custom_size: Some(weapons.landmine.size),
+                    custom_size: Some(weapons.landmine.dim),
                     ..default()
                 },
                 Transform::from_xyz(pos.x, pos.y, 1.5),
@@ -112,44 +112,46 @@ pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon), Without<Enemy>>,
     enemy_q: Query<(&Transform, &Enemy)>,
-    map_q: Query<&Sprite, With<Map>>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
 ) {
-    let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
-
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select a target in range
-        if let Some(enemy_t) = weapon.select_target(&transform, &enemy_q, &player, map_height) {
+        if let Some(loc) = weapon.target_location(&transform, &enemy_q, &player) {
             if player.resources >= weapon.fire_cost {
                 // Compute the angle to the selected enemy
-                let d = enemy_t.translation - transform.translation;
+                let d = loc - transform.translation;
                 let angle = d.y.atan2(d.x);
 
                 // Rotate the weapon towards the selected target
                 if weapon.is_aiming(&angle, &transform) {
                     // Check if the weapon can fire (fire timer is finished)
                     if weapon.can_fire(&time, &game_settings) {
-                        let mut bullet = weapon.bullet.clone();
-                        bullet.angle = angle;
+                        // Release target lock
+                        weapon.lock = None;
 
-                        if matches!(weapon.fire_strategy, FireStrategy::Density {..}) {
+                        let mut bullet = Bullet {
+                            angle,
+                            ..weapon.bullet.clone()
+                        };
+
+                        if matches!(weapon.fire_strategy, FireStrategy::Density { .. }) {
                             bullet.max_distance = d.length();
                         }
 
                         commands.spawn((
                             Sprite {
                                 image: asset_server.load(&bullet.image),
-                                custom_size: Some(bullet.size),
+                                custom_size: Some(bullet.dim),
                                 ..default()
                             },
                             Transform {
                                 translation: Vec3::new(
-                                    transform.translation.x + weapon.size.x * 0.5 * angle.cos(),
-                                    transform.translation.y + weapon.size.y * 0.5 * angle.sin(),
+                                    transform.translation.x + weapon.dim.x * 0.5 * angle.cos(),
+                                    transform.translation.y + weapon.dim.y * 0.5 * angle.sin(),
                                     3.0,
                                 ),
                                 rotation: Quat::from_rotation_z(bullet.angle),
@@ -158,10 +160,8 @@ pub fn spawn_bullets(
                             bullet,
                         ));
 
-                        night_stats.resources.bullets += weapon.fire_cost.bullets;
-                        night_stats.resources.gasoline += weapon.fire_cost.gasoline;
-                        player.resources.bullets -= weapon.fire_cost.bullets;
-                        player.resources.gasoline -= weapon.fire_cost.gasoline;
+                        night_stats.resources += &weapon.fire_cost;
+                        player.resources -= &weapon.fire_cost;
                     }
                 }
 
@@ -187,28 +187,16 @@ pub fn move_bullets(
     mut commands: Commands,
     mut bullet_q: Query<(&mut Transform, Entity, &mut Bullet)>,
     mut enemy_q: Query<(&Transform, Entity, &mut Enemy), Without<Bullet>>,
-    map_q: Query<&Sprite, With<Map>>,
     time: Res<Time>,
     settings: Res<GameSettings>,
     mut night_stats: ResMut<NightStats>,
-    images: Local<Images>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    assets: Local<WorldAssets>,
 ) {
-    let map_height = map_q.get_single().unwrap().custom_size.unwrap().y;
-
     for (mut transform, entity, mut bullet) in bullet_q.iter_mut() {
-        let dx = map_height / 100.
-            * bullet.speed
-            * bullet.angle.cos()
-            * settings.speed
-            * time.delta_secs();
+        let dx = bullet.speed * bullet.angle.cos() * settings.speed * time.delta_secs();
         transform.translation.x += dx;
 
-        let dy = map_height / 100.
-            * bullet.speed
-            * bullet.angle.sin()
-            * settings.speed
-            * time.delta_secs();
+        let dy = bullet.speed * bullet.angle.sin() * settings.speed * time.delta_secs();
         transform.translation.y += dy;
 
         // Pythagoras to get distance traveled
@@ -216,13 +204,14 @@ pub fn move_bullets(
 
         match bullet.detonation {
             Detonation::SingleTarget => {
-                // If the bullet collided with an enemy -> resolve and despawn
                 for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
-                    // Bullets with only flak damage can't hit ground units
-                    if (bullet.damage.value > 0. || enemy.can_fly)
+                    // If the bullet can hit grounded/airborne enemies
+                    // and the bullet collided with an enemy -> despawn and resolve
+                    if ((bullet.damage.ground > 0. && !enemy.can_fly)
+                        || (bullet.damage.air > 0. && enemy.can_fly))
                         && collision(
                             &transform.translation,
-                            &bullet.size,
+                            &bullet.dim,
                             &transform_enemy.translation,
                             &enemy.dim,
                         )
@@ -238,22 +227,13 @@ pub fn move_bullets(
                         break;
                     }
                 }
-            },
+            }
             Detonation::Explosion(r) if bullet.distance >= bullet.max_distance => {
                 commands.entity(entity).despawn();
 
-                let texture =
-                    TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
-
                 commands.spawn((
-                    Sprite::from_atlas_image(
-                        images.explosion1.clone_weak(),
-                        TextureAtlas {
-                            layout: texture_atlas_layouts.add(texture.clone()),
-                            index: 1,
-                        },
-                    ),
-                    Transform::from_scale(Vec3::splat(0.3))
+                    assets.get_atlas("explosion1"),
+                    Transform::from_translation(Vec3::splat(r as f32))
                         .with_translation(transform.translation),
                     AnimationComponent {
                         timer: Timer::from_seconds(0.05, TimerMode::Repeating),
@@ -262,8 +242,9 @@ pub fn move_bullets(
                 ));
 
                 // Resolve the impact on all enemies in radius
-                enemy_q.iter_mut()
-                    .filter(|(&t, _, _)| t.translation.distance(transform.translation) <= r)
+                enemy_q
+                    .iter_mut()
+                    .filter(|(&t, _, _)| t.translation.distance(transform.translation) <= r as f32)
                     .for_each(|(_, enemy_entity, mut enemy)| {
                         resolve_enemy_impact(
                             &mut commands,
@@ -275,12 +256,12 @@ pub fn move_bullets(
                     });
 
                 break;
-                },
+            }
             _ => (),
         }
 
         // If the bullet traveled more than max distance or left window boundaries -> despawn
-        if bullet.distance >= map_height / 100. * bullet.max_distance
+        if bullet.distance >= bullet.max_distance
             || transform.translation.x < -SIZE.x * 0.5
             || transform.translation.x > SIZE.x * 0.5
             || transform.translation.y > SIZE.y * 0.5

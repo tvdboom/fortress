@@ -1,6 +1,6 @@
 use super::components::*;
 use crate::constants::*;
-use crate::game::components::*;
+use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{AAAFireStrategy, Bullet, FireStrategy, Weapon, WeaponName};
@@ -130,19 +130,19 @@ pub fn resources_panel(
     mut night_stats: ResMut<NightStats>,
     time: Res<Time>,
     mut game_settings: ResMut<GameSettings>,
-    images: Local<Images>,
+    assets: Local<WorldAssets>,
 ) {
-    let day_texture = contexts.add_image(images.day.clone_weak());
-    let night_texture = contexts.add_image(images.night.clone_weak());
-    let person_texture = contexts.add_image(images.person.clone_weak());
-    let wall_texture = contexts.add_image(images.wall.clone_weak());
-    let fence_texture = contexts.add_image(images.fence.clone_weak());
-    let bullets_texture = contexts.add_image(images.bullets.clone_weak());
-    let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
-    let materials_texture = contexts.add_image(images.materials.clone_weak());
-    let spot_texture = contexts.add_image(images.spot.clone_weak());
-    let hourglass_texture = contexts.add_image(images.hourglass.clone_weak());
-    let clock_texture = contexts.add_image(images.clock.clone_weak());
+    let day_texture = contexts.add_image(assets.get_image("day"));
+    let night_texture = contexts.add_image(assets.get_image("night"));
+    let person_texture = contexts.add_image(assets.get_image("person"));
+    let wall_texture = contexts.add_image(assets.get_image("wall"));
+    let fence_texture = contexts.add_image(assets.get_image("fence"));
+    let bullets_texture = contexts.add_image(assets.get_image("bullets"));
+    let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
+    let materials_texture = contexts.add_image(assets.get_image("materials"));
+    let spot_texture = contexts.add_image(assets.get_image("spot"));
+    let hourglass_texture = contexts.add_image(assets.get_image("hourglass"));
+    let clock_texture = contexts.add_image(assets.get_image("clock"));
 
     egui::TopBottomPanel::bottom("Resources")
         .exact_height(RESOURCES_PANEL_SIZE.y)
@@ -290,12 +290,12 @@ pub fn weapons_panel(
     mut weapon_q: Query<&mut Weapon>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
-    images: Local<Images>,
+    assets: Local<WorldAssets>,
 ) {
-    let weapon_texture = contexts.add_image(images.weapon.clone_weak());
-    let lightning_texture = contexts.add_image(images.lightning.clone_weak());
-    let bullets_texture = contexts.add_image(images.bullets.clone_weak());
-    let gasoline_texture = contexts.add_image(images.gasoline.clone_weak());
+    let weapon_texture = contexts.add_image(assets.get_image("weapon"));
+    let lightning_texture = contexts.add_image(assets.get_image("lightning"));
+    let bullets_texture = contexts.add_image(assets.get_image("bullets"));
+    let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
 
     egui::SidePanel::right("Weapons panel")
         .exact_width(WEAPONS_PANEL_SIZE.x)
@@ -338,7 +338,7 @@ pub fn weapons_panel(
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
                         ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::NoFire, "None")
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Ground, "Ground")
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::All, "All")
                             .on_hover_text("Fire at all enemies dealing reduced damage.");
                         ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Airborne, "Airborne")
                             .on_hover_text("Fire only at flying enemies, dealing more damage.");
@@ -402,26 +402,44 @@ pub fn weapons_panel(
                 ui.separator();
                 ui.add_space(5.);
 
-                ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_space(50.);
-
-                        ui.add_image(bullets_texture, [20., 25.]);
-                        let bullet_button = ui.add_sized([30., 30.], egui::Button::new("+100"))
+                ui.horizontal(|ui| {
+                    ui.add_image(bullets_texture, [20., 25.]);
+                    ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
+                        let bullet_button_100 = ui.add_sized([30., 30.], egui::Button::new("+100"))
                             .on_hover_text("Buy 100 bullets for 300 materials.");
-                        if bullet_button.clicked() {
+                        if bullet_button_100.clicked() {
                             player.resources.bullets += 100.;
                             player.resources.materials -= 300.;
                         }
+                    });
 
-                        ui.add_space(15.);
+                    ui.add_enabled_ui(player.resources.materials >= 1500., |ui| {
+                        let bullet_button_500 = ui.add_sized([30., 30.], egui::Button::new("+500"))
+                            .on_hover_text("Buy 500 bullets for 1500 materials.");
+                        if bullet_button_500.clicked() {
+                            player.resources.bullets += 500.;
+                            player.resources.materials -= 1500.;
+                        }
+                    });
 
-                        ui.add_image(gasoline_texture, [20., 20.]);
+                    ui.add_space(10.);
+
+                    ui.add_image(gasoline_texture, [20., 20.]);
+                    ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
                         let gasoline_button = ui.add_sized([30., 30.], egui::Button::new("+100"))
                             .on_hover_text("Buy 100 gasoline for 300 materials.");
                         if gasoline_button.clicked() {
                             player.resources.gasoline += 100.;
                             player.resources.materials -= 300.;
+                        }
+                    });
+
+                    ui.add_enabled_ui(player.resources.materials >= 1500., |ui| {
+                        let gasoline_button_500 = ui.add_sized([30., 30.], egui::Button::new("+500"))
+                            .on_hover_text("Buy 500 gasoline for 1500 materials.");
+                        if gasoline_button_500.clicked() {
+                            player.resources.gasoline += 500.;
+                            player.resources.materials -= 1500.;
                         }
                     });
                 });
@@ -434,11 +452,11 @@ pub fn info_panel(
     player: Res<Player>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
-    images: Local<Images>,
+    assets: Local<WorldAssets>,
     window: Query<&Window>,
 ) {
     let window_size = window.single().size();
-    let game_over_texture = contexts.add_image(images.game_over.clone_weak());
+    let game_over_texture = contexts.add_image(assets.get_image("game_over"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -546,7 +564,7 @@ pub fn enemy_info_panel(
     mut contexts: EguiContexts,
     mut game_settings: ResMut<GameSettings>,
     enemies: Res<EnemyManager>,
-    images: Local<Images>,
+    assets: Local<WorldAssets>,
     window: Query<&Window>,
 ) {
     let window_size = window.single().size();
@@ -555,7 +573,7 @@ pub fn enemy_info_panel(
         let textures = enemies
             .list
             .iter()
-            .map(|e| contexts.add_image(images.enemies.get(e.name).unwrap().clone_weak()))
+            .map(|e| contexts.add_image(assets.get_image(e.name)))
             .collect::<Vec<_>>();
 
         egui::Window::new("Enemy info")
@@ -585,6 +603,7 @@ pub fn enemy_info_panel(
 
                                 ui.vertical(|ui| {
                                     ui.label(format!("Name: {}", e.name));
+                                    ui.label(format!("Size: {:?}", e.size));
                                     ui.label(format!("Health: {}", e.health));
                                     ui.label(format!("Armor: {}", e.armor))
                                         .on_hover_text("Armor reduces incoming damage.");

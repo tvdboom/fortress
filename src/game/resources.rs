@@ -5,6 +5,7 @@ use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 use std::cmp::Ordering;
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 #[derive(Resource)]
 pub struct GameSettings {
@@ -49,6 +50,46 @@ impl PartialOrd for Resources {
         } else {
             None
         }
+    }
+}
+
+impl Add for Resources {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            bullets: self.bullets + rhs.bullets,
+            gasoline: self.gasoline + rhs.gasoline,
+            materials: self.materials + rhs.materials,
+        }
+    }
+}
+
+impl Sub for Resources {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            bullets: self.bullets - rhs.bullets,
+            gasoline: self.gasoline - rhs.gasoline,
+            materials: self.materials - rhs.materials,
+        }
+    }
+}
+
+impl AddAssign<&Self> for Resources {
+    fn add_assign(&mut self, rhs: &Self) {
+        self.bullets += rhs.bullets;
+        self.gasoline += rhs.gasoline;
+        self.materials += rhs.materials;
+    }
+}
+
+impl SubAssign<&Self> for Resources {
+    fn sub_assign(&mut self, rhs: &Self) {
+        self.bullets -= rhs.bullets;
+        self.gasoline -= rhs.gasoline;
+        self.materials -= rhs.materials;
     }
 }
 
@@ -144,7 +185,7 @@ impl Player {
                 landmines: 10,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
-                    aaa_fire_strategy: AAAFireStrategy::Ground,
+                    aaa_fire_strategy: AAAFireStrategy::All,
                     turret_fire_strategy: FireStrategy::NoFire,
                     landmine_sensibility: Size::Medium,
                 },

@@ -1,3 +1,4 @@
+use crate::constants::MAP_SIZE;
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
@@ -20,16 +21,25 @@ pub struct Wall;
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum FireStrategy {
+    /// Don't fire
     NoFire,
+
+    /// Fire at the closest enemy
     Closest,
+
+    /// Fire at enemy with the highest `max_health`
     Strongest,
-    Density,
+
+    /// Fire at the enemy with the most surrounding enemies at
+    /// a distance given by the element of the tuple.
+    /// When detonation is explosion, use the same value for radius
+    Density(u32),
 }
 
 #[derive(Clone, Eq, PartialEq)]
 pub enum AAAFireStrategy {
     NoFire,
-    Ground,
+    All,
     Airborne,
 }
 
@@ -37,62 +47,90 @@ pub enum AAAFireStrategy {
 pub struct Weapon {
     pub name: WeaponName,
     pub image: String,
-    pub size: Vec2,
+    pub dim: Vec2,
     pub rotation_speed: f32,
+
+    /// Location on the map to shoot towards
+    pub lock: Option<&'a Enemy>,
     pub price: Resources,
+
+    /// Resources required to fire
     pub fire_cost: Resources,
+
+    /// Time between shots (reload time)
     pub fire_timer: Option<Timer>,
+
     pub fire_strategy: FireStrategy,
     pub bullet: Bullet,
 }
 
 #[derive(Clone)]
 pub struct Damage {
-    pub value: f32,
-    pub piercing: f32,
-    pub flak: f32,
+    /// Damage to ground enemies
+    pub ground: f32,
+
+    /// Damage to flying enemies
+    pub air: f32,
+
+    /// Armor penetration
+    pub penetration: f32,
 }
 
 impl Damage {
+    /// Calculate the damage inflicted on `enemy`
     pub fn calculate(&self, enemy: &Enemy) -> f32 {
-        self.value - (enemy.armor - self.piercing).max(0.)
-            + (if enemy.can_fly { self.flak } else { 0. })
+        (if enemy.can_fly { self.air } else { self.ground })
+            + (enemy.armor - self.penetration).max(0.)
     }
 }
 
 #[derive(Clone)]
 pub enum Detonation {
+    /// Damage is applied to a single enemy
     SingleTarget,
-    Explosion(f32), // Value is the radius of explosion
+
+    /// Damage is applied to all enemies in radius `u32`
+    Explosion(u32),
 }
 
 #[derive(Component, Clone)]
 pub struct Bullet {
     pub image: String,
-    pub size: Vec2,
+    pub dim: Vec2,
+
+    /// Distance traveled per second
     pub speed: f32,
     pub angle: f32,
     pub damage: Damage,
     pub detonation: Detonation,
-    pub max_distance: f32, // 0-100 as percentage of map's height
-    pub distance: f32,     // Current distance traveled by the bullet
+
+    /// Maximum distance the bullet can travel (despawned after)
+    pub max_distance: f32,
+
+    /// Current distance traveled by the bullet
+    pub distance: f32,
 }
 
 #[derive(Component, Clone)]
 pub struct Landmine {
     pub image: String,
-    pub size: Vec2,
+    pub dim: Vec2,
     pub damage: Damage,
+    pub detonation: Detonation,
 }
 
 impl Weapon {
-    pub fn select_target(
-        &self,
+    pub fn target_location<'a>(
+        &mut self,
         transform: &Transform,
-        enemy_q: &Query<(&Transform, &Enemy)>,
+        enemy_q: &'a Query<(&Transform, &Enemy)>,
         player: &Player,
-        map_height: f32,
-    ) -> Option<Transform> {
+    ) -> Option<&'a Enemy> {
+        // If a target is already locked, return it
+        if let Some(lock) = self.lock {
+            return Some(lock);
+        }
+
         let enemies = enemy_q.iter().filter_map(|(enemy_t, enemy)| {
             // Special case => AAA's don't shoot ground units when strategy is Airborne
             if self.name == WeaponName::AAA
@@ -103,7 +141,7 @@ impl Weapon {
             }
 
             let distance = transform.translation.distance(enemy_t.translation);
-            if distance <= map_height / 100. * self.bullet.max_distance {
+            if distance <= self.bullet.max_distance {
                 Some((enemy_t, enemy, distance))
             } else {
                 None
@@ -118,15 +156,16 @@ impl Weapon {
             FireStrategy::Strongest => enemies.max_by(|(_, e1, _), (_, e2, _)| {
                 e1.max_health.partial_cmp(&e2.max_health).unwrap()
             }),
-            FireStrategy::Density => enemies.min_by_key(|(t1, _, _)| {
+            FireStrategy::Density(r) => enemies.max_by_key(|(t1, _, _)| {
                 enemy_q
                     .iter()
-                    .map(|(&t2, _)| t1.translation.distance(t2.translation) as u32)
-                    .sum::<u32>()
+                    .filter(|(&t2, _)| t1.translation.distance(t2.translation) < r as f32)
+                    .count()
             }),
         };
 
-        enemies.map(|(e, _, _)| e.clone())
+        self.lock = enemies.map(|(e, _, _)| e);
+        self.lock
     }
 
     /// Whether the weapon's timer is finished
@@ -166,20 +205,20 @@ impl Weapon {
             WeaponName::AAA => {
                 match player.weapons.settings.aaa_fire_strategy {
                     AAAFireStrategy::NoFire => self.fire_strategy = FireStrategy::NoFire,
-                    AAAFireStrategy::Ground => {
+                    AAAFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.damage = Damage {
-                            value: 5.,
-                            piercing: 0.,
-                            flak: 0.,
+                            ground: 5.,
+                            air: 5.,
+                            penetration: 0.,
                         }
                     }
                     AAAFireStrategy::Airborne => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.damage = Damage {
-                            value: 0.,
-                            piercing: 0.,
-                            flak: 20.,
+                            ground: 0.,
+                            air: 20.,
+                            penetration: 0.,
                         }
                     }
                 };
@@ -218,8 +257,9 @@ impl Default for WeaponManager {
             machine_gun: Weapon {
                 name: WeaponName::MachineGun,
                 image: "weapon/machine-gun.png".to_string(),
-                size: Vec2::new(70., 70.),
+                dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
+                lock: None,
                 price: Resources {
                     materials: 100.,
                     ..default()
@@ -232,24 +272,25 @@ impl Default for WeaponManager {
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/bullet.png".to_string(),
-                    size: Vec2::new(25., 7.),
-                    speed: 80.,
+                    dim: Vec2::new(25., 7.),
+                    speed: 0.8 * MAP_SIZE.y,
                     angle: 0.,
                     damage: Damage {
-                        value: 5.,
-                        piercing: 0.,
-                        flak: 0.,
+                        ground: 5.,
+                        air: 0.,
+                        penetration: 0.,
                     },
                     detonation: Detonation::SingleTarget,
-                    max_distance: 70.,
+                    max_distance: 0.07 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
             aaa: Weapon {
                 name: WeaponName::AAA,
                 image: "weapon/aaa.png".to_string(),
-                size: Vec2::new(80., 80.),
+                dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
+                lock: None,
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -262,24 +303,25 @@ impl Default for WeaponManager {
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/shell.png".to_string(),
-                    size: Vec2::new(20., 7.),
-                    speed: 120.,
+                    dim: Vec2::new(20., 7.),
+                    speed: 1.2 * MAP_SIZE.y,
                     angle: 0.,
                     damage: Damage {
-                        value: 5.,
-                        piercing: 0.,
-                        flak: 0.,
+                        ground: 5.,
+                        air: 5.,
+                        penetration: 0.,
                     },
                     detonation: Detonation::SingleTarget,
-                    max_distance: 120.,
+                    max_distance: 1.2 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
             mortar: Weapon {
                 name: WeaponName::Mortar,
                 image: "weapon/mortar.png".to_string(),
-                size: Vec2::new(70., 70.),
+                dim: Vec2::new(70., 70.),
                 rotation_speed: 3.,
+                lock: None,
                 price: Resources {
                     materials: 400.,
                     ..default()
@@ -289,27 +331,28 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
-                fire_strategy: FireStrategy::Density,
+                fire_strategy: FireStrategy::Density((0.03 * MAP_SIZE.y) as u32),
                 bullet: Bullet {
                     image: "weapon/mortar-bullet.png".to_string(),
-                    size: Vec2::new(25., 10.),
-                    speed: 60.,
+                    dim: Vec2::new(25., 10.),
+                    speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
                     damage: Damage {
-                        value: 50.,
-                        piercing: 5.,
-                        flak: 0.,
+                        ground: 50.,
+                        air: 0.,
+                        penetration: 5.,
                     },
-                    detonation: Detonation::Explosion(30.),
-                    max_distance: 180.,
+                    detonation: Detonation::Explosion((0.03 * MAP_SIZE.y) as u32),
+                    max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
             turret: Weapon {
                 name: WeaponName::Turret,
                 image: "weapon/turret.png".to_string(),
-                size: Vec2::new(90., 90.),
+                dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
+                lock: None,
                 price: Resources {
                     materials: 1000.,
                     ..default()
@@ -322,27 +365,28 @@ impl Default for WeaponManager {
                 fire_strategy: FireStrategy::NoFire,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png".to_string(),
-                    size: Vec2::new(25., 25.),
-                    speed: 60.,
+                    dim: Vec2::new(25., 25.),
+                    speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
                     damage: Damage {
-                        value: 50.,
-                        piercing: 10.,
-                        flak: 0.,
+                        ground: 50.,
+                        air: 0.,
+                        penetration: 10.,
                     },
                     detonation: Detonation::SingleTarget,
-                    max_distance: 100.,
+                    max_distance: 0.9 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
             landmine: Landmine {
                 image: "weapon/landmine.png".to_string(),
-                size: Vec2::new(30., 20.),
+                dim: Vec2::new(30., 20.),
                 damage: Damage {
-                    value: 50.,
-                    piercing: 20.,
-                    flak: 0.,
+                    ground: 50.,
+                    air: 0.,
+                    penetration: 20.,
                 },
+                detonation: Detonation::Explosion((0.05 * MAP_SIZE.y) as u32),
             },
         }
     }

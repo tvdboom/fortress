@@ -6,7 +6,7 @@ use rand::distributions::{Distribution, WeightedIndex};
 #[derive(Component)]
 pub struct EnemyHealth;
 
-#[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Size {
     Small,
     Medium,

@@ -1,9 +1,9 @@
 use super::components::*;
 use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::components::Images;
+use crate::game::assets::WorldAssets;
 use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Fence, Landmine, Wall};
+use crate::game::weapon::components::{Detonation, Fence, Landmine, Wall};
 use crate::game::AppState;
 use crate::utils::{collision, scale_duration};
 use bevy::color::{
@@ -102,8 +102,7 @@ pub fn move_enemies(
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
     mut night_stats: ResMut<NightStats>,
-    images: Local<Images>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    assets: Local<WorldAssets>,
 ) {
     for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
         let new_pos = transform.translation.y
@@ -180,29 +179,22 @@ pub fn move_enemies(
                         &transform.translation,
                         &enemy.dim,
                         &landmine_t.translation,
-                        &landmine.size,
+                        &landmine.dim,
                     ) {
-                        let texture =
-                            TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
-
                         player.weapons.landmines -= 1;
                         commands.entity(landmine_entity).despawn();
 
-                        commands.spawn((
-                            Sprite::from_atlas_image(
-                                images.explosion1.clone_weak(),
-                                TextureAtlas {
-                                    layout: texture_atlas_layouts.add(texture.clone()),
-                                    index: 1,
+                        if let Detonation::Explosion(r) = landmine.detonation {
+                            commands.spawn((
+                                assets.get_atlas("explosion1"),
+                                Transform::from_translation(Vec3::splat(r as f32))
+                                    .with_translation(landmine_t.translation),
+                                AnimationComponent {
+                                    timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                                    indices: 25,
                                 },
-                            ),
-                            Transform::from_scale(Vec3::splat(0.3))
-                                .with_translation(landmine_t.translation),
-                            AnimationComponent {
-                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                                indices: 25,
-                            },
-                        ));
+                            ));
+                        }
 
                         let damage = landmine.damage.calculate(&enemy);
                         if enemy.health > damage {
