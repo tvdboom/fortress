@@ -57,6 +57,7 @@ impl FromWorld for WorldAssets {
             ("Ironclaw", assets.load("enemy/ironclaw.png")),
             ("Ironcarapace", assets.load("enemy/ironcarapace.png")),
             // Sprite sheets
+            ("flashes", assets.load("weapon/flashes.png")),
             ("explosion1", assets.load("weapon/explosion1.png")),
         ]);
 
@@ -64,18 +65,30 @@ impl FromWorld for WorldAssets {
             .get_resource_mut::<Assets<TextureAtlasLayout>>()
             .unwrap();
 
+        let flashes = TextureAtlasLayout::from_grid(UVec2::new(416, 600), 4, 6, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
 
-        let atlas = HashMap::from([(
-            "explosion1",
-            Sprite::from_atlas_image(
-                images["explosion1"].clone_weak(),
-                TextureAtlas {
-                    layout: texture.add(explosion1),
-                    index: 1,
-                },
+        let atlas = HashMap::from([
+            (
+                "flashes",
+                Sprite::from_atlas_image(
+                    images["flashes"].clone_weak(),
+                    TextureAtlas {
+                        layout: texture.add(explosion1),
+                        index: 1,
+                    },
+                ),
             ),
-        )]);
+            (
+                "explosion1",
+                Sprite::from_atlas_image(
+                    images["explosion1"].clone_weak(),
+                    TextureAtlas {
+                        layout: texture.add(flashes),
+                        index: 21,
+                    },
+                ),
+            )]);
 
         Self { images, atlas }
     }

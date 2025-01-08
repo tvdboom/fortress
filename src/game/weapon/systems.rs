@@ -111,7 +111,7 @@ pub fn spawn_weapons(
 pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon), Without<Enemy>>,
-    enemy_q: Query<(&Transform, &Enemy)>,
+    enemy_q: Query<(&Transform, Entity, &Enemy)>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
@@ -120,10 +120,16 @@ pub fn spawn_bullets(
 ) {
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select a target in range
-        if let Some(loc) = weapon.target_location(&transform, &enemy_q, &player) {
+        if let Some(location) = weapon.get_lock(&transform, &enemy_q, &player) {
             if player.resources >= weapon.fire_cost {
+                let mut bullet = weapon.bullet.clone();
+
                 // Compute the angle to the selected enemy
-                let d = loc - transform.translation;
+                let d = location - transform.translation;
+
+                // let relative_velocity_factor = (d.y / bullet.speed) - (enemy_velocity / bullet_velocity);
+                // let angle = relative_velocity_factor.atan2(d.x);
+
                 let angle = d.y.atan2(d.x);
 
                 // Rotate the weapon towards the selected target
@@ -139,8 +145,18 @@ pub fn spawn_bullets(
                         };
 
                         if matches!(weapon.fire_strategy, FireStrategy::Density { .. }) {
-                            bullet.max_distance = d.length();
+                            bullet.max_distance = d.length() - bullet.dim.length();
                         }
+
+                        // commands.spawn((
+                        //     assets.get_atlas("flashes"),
+                        //     Transform::from_translation(Vec3::splat(r as f32))
+                        //         .with_translation(landmine_t.translation),
+                        //     AnimationComponent {
+                        //         timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                        //         indices: 25,
+                        //     },
+                        // ));
 
                         commands.spawn((
                             Sprite {

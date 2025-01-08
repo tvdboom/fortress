@@ -5,7 +5,7 @@ use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{AAAFireStrategy, Bullet, FireStrategy, Weapon, WeaponName};
 use crate::game::{AppState, GameState};
-use crate::utils::{scale_duration, toggle, CustomUi};
+use crate::utils::{scale_duration, toggle, CustomUi, NameFromEnum};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
@@ -336,11 +336,11 @@ pub fn weapons_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::NoFire, "None")
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::NoFire, AAAFireStrategy::NoFire.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::All, "All")
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::All, AAAFireStrategy::All.name())
                             .on_hover_text("Fire at all enemies dealing reduced damage.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Airborne, "Airborne")
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Airborne, AAAFireStrategy::Airborne.name())
                             .on_hover_text("Fire only at flying enemies, dealing more damage.");
                     });
                 }
@@ -353,11 +353,11 @@ pub fn weapons_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::NoFire, "None")
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::NoFire, FireStrategy::NoFire.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, "Closest")
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, FireStrategy::Closest.name())
                             .on_hover_text("Fire on the closest enemy.");
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Strongest, "Strongest")
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Strongest, FireStrategy::Strongest.name())
                             .on_hover_text("Fire on the strongest enemy.");
                     });
                 }
@@ -389,11 +389,11 @@ pub fn weapons_panel(
                 ui.add_enabled_ui(player.weapons.landmines > 0, |ui| {
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new("Landmine: "));
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Small, "Small")
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Small, Size::Small.name())
                             .on_hover_text("Detonate for all enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Medium, "Medium")
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Medium, Size::Medium.name())
                             .on_hover_text("Detonate for medium and large enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Large, "Large")
+                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Large, Size::Large.name())
                             .on_hover_text("Detonate only for large enemies.");
                     });
                 });

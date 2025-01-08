@@ -19,7 +19,7 @@ pub struct Fence;
 #[derive(Component)]
 pub struct Wall;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FireStrategy {
     /// Don't fire
     NoFire,
@@ -36,7 +36,7 @@ pub enum FireStrategy {
     Density(u32),
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AAAFireStrategy {
     NoFire,
     All,
@@ -50,8 +50,8 @@ pub struct Weapon {
     pub dim: Vec2,
     pub rotation_speed: f32,
 
-    /// Location on the map to shoot towards
-    pub lock: Option<&'a Enemy>,
+    /// Entity to shoot towards
+    pub lock: Option<Entity>,
     pub price: Resources,
 
     /// Resources required to fire
@@ -120,18 +120,20 @@ pub struct Landmine {
 }
 
 impl Weapon {
-    pub fn target_location<'a>(
+    pub fn get_lock(
         &mut self,
         transform: &Transform,
-        enemy_q: &'a Query<(&Transform, &Enemy)>,
+        enemy_q: & Query<(&Transform, Entity, &Enemy)>,
         player: &Player,
-    ) -> Option<&'a Enemy> {
-        // If a target is already locked, return it
-        if let Some(lock) = self.lock {
-            return Some(lock);
+    ) -> Option<Enemy> {
+        // If a target is locked and still exists, return it's current position
+        if let Some(entity) = self.lock {
+            if let Ok((t, _, _)) = enemy_q.get(entity) {
+                return Some(t.translation);
+            }
         }
 
-        let enemies = enemy_q.iter().filter_map(|(enemy_t, enemy)| {
+        let enemies = enemy_q.iter().filter_map(|(enemy_t, entity, enemy)| {
             // Special case => AAA's don't shoot ground units when strategy is Airborne
             if self.name == WeaponName::AAA
                 && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
@@ -142,7 +144,7 @@ impl Weapon {
 
             let distance = transform.translation.distance(enemy_t.translation);
             if distance <= self.bullet.max_distance {
-                Some((enemy_t, enemy, distance))
+                Some((enemy_t, entity, enemy, distance))
             } else {
                 None
             }
@@ -151,21 +153,25 @@ impl Weapon {
         let enemies = match self.fire_strategy {
             FireStrategy::NoFire => None,
             FireStrategy::Closest => {
-                enemies.min_by(|(_, _, d1), (_, _, d2)| d1.partial_cmp(d2).unwrap())
+                enemies.min_by(|(_, _, _, d1), (_, _, _, d2)| d1.partial_cmp(d2).unwrap())
             }
-            FireStrategy::Strongest => enemies.max_by(|(_, e1, _), (_, e2, _)| {
+            FireStrategy::Strongest => enemies.max_by(|(_, _, e1, _), (_, _, e2, _)| {
                 e1.max_health.partial_cmp(&e2.max_health).unwrap()
             }),
-            FireStrategy::Density(r) => enemies.max_by_key(|(t1, _, _)| {
+            FireStrategy::Density(r) => enemies.max_by_key(|(t1, _, _, _)| {
                 enemy_q
                     .iter()
-                    .filter(|(&t2, _)| t1.translation.distance(t2.translation) < r as f32)
+                    .filter(|(&t2, _, _)| t1.translation.distance(t2.translation) < r as f32)
                     .count()
             }),
         };
 
-        self.lock = enemies.map(|(e, _, _)| e);
-        self.lock
+        if let Some((t, e)) = enemies.map(|(t, e, _, _)| (t, e)) {
+            self.lock = Some(e);
+            return Some(t.translation);
+        }
+
+        None
     }
 
     /// Whether the weapon's timer is finished
@@ -281,7 +287,7 @@ impl Default for WeaponManager {
                         penetration: 0.,
                     },
                     detonation: Detonation::SingleTarget,
-                    max_distance: 0.07 * MAP_SIZE.y,
+                    max_distance: 0.7 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
