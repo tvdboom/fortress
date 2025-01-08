@@ -187,11 +187,10 @@ pub fn move_enemies(
                         if let Detonation::Explosion(r) = landmine.detonation {
                             commands.spawn((
                                 assets.get_atlas("explosion1"),
-                                Transform::from_translation(Vec3::splat(r as f32))
-                                    .with_translation(landmine_t.translation),
+                                Transform::from_translation(landmine_t.translation),
                                 AnimationComponent {
                                     timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                                    indices: 25,
+                                    last_index: 25,
                                 },
                             ));
                         }

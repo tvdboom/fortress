@@ -116,16 +116,17 @@ pub fn spawn_bullets(
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
+    assets: Local<WorldAssets>,
     asset_server: Res<AssetServer>,
 ) {
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select a target in range
-        if let Some(location) = weapon.get_lock(&transform, &enemy_q, &player) {
+        if let Some((t, e)) = weapon.get_lock(&transform, &enemy_q, &player) {
             if player.resources >= weapon.fire_cost {
-                let mut bullet = weapon.bullet.clone();
+                // let mut bullet = weapon.bullet.clone();
 
                 // Compute the angle to the selected enemy
-                let d = location - transform.translation;
+                let d = t.translation - transform.translation;
 
                 // let relative_velocity_factor = (d.y / bullet.speed) - (enemy_velocity / bullet_velocity);
                 // let angle = relative_velocity_factor.atan2(d.x);
@@ -148,15 +149,22 @@ pub fn spawn_bullets(
                             bullet.max_distance = d.length() - bullet.dim.length();
                         }
 
-                        // commands.spawn((
-                        //     assets.get_atlas("flashes"),
-                        //     Transform::from_translation(Vec3::splat(r as f32))
-                        //         .with_translation(landmine_t.translation),
-                        //     AnimationComponent {
-                        //         timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                        //         indices: 25,
-                        //     },
-                        // ));
+                        commands.spawn((
+                            assets.get_atlas("flash1"),
+                            Transform {
+                                translation: Vec3::new(
+                                    transform.translation.x + weapon.dim.x * angle.cos() + 3.,
+                                    transform.translation.y + weapon.dim.y * angle.sin(),
+                                    4.0,
+                                ),
+                                rotation: Quat::from_rotation_z(bullet.angle),
+                                ..default()
+                            },
+                            AnimationComponent {
+                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                                last_index: 30,
+                            },
+                        ));
 
                         commands.spawn((
                             Sprite {
@@ -249,11 +257,10 @@ pub fn move_bullets(
 
                 commands.spawn((
                     assets.get_atlas("explosion1"),
-                    Transform::from_translation(Vec3::splat(r as f32))
-                        .with_translation(transform.translation),
+                    Transform::from_translation(transform.translation),
                     AnimationComponent {
                         timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                        indices: 25,
+                        last_index: 25,
                     },
                 ));
 

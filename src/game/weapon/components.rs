@@ -120,16 +120,16 @@ pub struct Landmine {
 }
 
 impl Weapon {
-    pub fn get_lock(
+    pub fn get_lock<'a>(
         &mut self,
         transform: &Transform,
-        enemy_q: & Query<(&Transform, Entity, &Enemy)>,
+        enemy_q: &'a Query<(&Transform, Entity, &Enemy)>,
         player: &Player,
-    ) -> Option<Enemy> {
+    ) -> Option<(&'a Transform, &'a Enemy)> {
         // If a target is locked and still exists, return it's current position
         if let Some(entity) = self.lock {
-            if let Ok((t, _, _)) = enemy_q.get(entity) {
-                return Some(t.translation);
+            if let Ok((t, _, e)) = enemy_q.get(entity) {
+                return Some((t, e));
             }
         }
 
@@ -150,7 +150,7 @@ impl Weapon {
             }
         });
 
-        let enemies = match self.fire_strategy {
+        if let Some((t, entity, enemy, _)) = match self.fire_strategy {
             FireStrategy::NoFire => None,
             FireStrategy::Closest => {
                 enemies.min_by(|(_, _, _, d1), (_, _, _, d2)| d1.partial_cmp(d2).unwrap())
@@ -164,11 +164,9 @@ impl Weapon {
                     .filter(|(&t2, _, _)| t1.translation.distance(t2.translation) < r as f32)
                     .count()
             }),
-        };
-
-        if let Some((t, e)) = enemies.map(|(t, e, _, _)| (t, e)) {
-            self.lock = Some(e);
-            return Some(t.translation);
+        } {
+            self.lock = Some(entity);
+            return Some((t, enemy));
         }
 
         None

@@ -12,5 +12,5 @@ pub struct PauseText;
 #[derive(Component)]
 pub struct AnimationComponent {
     pub timer: Timer,
-    pub indices: usize,
+    pub last_index: usize,
 }

@@ -639,7 +639,7 @@ pub fn run_animations(
         if animation.timer.just_finished() {
             if let Some(atlas) = &mut sprite.texture_atlas {
                 atlas.index += 1;
-                if atlas.index == animation.indices {
+                if atlas.index == animation.last_index {
                     commands.entity(entity).despawn();
                 }
             }
