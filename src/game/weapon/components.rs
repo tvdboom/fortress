@@ -46,7 +46,13 @@ pub enum AAAFireStrategy {
 #[derive(Component, Clone)]
 pub struct Weapon {
     pub name: WeaponName,
-    pub image: String,
+
+    /// Name of the asset for sprite
+    pub image: &'static str,
+
+    /// Name of the asset for firing animation
+    pub atlas: &'static str,
+
     pub dim: Vec2,
     pub rotation_speed: f32,
 
@@ -95,7 +101,12 @@ pub enum Detonation {
 
 #[derive(Component, Clone)]
 pub struct Bullet {
-    pub image: String,
+    /// Name of the asset for sprite
+    pub image: &'static str,
+
+    /// Name of the asset for firing animation
+    pub atlas: Option<&'static str>,
+
     pub dim: Vec2,
 
     /// Distance traveled per second
@@ -113,7 +124,8 @@ pub struct Bullet {
 
 #[derive(Component, Clone)]
 pub struct Landmine {
-    pub image: String,
+    pub image: &'static str,
+    pub atlas: &'static str,
     pub dim: Vec2,
     pub damage: Damage,
     pub detonation: Detonation,
@@ -260,7 +272,8 @@ impl Default for WeaponManager {
         Self {
             machine_gun: Weapon {
                 name: WeaponName::MachineGun,
-                image: "weapon/machine-gun.png".to_string(),
+                image: "weapon/machine-gun.png",
+                atlas: "flash1",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
                 lock: None,
@@ -275,7 +288,8 @@ impl Default for WeaponManager {
                 fire_timer: None,
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
-                    image: "weapon/bullet.png".to_string(),
+                    image: "weapon/bullet.png",
+                    atlas: None,
                     dim: Vec2::new(25., 7.),
                     speed: 0.8 * MAP_SIZE.y,
                     angle: 0.,
@@ -291,7 +305,8 @@ impl Default for WeaponManager {
             },
             aaa: Weapon {
                 name: WeaponName::AAA,
-                image: "weapon/aaa.png".to_string(),
+                image: "weapon/aaa.png",
+                atlas: "flash1",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
                 lock: None,
@@ -306,7 +321,8 @@ impl Default for WeaponManager {
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
-                    image: "weapon/shell.png".to_string(),
+                    image: "weapon/shell.png",
+                    atlas: None,
                     dim: Vec2::new(20., 7.),
                     speed: 1.2 * MAP_SIZE.y,
                     angle: 0.,
@@ -322,7 +338,8 @@ impl Default for WeaponManager {
             },
             mortar: Weapon {
                 name: WeaponName::Mortar,
-                image: "weapon/mortar.png".to_string(),
+                image: "weapon/mortar.png",
+                atlas: "flash1",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 3.,
                 lock: None,
@@ -337,7 +354,8 @@ impl Default for WeaponManager {
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::Density((0.03 * MAP_SIZE.y) as u32),
                 bullet: Bullet {
-                    image: "weapon/mortar-bullet.png".to_string(),
+                    image: "weapon/mortar-bullet.png",
+                    atlas: Some("explosion1"),
                     dim: Vec2::new(25., 10.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
@@ -353,7 +371,8 @@ impl Default for WeaponManager {
             },
             turret: Weapon {
                 name: WeaponName::Turret,
-                image: "weapon/turret.png".to_string(),
+                image: "weapon/turret.png",
+                atlas: "flash1",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
                 lock: None,
@@ -368,7 +387,8 @@ impl Default for WeaponManager {
                 fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
                 fire_strategy: FireStrategy::NoFire,
                 bullet: Bullet {
-                    image: "weapon/triple-bullet.png".to_string(),
+                    image: "weapon/triple-bullet.png",
+                    atlas: None,
                     dim: Vec2::new(25., 25.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
@@ -383,7 +403,8 @@ impl Default for WeaponManager {
                 },
             },
             landmine: Landmine {
-                image: "weapon/landmine.png".to_string(),
+                image: "weapon/landmine.png",
+                atlas: "explosion1",
                 dim: Vec2::new(30., 20.),
                 damage: Damage {
                     ground: 50.,

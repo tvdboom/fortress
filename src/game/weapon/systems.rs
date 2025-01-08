@@ -61,7 +61,7 @@ pub fn spawn_weapons(
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&w.image),
+                    image: asset_server.load(w.image),
                     custom_size: Some(w.dim),
                     ..default()
                 },
@@ -97,7 +97,7 @@ pub fn spawn_weapons(
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(&weapons.landmine.image),
+                    image: asset_server.load(weapons.landmine.image),
                     custom_size: Some(weapons.landmine.dim),
                     ..default()
                 },
@@ -131,6 +131,7 @@ pub fn spawn_bullets(
                 // let relative_velocity_factor = (d.y / bullet.speed) - (enemy_velocity / bullet_velocity);
                 // let angle = relative_velocity_factor.atan2(d.x);
 
+
                 let angle = d.y.atan2(d.x);
 
                 // Rotate the weapon towards the selected target
@@ -149,26 +150,32 @@ pub fn spawn_bullets(
                             bullet.max_distance = d.length() - bullet.dim.length();
                         }
 
+                        let atlas = assets.get_atlas(&weapon.atlas);
                         commands.spawn((
-                            assets.get_atlas("flash1"),
+                            Sprite {
+                                image: atlas.image,
+                                texture_atlas: Some(atlas.texture),
+                                ..default()
+                            },
                             Transform {
                                 translation: Vec3::new(
-                                    transform.translation.x + weapon.dim.x * angle.cos() + 3.,
-                                    transform.translation.y + weapon.dim.y * angle.sin(),
+                                    transform.translation.x + weapon.dim.x * 0.8 * angle.cos(),
+                                    transform.translation.y + weapon.dim.y * 0.8 * angle.sin(),
                                     4.0,
                                 ),
                                 rotation: Quat::from_rotation_z(bullet.angle),
+                                scale: Vec3::splat(0.5),
                                 ..default()
                             },
                             AnimationComponent {
                                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                                last_index: 30,
+                                last_index: atlas.last_index,
                             },
                         ));
 
                         commands.spawn((
                             Sprite {
-                                image: asset_server.load(&bullet.image),
+                                image: asset_server.load(bullet.image),
                                 custom_size: Some(bullet.dim),
                                 ..default()
                             },
@@ -255,12 +262,21 @@ pub fn move_bullets(
             Detonation::Explosion(r) if bullet.distance >= bullet.max_distance => {
                 commands.entity(entity).despawn();
 
+                let atlas = assets.get_atlas(bullet.atlas.unwrap());
                 commands.spawn((
-                    assets.get_atlas("explosion1"),
-                    Transform::from_translation(transform.translation),
+                    Sprite {
+                        image: atlas.image,
+                        texture_atlas: Some(atlas.texture),
+                        ..default()
+                    },
+                    Transform {
+                        translation: transform.translation,
+                        scale: Vec3::splat(0.5),
+                        ..default()
+                    },
                     AnimationComponent {
                         timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                        last_index: 25,
+                        last_index: atlas.last_index,
                     },
                 ));
 

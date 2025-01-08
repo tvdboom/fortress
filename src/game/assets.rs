@@ -3,9 +3,16 @@ use bevy::image::Image;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
+#[derive(Clone)]
+pub struct AtlasInfo {
+    pub image: Handle<Image>,
+    pub texture: TextureAtlas,
+    pub last_index: usize,
+}
+
 pub struct WorldAssets {
     pub images: HashMap<&'static str, Handle<Image>>,
-    pub atlas: HashMap<&'static str, Sprite>,
+    pub atlas: HashMap<&'static str, AtlasInfo>,
 }
 
 impl WorldAssets {
@@ -13,7 +20,7 @@ impl WorldAssets {
         self.images[name].clone_weak()
     }
 
-    pub fn get_atlas(&self, name: &str) -> Sprite {
+    pub fn get_atlas(&self, name: &str) -> AtlasInfo {
         self.atlas[name].clone()
     }
 }
@@ -65,32 +72,34 @@ impl FromWorld for WorldAssets {
             .get_resource_mut::<Assets<TextureAtlasLayout>>()
             .unwrap();
 
-        let flash1 = TextureAtlasLayout::from_grid(UVec2::new(88, 100), 5, 6, Some(UVec2::new(0, 2)), None);
+        let flash1 =
+            TextureAtlasLayout::from_grid(UVec2::new(88, 100), 5, 6, Some(UVec2::new(0, 2)), None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
 
         let atlas = HashMap::from([
             (
                 "flash1",
-                Sprite {
+                AtlasInfo {
                     image: images["flashes"].clone_weak(),
-                    texture_atlas: Some(TextureAtlas {
+                    texture: TextureAtlas {
                         layout: texture.add(flash1),
                         index: 25,
-                    }),
-                    custom_size: Some(Vec2::new(22., 25.)),
-                    ..default()
-                }
+                    },
+                    last_index: 30,
+                },
             ),
             (
                 "explosion1",
-                Sprite::from_atlas_image(
-                    images["explosion1"].clone_weak(),
-                    TextureAtlas {
+                AtlasInfo {
+                    image: images["explosion1"].clone_weak(),
+                    texture: TextureAtlas {
                         layout: texture.add(explosion1),
                         index: 1,
                     },
-                ),
-            )]);
+                    last_index: 25,
+                },
+            ),
+        ]);
 
         Self { images, atlas }
     }

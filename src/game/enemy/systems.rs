@@ -3,7 +3,7 @@ use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE}
 use crate::game::assets::WorldAssets;
 use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Detonation, Fence, Landmine, Wall};
+use crate::game::weapon::components::{Fence, Landmine, Wall};
 use crate::game::AppState;
 use crate::utils::{collision, scale_duration};
 use bevy::color::{
@@ -184,16 +184,23 @@ pub fn move_enemies(
                         player.weapons.landmines -= 1;
                         commands.entity(landmine_entity).despawn();
 
-                        if let Detonation::Explosion(r) = landmine.detonation {
-                            commands.spawn((
-                                assets.get_atlas("explosion1"),
-                                Transform::from_translation(landmine_t.translation),
-                                AnimationComponent {
-                                    timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                                    last_index: 25,
-                                },
-                            ));
-                        }
+                        let atlas = assets.get_atlas(&landmine.atlas);
+                        commands.spawn((
+                            Sprite {
+                                image: atlas.image,
+                                texture_atlas: Some(atlas.texture),
+                                ..default()
+                            },
+                            Transform {
+                                translation: landmine_t.translation,
+                                scale: Vec3::splat(0.5),
+                                ..default()
+                            },
+                            AnimationComponent {
+                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                                last_index: atlas.last_index,
+                            },
+                        ));
 
                         let damage = landmine.damage.calculate(&enemy);
                         if enemy.health > damage {
