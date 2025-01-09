@@ -4,11 +4,12 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::{
-    AAAFireStrategy, Bullet, ExplosionInfo, FireStrategy, Weapon, WeaponName,
+    AAAFireStrategy, Bullet, ExplosionInfo, Fence, FireStrategy, MortarShell, Wall, Weapon,
+    WeaponName,
 };
 use crate::game::weapon::systems::resolve_enemy_impact;
 use crate::game::{AppState, GameState};
-use crate::utils::{scale_duration, toggle, CustomUi, NameFromEnum};
+use crate::utils::{collision, scale_duration, toggle, CustomUi, NameFromEnum};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
@@ -331,6 +332,20 @@ pub fn weapons_panel(
                     });
                 }
 
+                // Flamethrower
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::Flamethrower,
+                    None => false,
+                }) {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Flamethrower)));
+
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.flamethrower_power, 0..=MAX_FLAMETHROWER_POWER))
+                            .on_hover_text("More power means more range, but costs more.");
+                    });
+                }
+
                 // AAA
                 if player.weapons.spots.iter().any(|w| match w {
                     Some(w) => *w == WeaponName::AAA,
@@ -348,6 +363,23 @@ pub fn weapons_panel(
                     });
                 }
 
+                // Mortar
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::Mortar,
+                    None => false,
+                }) {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Mortar)));
+                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::None, MortarShell::None.name())
+                            .on_hover_text("Don't fire.");
+                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::Light, MortarShell::Light.name())
+                            .on_hover_text("Light shells do standard damage and don't damage structures.");
+                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::Heavy, MortarShell::Heavy.name())
+                            .on_hover_text("Heavy shells do more damage, but cost more and damage structures.");
+                    });
+                }
+                
                 // Turret
                 if player.weapons.spots.iter().any(|w| match w {
                     Some(w) => *w == WeaponName::Turret,
@@ -635,7 +667,26 @@ pub fn run_animations(
         With<AnimationComponent>,
     >,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy), With<Enemy>>,
+    fence_q: Query<
+        (Entity, &Transform),
+        (
+            With<Fence>,
+            Without<AnimationComponent>,
+            Without<Enemy>,
+            Without<Wall>,
+        ),
+    >,
+    wall_q: Query<
+        (Entity, &Transform),
+        (
+            With<Wall>,
+            Without<AnimationComponent>,
+            Without<Enemy>,
+            Without<Fence>,
+        ),
+    >,
     mut night_stats: ResMut<NightStats>,
+    mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
@@ -650,11 +701,50 @@ pub fn run_animations(
 
                 // Resolve explosion damage halfway the animation
                 if atlas.index == animation.last_index / 2 {
-                    if let Some(ExplosionInfo { radius, damage }) = &animation.explosion {
+                    if let Some(ExplosionInfo { radius, damage, .. }) = &animation.explosion {
+                        // Resolve damage to structures
+                        if let Some((entity, t2)) = fence_q.iter().next() {
+                            if collision(
+                                &t.translation,
+                                &Vec2::splat(*radius),
+                                &t2.translation,
+                                &FENCE_SIZE,
+                            ) {
+                                if player.fence.health > damage.penetration {
+                                    player.fence.health -= damage.penetration;
+                                } else {
+                                    player.fence.health = 0.;
+                                    commands.entity(entity).try_despawn();
+                                }
+                            }
+                        }
+                        if let Some((entity, t2)) = wall_q.iter().next() {
+                            if collision(
+                                &t.translation,
+                                &Vec2::splat(*radius),
+                                &t2.translation,
+                                &WALL_SIZE,
+                            ) {
+                                if player.wall.health > damage.penetration {
+                                    player.wall.health -= damage.penetration;
+                                } else {
+                                    player.wall.health = 0.;
+                                    commands.entity(entity).try_despawn();
+                                }
+                            }
+                        }
+
                         // Resolve the impact on all enemies in radius
                         enemy_q
                             .iter_mut()
-                            .filter(|(_, &t2, _)| t2.translation.distance(t.translation) <= *radius)
+                            .filter(|(_, &t2, enemy)| {
+                                collision(
+                                    &t.translation,
+                                    &Vec2::splat(*radius),
+                                    &t2.translation,
+                                    &enemy.dim,
+                                )
+                            })
                             .for_each(|(enemy_entity, _, mut enemy)| {
                                 resolve_enemy_impact(
                                     &mut commands,
@@ -666,7 +756,7 @@ pub fn run_animations(
                             });
                     }
                 } else if atlas.index == animation.last_index {
-                    commands.entity(entity).despawn();
+                    commands.entity(entity).try_despawn();
                 }
             }
         }
@@ -682,9 +772,13 @@ pub fn clear_map(
 ) {
     animation_q
         .iter()
-        .for_each(|a| commands.entity(a).despawn());
-    weapon_q.iter().for_each(|w| commands.entity(w).despawn());
-    bullet_q.iter().for_each(|b| commands.entity(b).despawn());
+        .for_each(|a| commands.entity(a).try_despawn());
+    weapon_q
+        .iter()
+        .for_each(|w| commands.entity(w).try_despawn());
+    bullet_q
+        .iter()
+        .for_each(|b| commands.entity(b).try_despawn());
     enemy_q
         .iter()
         .for_each(|e| commands.entity(e).despawn_recursive());

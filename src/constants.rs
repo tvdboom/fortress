@@ -7,6 +7,7 @@ pub const LARGE_FONT_SIZE: f32 = 24.;
 // Window block sizes (panels and background images)
 pub const SIZE: Vec2 = Vec2::new(1400., 900.); // Fix the window size to avoid issues with resizing
 pub const WALL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.12);
+pub const FENCE_SIZE: Vec2 = Vec2::new(WALL_SIZE.x, WALL_SIZE.y * 0.3);
 pub const MENU_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.04);
 pub const WEAPONS_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x * 0.203, SIZE.y);
 pub const RESOURCES_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x, SIZE.y * 0.05);
@@ -28,4 +29,5 @@ pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 // Weapon settings
 pub const MAX_SPOTS: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
+pub const MAX_FLAMETHROWER_POWER: u32 = 5;
 pub const MAX_LANDMINES: u32 = 25;

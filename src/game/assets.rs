@@ -65,6 +65,7 @@ impl FromWorld for WorldAssets {
             ("Ironcarapace", assets.load("enemy/ironcarapace.png")),
             // Sprite sheets
             ("flashes", assets.load("weapon/flashes.png")),
+            ("flame", assets.load("weapon/flame.png")),
             ("explosion1", assets.load("weapon/explosion1.png")),
         ]);
 
@@ -76,6 +77,7 @@ impl FromWorld for WorldAssets {
         let triple_flash = TextureAtlasLayout::from_grid(UVec2::new(100, 117), 4, 5, None, None);
         let cone_flash = TextureAtlasLayout::from_grid(UVec2::new(107, 105), 4, 6, None, None);
         let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
+        let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(129, 121), 5, 5, None, None);
 
         let atlas = HashMap::from([
@@ -121,6 +123,17 @@ impl FromWorld for WorldAssets {
                         index: 1,
                     },
                     last_index: 4,
+                },
+            ),
+            (
+                "flame",
+                AtlasInfo {
+                    image: images["flame"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(flame),
+                        index: 1,
+                    },
+                    last_index: 12,
                 },
             ),
             (

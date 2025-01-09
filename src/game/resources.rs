@@ -1,6 +1,6 @@
 use crate::constants::NIGHT_DURATION;
 use crate::game::enemy::components::Size;
-use crate::game::weapon::components::{AAAFireStrategy, FireStrategy, WeaponName};
+use crate::game::weapon::components::{AAAFireStrategy, FireStrategy, MortarShell, WeaponName};
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
@@ -112,7 +112,9 @@ pub struct Fence {
 
 pub struct WeaponSettings {
     pub sentry_gun_fire_rate: u32,
+    pub flamethrower_power: u32,
     pub aaa_fire_strategy: AAAFireStrategy,
+    pub mortar_shell: MortarShell,
     pub turret_fire_strategy: FireStrategy,
     pub landmine_sensibility: Size,
 }
@@ -184,13 +186,16 @@ impl Player {
                     Some(WeaponName::MachineGun),
                     Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
+                    Some(WeaponName::Flamethrower),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
                 ],
-                landmines: 10,
+                landmines: 0,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
+                    flamethrower_power: 1,
                     aaa_fire_strategy: AAAFireStrategy::All,
+                    mortar_shell: MortarShell::None,
                     turret_fire_strategy: FireStrategy::NoFire,
                     landmine_sensibility: Size::Medium,
                 },

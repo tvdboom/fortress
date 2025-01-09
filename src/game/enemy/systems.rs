@@ -125,7 +125,7 @@ pub fn move_enemies(
                             if enemy.health > damage {
                                 enemy.health -= damage;
                             } else {
-                                commands.entity(enemy_entity).despawn_recursive();
+                                commands.entity(enemy_entity).try_despawn_recursive();
 
                                 night_stats
                                     .enemies
@@ -135,7 +135,7 @@ pub fn move_enemies(
                         }
                     } else {
                         player.fence.health = 0.;
-                        commands.entity(entity).despawn();
+                        commands.entity(entity).try_despawn();
                     }
 
                     continue;
@@ -151,7 +151,7 @@ pub fn move_enemies(
                             enemy.damage * game_settings.speed * time.delta_secs();
                     } else {
                         player.wall.health = 0.;
-                        commands.entity(entity).despawn();
+                        commands.entity(entity).try_despawn();
                     }
 
                     continue;
@@ -162,7 +162,7 @@ pub fn move_enemies(
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
                 player.survivors -= enemy.damage as u32;
-                commands.entity(enemy_entity).despawn_recursive();
+                commands.entity(enemy_entity).try_despawn_recursive();
             } else {
                 player.survivors = 0;
                 next_state.set(AppState::GameOver);
@@ -180,7 +180,7 @@ pub fn move_enemies(
                         &landmine.dim,
                     ) {
                         player.weapons.landmines -= 1;
-                        commands.entity(landmine_entity).despawn();
+                        commands.entity(landmine_entity).try_despawn();
 
                         let atlas = assets.get_atlas(&landmine.atlas);
                         commands.spawn((
