@@ -116,16 +116,18 @@ pub struct WeaponSettings {
     pub aaa_fire_strategy: AAAFireStrategy,
     pub mortar_shell: MortarShell,
     pub turret_fire_strategy: FireStrategy,
-    pub landmine_sensibility: Size,
+    pub spotlight: u32,
+    pub mine_sensibility: Size,
 }
 
 pub struct Weapons {
     pub spots: Vec<Option<WeaponName>>,
-    pub landmines: u32,
+    pub mines: u32,
     pub settings: WeaponSettings,
 }
 
 pub struct Technology {
+    pub spotlight: bool,
     pub movement_prediction: bool,
 }
 
@@ -190,17 +192,19 @@ impl Player {
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
                 ],
-                landmines: 0,
+                mines: 0,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 1,
                     flamethrower_power: 1,
                     aaa_fire_strategy: AAAFireStrategy::All,
                     mortar_shell: MortarShell::None,
-                    turret_fire_strategy: FireStrategy::NoFire,
-                    landmine_sensibility: Size::Medium,
+                    turret_fire_strategy: FireStrategy::None,
+                    spotlight: 0,
+                    mine_sensibility: Size::Medium,
                 },
             },
             technology: Technology {
+                spotlight: true,
                 movement_prediction: true,
             },
             stats: HashMap::default(),

@@ -3,7 +3,7 @@ use crate::constants::{RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Fence, Landmine, Wall};
+use crate::game::weapon::components::{Fence, Mine, Wall};
 use crate::game::AppState;
 use crate::utils::{collision, scale_duration};
 use bevy::color::{
@@ -94,7 +94,7 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut commands: Commands,
     mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
-    landmine_q: Query<(Entity, &Transform, &Landmine), (With<Landmine>, Without<Enemy>)>,
+    mine_q: Query<(Entity, &Transform, &Mine), (With<Mine>, Without<Enemy>)>,
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
@@ -170,31 +170,31 @@ pub fn move_enemies(
         } else {
             transform.translation.y = new_pos;
 
-            // Check collision with landmines
-            if !enemy.can_fly && enemy.size >= player.weapons.settings.landmine_sensibility {
-                for (landmine_entity, landmine_t, landmine) in landmine_q.iter() {
+            // Check collision with mines
+            if !enemy.can_fly && enemy.size >= player.weapons.settings.mine_sensibility {
+                for (mine_entity, mine_t, mine) in mine_q.iter() {
                     if collision(
                         &transform.translation,
                         &enemy.dim,
-                        &landmine_t.translation,
-                        &landmine.dim,
+                        &mine_t.translation,
+                        &mine.dim,
                     ) {
-                        player.weapons.landmines -= 1;
-                        commands.entity(landmine_entity).try_despawn();
+                        player.weapons.mines -= 1;
+                        commands.entity(mine_entity).try_despawn();
 
-                        let atlas = assets.get_atlas(&landmine.atlas);
+                        let atlas = assets.get_atlas(&mine.atlas);
                         commands.spawn((
                             Sprite {
                                 image: atlas.image,
                                 texture_atlas: Some(atlas.texture),
-                                custom_size: Some(Vec2::splat(landmine.explosion.radius)),
+                                custom_size: Some(Vec2::splat(mine.explosion.radius)),
                                 ..default()
                             },
                             Transform::from_translation(transform.translation),
                             AnimationComponent {
                                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
                                 last_index: atlas.last_index,
-                                explosion: Some(landmine.explosion.clone()),
+                                explosion: Some(mine.explosion.clone()),
                             },
                         ));
                     }

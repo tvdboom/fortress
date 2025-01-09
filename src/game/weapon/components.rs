@@ -35,7 +35,7 @@ pub struct FireAnimation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FireStrategy {
     /// Don't fire
-    NoFire,
+    None,
 
     /// Fire at the closest enemy
     Closest,
@@ -50,7 +50,7 @@ pub enum FireStrategy {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AAAFireStrategy {
-    NoFire,
+    None,
     All,
     Airborne,
 }
@@ -154,7 +154,7 @@ pub struct Bullet {
 }
 
 #[derive(Component, Clone)]
-pub struct Landmine {
+pub struct Mine {
     pub image: &'static str,
     pub atlas: &'static str,
     pub dim: Vec2,
@@ -196,7 +196,7 @@ impl Weapon {
         });
 
         if let Some((entity, t, enemy, _)) = match self.fire_strategy {
-            FireStrategy::NoFire => None,
+            FireStrategy::None => None,
             FireStrategy::Closest => {
                 enemies.min_by(|(_, _, _, d1), (_, _, _, d2)| d1.partial_cmp(d2).unwrap())
             }
@@ -257,7 +257,7 @@ impl Weapon {
             }
             WeaponName::AAA => {
                 match player.weapons.settings.aaa_fire_strategy {
-                    AAAFireStrategy::NoFire => self.fire_strategy = FireStrategy::NoFire,
+                    AAAFireStrategy::None => self.fire_strategy = FireStrategy::None,
                     AAAFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.detonation = Detonation::SingleTarget(Damage {
@@ -277,7 +277,7 @@ impl Weapon {
                 };
             }
             WeaponName::Flamethrower => match player.weapons.settings.flamethrower_power {
-                0 => self.fire_strategy = FireStrategy::NoFire,
+                0 => self.fire_strategy = FireStrategy::None,
                 _ => {
                     let power = player.weapons.settings.flamethrower_power as f32;
 
@@ -297,7 +297,7 @@ impl Weapon {
             },
             WeaponName::Mortar => {
                 match player.weapons.settings.mortar_shell {
-                    MortarShell::None => self.fire_strategy = FireStrategy::NoFire,
+                    MortarShell::None => self.fire_strategy = FireStrategy::None,
                     MortarShell::Light => {
                         self.fire_strategy = FireStrategy::Density;
                         self.fire_cost = Resources {
@@ -346,7 +346,7 @@ pub struct WeaponManager {
     pub flamethrower: Weapon,
     pub mortar: Weapon,
     pub turret: Weapon,
-    pub landmine: Landmine,
+    pub mine: Mine,
 }
 
 impl WeaponManager {
@@ -489,7 +489,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
-                fire_strategy: FireStrategy::NoFire,
+                fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/mortar-bullet.png",
                     dim: Vec2::new(25., 10.),
@@ -528,7 +528,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
-                fire_strategy: FireStrategy::NoFire,
+                fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png",
                     dim: Vec2::new(25., 25.),
@@ -543,8 +543,8 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
             },
-            landmine: Landmine {
-                image: "weapon/landmine.png",
+            mine: Mine {
+                image: "weapon/mine.png",
                 atlas: "explosion1",
                 dim: Vec2::new(30., 20.),
                 explosion: ExplosionInfo {

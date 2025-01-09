@@ -5,6 +5,9 @@ use bevy::prelude::*;
 pub struct Map;
 
 #[derive(Component)]
+pub struct FogOfWar;
+
+#[derive(Component)]
 pub struct PauseWrapper;
 
 #[derive(Component)]

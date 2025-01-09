@@ -42,6 +42,20 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         Map,
     ));
 
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/fog.png"),
+            custom_size: Some(Vec2::new(MAP_SIZE.x, MAP_SIZE.y * 0.3)),
+            ..default()
+        },
+        Transform::from_xyz(
+            -WEAPONS_PANEL_SIZE.x * 0.5,
+            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.15,
+            10.,
+        ),
+        FogOfWar,
+    ));
+
     commands
         .spawn((
             Sprite {
@@ -292,12 +306,17 @@ pub fn resources_panel(
 pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
+    mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
     assets: Local<WorldAssets>,
 ) {
     let weapon_texture = contexts.add_image(assets.get_image("weapon"));
     let lightning_texture = contexts.add_image(assets.get_image("lightning"));
+    let fence_texture = contexts.add_image(assets.get_image("fence"));
+    let mine_texture = contexts.add_image(assets.get_image("mine"));
+    let spotlight_texture = contexts.add_image(assets.get_image("spotlight"));
+    let bulb_texture = contexts.add_image(assets.get_image("bulb"));
     let bullets_texture = contexts.add_image(assets.get_image("bullets"));
     let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
 
@@ -354,7 +373,7 @@ pub fn weapons_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::NoFire, AAAFireStrategy::NoFire.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::None, AAAFireStrategy::None.name())
                             .on_hover_text("Don't fire.");
                         ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::All, AAAFireStrategy::All.name())
                             .on_hover_text("Fire at all enemies dealing reduced damage.");
@@ -388,7 +407,7 @@ pub fn weapons_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::NoFire, FireStrategy::NoFire.name())
+                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::None, FireStrategy::None.name())
                             .on_hover_text("Don't fire.");
                         ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, FireStrategy::Closest.name())
                             .on_hover_text("Fire on the closest enemy.");
@@ -408,7 +427,8 @@ pub fn weapons_panel(
 
                 ui.add_enabled_ui(player.fence.health > 0., |ui| {
                     ui.horizontal(|ui| {
-                        ui.add(egui::Label::new("Enable electric fence: "));
+                        ui.add_image(fence_texture, [20., 25.]);
+                        ui.add(egui::Label::new("Fence: "));
                         ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
                             "The electric fence does damage to adjacent enemies, but costs gasoline.",
                         );
@@ -421,14 +441,36 @@ pub fn weapons_panel(
 
                 ui.add_space(5.);
 
-                ui.add_enabled_ui(player.weapons.landmines > 0, |ui| {
+                ui.add_enabled_ui(player.technology.spotlight, |ui| {
                     ui.horizontal(|ui| {
-                        ui.add(egui::Label::new("Landmine: "));
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Small, Size::Small.name())
+                        ui.add_image(spotlight_texture, [20., 20.]);
+                        ui.add(egui::Label::new("Spotlight: "));
+                        let slider = ui.add(egui::Slider::new(&mut player.weapons.settings.spotlight, 0..=100).show_value(false))
+                            .on_hover_text("More power means more visibility, but costs more gasoline.");
+
+                        if player.weapons.settings.spotlight > 0 {
+                            ui.add_image(bulb_texture, [20., 20.]);
+                        }
+
+                        if slider.changed() {
+                            if let Some(mut fow) = fow_q.iter_mut().next() {
+                                fow.translation.y = SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.15 - player.weapons.settings.spotlight as f32;
+                            }
+                        }
+                    });
+                });
+
+                ui.add_space(5.);
+
+                ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.add_image(mine_texture, [20., 20.]);
+                        ui.add(egui::Label::new(format!("Mine ({}): ", player.weapons.mines)));
+                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Small, Size::Small.name())
                             .on_hover_text("Detonate for all enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Medium, Size::Medium.name())
+                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Medium, Size::Medium.name())
                             .on_hover_text("Detonate for medium and large enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.landmine_sensibility, Size::Large, Size::Large.name())
+                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Large, Size::Large.name())
                             .on_hover_text("Detonate only for large enemies.");
                     });
                 });

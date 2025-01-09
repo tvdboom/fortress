@@ -79,10 +79,10 @@ pub fn spawn_weapons(
         }
     }
 
-    // Spawn landmines
+    // Spawn mines
     let mut positions = vec![];
-    let size = weapons.landmine.dim;
-    while positions.len() < player.weapons.landmines as usize {
+    let size = weapons.mine.dim;
+    while positions.len() < player.weapons.mines as usize {
         let x = thread_rng()
             .gen_range(-SIZE.x * 0.5 + size.x..=SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x - size.x);
         let y = thread_rng().gen_range(
@@ -91,18 +91,21 @@ pub fn spawn_weapons(
         );
         let pos = Vec2::new(x, y);
 
-        // Check landmines spawn at a minimum distance from each other
-        if positions.iter().all(|&v| pos.distance(v) >= 2. * size.x) {
+        // Check mines spawn at a minimum distance from each other
+        if positions
+            .iter()
+            .all(|&v| pos.distance(v) >= 2. * size.length())
+        {
             positions.push(pos);
 
             commands.spawn((
                 Sprite {
-                    image: asset_server.load(weapons.landmine.image),
-                    custom_size: Some(weapons.landmine.dim),
+                    image: asset_server.load(weapons.mine.image),
+                    custom_size: Some(weapons.mine.dim),
                     ..default()
                 },
                 Transform::from_xyz(pos.x, pos.y, 1.2),
-                weapons.landmine.clone(),
+                weapons.mine.clone(),
             ));
         }
     }
