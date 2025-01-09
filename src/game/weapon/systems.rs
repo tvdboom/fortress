@@ -101,7 +101,7 @@ pub fn spawn_weapons(
                     custom_size: Some(weapons.landmine.dim),
                     ..default()
                 },
-                Transform::from_xyz(pos.x, pos.y, 1.5),
+                Transform::from_xyz(pos.x, pos.y, 1.2),
                 weapons.landmine.clone(),
             ));
         }
@@ -111,7 +111,9 @@ pub fn spawn_weapons(
 pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon), Without<Enemy>>,
-    enemy_q: Query<(&Transform, Entity, &Enemy)>,
+    enemy_q: Query<(Entity, &Transform, &Enemy)>,
+    // fence_q: Query<(&Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
+    // wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
@@ -121,18 +123,30 @@ pub fn spawn_bullets(
 ) {
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select a target in range
-        if let Some((t, e)) = weapon.get_lock(&transform, &enemy_q, &player) {
+        if let Some((enemy_t, enemy)) = weapon.get_lock(&transform, &enemy_q, &player) {
             if player.resources >= weapon.fire_cost {
-                // let mut bullet = weapon.bullet.clone();
+                let mut bullet = weapon.bullet.clone();
 
-                // Compute the angle to the selected enemy
-                let d = t.translation - transform.translation;
+                let mut d = enemy_t.translation - transform.translation;
 
-                // let relative_velocity_factor = (d.y / bullet.speed) - (enemy_velocity / bullet_velocity);
-                // let angle = relative_velocity_factor.atan2(d.x);
+                // If smart weapons technology is researched, predict enemy movement
+                if player.technology.movement_prediction {
+                    // if let Some((t, fence)) = fence_q.iter().next() {
+                    //
+                    //
+                    //     let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
+                    //     if enemy_t.translation.y - fence_y <= enemy.speed
+                    //         }
 
+                    // No need to take game speed into account since
+                    // the effect cancels out on enemy and bullet speed
+                    d = enemy_t.translation
+                        - Vec3::new(0., enemy.speed * d.length() / bullet.speed, 0.)
+                        - transform.translation;
+                }
 
                 let angle = d.y.atan2(d.x);
+                bullet.angle = angle;
 
                 // Rotate the weapon towards the selected target
                 if weapon.is_aiming(&angle, &transform) {
@@ -141,15 +155,11 @@ pub fn spawn_bullets(
                         // Release target lock
                         weapon.lock = None;
 
-                        let mut bullet = Bullet {
-                            angle,
-                            ..weapon.bullet.clone()
-                        };
-
                         if matches!(weapon.fire_strategy, FireStrategy::Density { .. }) {
                             bullet.max_distance = d.length() - bullet.dim.length();
                         }
 
+                        // Spawn fire animation
                         let atlas = assets.get_atlas(&weapon.atlas);
                         commands.spawn((
                             Sprite {
@@ -159,8 +169,8 @@ pub fn spawn_bullets(
                             },
                             Transform {
                                 translation: Vec3::new(
-                                    transform.translation.x + weapon.dim.x * 0.8 * angle.cos(),
-                                    transform.translation.y + weapon.dim.y * 0.8 * angle.sin(),
+                                    transform.translation.x + weapon.dim.x * 0.7 * angle.cos(),
+                                    transform.translation.y + weapon.dim.y * 0.7 * angle.sin(),
                                     4.0,
                                 ),
                                 rotation: Quat::from_rotation_z(bullet.angle),
@@ -168,8 +178,9 @@ pub fn spawn_bullets(
                                 ..default()
                             },
                             AnimationComponent {
-                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                                timer: Timer::from_seconds(0.1, TimerMode::Repeating),
                                 last_index: atlas.last_index,
+                                explosion: None,
                             },
                         ));
 
@@ -225,21 +236,20 @@ pub fn move_bullets(
 ) {
     for (mut transform, entity, mut bullet) in bullet_q.iter_mut() {
         let dx = bullet.speed * bullet.angle.cos() * settings.speed * time.delta_secs();
-        transform.translation.x += dx;
-
         let dy = bullet.speed * bullet.angle.sin() * settings.speed * time.delta_secs();
-        transform.translation.y += dy;
 
-        // Pythagoras to get distance traveled
-        bullet.distance += (dx.powi(2) + dy.powi(2)).sqrt();
+        let d_pos = Vec3::new(dx, dy, 0.);
+        transform.translation += d_pos;
 
-        match bullet.detonation {
-            Detonation::SingleTarget => {
+        bullet.distance += d_pos.length();
+
+        match &bullet.detonation {
+            Detonation::SingleTarget(damage) => {
                 for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
                     // If the bullet can hit grounded/airborne enemies
                     // and the bullet collided with an enemy -> despawn and resolve
-                    if ((bullet.damage.ground > 0. && !enemy.can_fly)
-                        || (bullet.damage.air > 0. && enemy.can_fly))
+                    if ((damage.ground > 0. && !enemy.can_fly)
+                        || (damage.air > 0. && enemy.can_fly))
                         && collision(
                             &transform.translation,
                             &bullet.dim,
@@ -250,7 +260,7 @@ pub fn move_bullets(
                         commands.entity(entity).despawn();
                         resolve_enemy_impact(
                             &mut commands,
-                            &mut bullet,
+                            damage,
                             enemy_entity,
                             &mut enemy,
                             &mut night_stats,
@@ -259,7 +269,9 @@ pub fn move_bullets(
                     }
                 }
             }
-            Detonation::Explosion(r) if bullet.distance >= bullet.max_distance => {
+            Detonation::Explosion(ExplosionInfo { radius, damage })
+                if bullet.distance >= bullet.max_distance =>
+            {
                 commands.entity(entity).despawn();
 
                 let atlas = assets.get_atlas(bullet.atlas.unwrap());
@@ -267,32 +279,19 @@ pub fn move_bullets(
                     Sprite {
                         image: atlas.image,
                         texture_atlas: Some(atlas.texture),
+                        custom_size: Some(Vec2::splat(*radius)),
                         ..default()
                     },
-                    Transform {
-                        translation: transform.translation,
-                        scale: Vec3::splat(0.5),
-                        ..default()
-                    },
+                    Transform::from_translation(transform.translation),
                     AnimationComponent {
-                        timer: Timer::from_seconds(0.05, TimerMode::Repeating),
+                        timer: Timer::from_seconds(0.01, TimerMode::Repeating),
                         last_index: atlas.last_index,
+                        explosion: Some(ExplosionInfo {
+                            radius: *radius,
+                            damage: damage.clone(),
+                        }),
                     },
                 ));
-
-                // Resolve the impact on all enemies in radius
-                enemy_q
-                    .iter_mut()
-                    .filter(|(&t, _, _)| t.translation.distance(transform.translation) <= r as f32)
-                    .for_each(|(_, enemy_entity, mut enemy)| {
-                        resolve_enemy_impact(
-                            &mut commands,
-                            &mut bullet,
-                            enemy_entity,
-                            &mut enemy,
-                            &mut night_stats,
-                        )
-                    });
 
                 break;
             }
@@ -326,14 +325,14 @@ pub fn update_fence_resources(
     }
 }
 
-fn resolve_enemy_impact(
+pub fn resolve_enemy_impact(
     commands: &mut Commands,
-    bullet: &mut Bullet,
+    damage: &Damage,
     enemy_entity: Entity,
     enemy: &mut Enemy,
     night_stats: &mut NightStats,
 ) {
-    let damage = bullet.damage.calculate(enemy);
+    let damage = damage.calculate(enemy);
     if enemy.health <= damage {
         commands.entity(enemy_entity).despawn_recursive();
 

@@ -123,6 +123,10 @@ pub struct Weapons {
     pub settings: WeaponSettings,
 }
 
+pub struct Technology {
+    pub movement_prediction: bool,
+}
+
 #[derive(Resource)]
 pub struct Player {
     pub day: u32,
@@ -131,6 +135,7 @@ pub struct Player {
     pub fence: Fence,
     pub resources: Resources,
     pub weapons: Weapons,
+    pub technology: Technology,
     pub stats: HashMap<u32, NightStats>,
 }
 
@@ -176,9 +181,9 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
+                    Some(WeaponName::MachineGun),
                     Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
-                    Some(WeaponName::MachineGun),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
                 ],
@@ -189,6 +194,9 @@ impl Player {
                     turret_fire_strategy: FireStrategy::NoFire,
                     landmine_sensibility: Size::Medium,
                 },
+            },
+            technology: Technology {
+                movement_prediction: true,
             },
             stats: HashMap::default(),
         }

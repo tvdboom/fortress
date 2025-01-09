@@ -72,20 +72,55 @@ impl FromWorld for WorldAssets {
             .get_resource_mut::<Assets<TextureAtlasLayout>>()
             .unwrap();
 
-        let flash1 =
-            TextureAtlasLayout::from_grid(UVec2::new(88, 100), 5, 6, Some(UVec2::new(0, 2)), None);
-        let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(128, 125), 5, 5, None, None);
+        let single_flash = TextureAtlasLayout::from_grid(UVec2::new(88, 100), 5, 6, None, None);
+        let triple_flash = TextureAtlasLayout::from_grid(UVec2::new(100, 117), 4, 5, None, None);
+        let cone_flash = TextureAtlasLayout::from_grid(UVec2::new(107, 105), 4, 6, None, None);
+        let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
+        let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(129, 121), 5, 5, None, None);
 
         let atlas = HashMap::from([
             (
-                "flash1",
+                "single-flash",
                 AtlasInfo {
                     image: images["flashes"].clone_weak(),
                     texture: TextureAtlas {
-                        layout: texture.add(flash1),
+                        layout: texture.add(single_flash),
                         index: 25,
                     },
                     last_index: 30,
+                },
+            ),
+            (
+                "cone-flash",
+                AtlasInfo {
+                    image: images["flashes"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(cone_flash),
+                        index: 17,
+                    },
+                    last_index: 20,
+                },
+            ),
+            (
+                "triple-flash",
+                AtlasInfo {
+                    image: images["flashes"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(triple_flash),
+                        index: 9,
+                    },
+                    last_index: 12,
+                },
+            ),
+            (
+                "wide-flash",
+                AtlasInfo {
+                    image: images["flashes"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(wide_flash),
+                        index: 1,
+                    },
+                    last_index: 4,
                 },
             ),
             (

@@ -3,7 +3,10 @@ use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{AAAFireStrategy, Bullet, FireStrategy, Weapon, WeaponName};
+use crate::game::weapon::components::{
+    AAAFireStrategy, Bullet, ExplosionInfo, FireStrategy, Weapon, WeaponName,
+};
+use crate::game::weapon::systems::resolve_enemy_impact;
 use crate::game::{AppState, GameState};
 use crate::utils::{scale_duration, toggle, CustomUi, NameFromEnum};
 use bevy::color::palettes::basic::WHITE;
@@ -627,11 +630,16 @@ pub fn enemy_info_panel(
 
 pub fn run_animations(
     mut commands: Commands,
-    mut query_a: Query<(Entity, &mut AnimationComponent, &mut Sprite), With<AnimationComponent>>,
+    mut animation_q: Query<
+        (Entity, &Transform, &mut AnimationComponent, &mut Sprite),
+        With<AnimationComponent>,
+    >,
+    mut enemy_q: Query<(Entity, &Transform, &mut Enemy), With<Enemy>>,
+    mut night_stats: ResMut<NightStats>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
-    for (entity, mut animation, mut sprite) in query_a.iter_mut() {
+    for (entity, t, mut animation, mut sprite) in animation_q.iter_mut() {
         animation
             .timer
             .tick(scale_duration(time.delta(), game_settings.speed));
@@ -639,7 +647,25 @@ pub fn run_animations(
         if animation.timer.just_finished() {
             if let Some(atlas) = &mut sprite.texture_atlas {
                 atlas.index += 1;
-                if atlas.index == animation.last_index {
+
+                // Resolve explosion damage halfway the animation
+                if atlas.index == animation.last_index / 2 {
+                    if let Some(ExplosionInfo { radius, damage }) = &animation.explosion {
+                        // Resolve the impact on all enemies in radius
+                        enemy_q
+                            .iter_mut()
+                            .filter(|(_, &t2, _)| t2.translation.distance(t.translation) <= *radius)
+                            .for_each(|(enemy_entity, _, mut enemy)| {
+                                resolve_enemy_impact(
+                                    &mut commands,
+                                    damage,
+                                    enemy_entity,
+                                    &mut enemy,
+                                    &mut night_stats,
+                                )
+                            });
+                    }
+                } else if atlas.index == animation.last_index {
                     commands.entity(entity).despawn();
                 }
             }

@@ -1,3 +1,4 @@
+use crate::game::weapon::components::ExplosionInfo;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -13,4 +14,5 @@ pub struct PauseText;
 pub struct AnimationComponent {
     pub timer: Timer,
     pub last_index: usize,
+    pub explosion: Option<ExplosionInfo>,
 }

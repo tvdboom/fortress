@@ -1,5 +1,5 @@
 use super::components::*;
-use crate::constants::{MAP_SIZE, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::constants::{RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
@@ -105,12 +105,11 @@ pub fn move_enemies(
     assets: Local<WorldAssets>,
 ) {
     for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
-        let new_pos = transform.translation.y
-            - MAP_SIZE.y / 100. * enemy.speed * game_settings.speed * time.delta_secs();
+        let new_pos =
+            transform.translation.y - enemy.speed * game_settings.speed * time.delta_secs();
 
         if !enemy.can_fly {
-            if player.fence.health > 0. {
-                let (entity, t, fence) = fence_q.iter().next().unwrap();
+            if let Some((entity, t, fence)) = fence_q.iter().next() {
                 let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
 
                 if new_pos < fence_y + 5. {
@@ -141,8 +140,7 @@ pub fn move_enemies(
 
                     continue;
                 }
-            } else if player.wall.health > 0. {
-                let (entity, t, wall) = wall_q.iter().next().unwrap();
+            } else if let Some((entity, t, wall)) = wall_q.iter().next() {
                 let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
 
                 if new_pos < wall_y + 5. {
@@ -189,30 +187,16 @@ pub fn move_enemies(
                             Sprite {
                                 image: atlas.image,
                                 texture_atlas: Some(atlas.texture),
+                                custom_size: Some(Vec2::splat(landmine.explosion.radius)),
                                 ..default()
                             },
-                            Transform {
-                                translation: landmine_t.translation,
-                                scale: Vec3::splat(0.5),
-                                ..default()
-                            },
+                            Transform::from_translation(transform.translation),
                             AnimationComponent {
                                 timer: Timer::from_seconds(0.05, TimerMode::Repeating),
                                 last_index: atlas.last_index,
+                                explosion: Some(landmine.explosion.clone()),
                             },
                         ));
-
-                        let damage = landmine.damage.calculate(&enemy);
-                        if enemy.health > damage {
-                            enemy.health -= damage;
-                        } else {
-                            commands.entity(enemy_entity).despawn_recursive();
-
-                            night_stats
-                                .enemies
-                                .entry(enemy.name)
-                                .and_modify(|status| status.killed += 1);
-                        }
                     }
                 }
             }

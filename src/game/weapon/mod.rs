@@ -1,5 +1,5 @@
 pub mod components;
-mod systems;
+pub mod systems;
 
 use super::{AppState, GameState};
 use crate::game::weapon::systems::*;
