@@ -110,13 +110,17 @@ pub struct Fence {
     pub repair_price: Resources,  // Repair => +20 health
 }
 
+pub struct Spotlight {
+    pub power: u32,
+    pub cost: Resources,
+}
+
 pub struct WeaponSettings {
     pub sentry_gun_fire_rate: u32,
     pub flamethrower_power: u32,
     pub aaa_fire_strategy: AAAFireStrategy,
     pub mortar_shell: MortarShell,
     pub turret_fire_strategy: FireStrategy,
-    pub spotlight: u32,
     pub mine_sensibility: Size,
 }
 
@@ -137,6 +141,7 @@ pub struct Player {
     pub survivors: u32,
     pub wall: Wall,
     pub fence: Fence,
+    pub spotlight: Spotlight,
     pub resources: Resources,
     pub weapons: Weapons,
     pub technology: Technology,
@@ -178,6 +183,13 @@ impl Player {
                     ..Resources::default()
                 },
             },
+            spotlight: Spotlight {
+                power: 0,
+                cost: Resources {
+                    gasoline: 0.1, // Cost per second per power
+                    ..Resources::default()
+                },
+            },
             resources: Resources {
                 bullets: 1_000.,
                 gasoline: 1_000.,
@@ -199,7 +211,6 @@ impl Player {
                     aaa_fire_strategy: AAAFireStrategy::All,
                     mortar_shell: MortarShell::None,
                     turret_fire_strategy: FireStrategy::None,
-                    spotlight: 0,
                     mine_sensibility: Size::Medium,
                 },
             },

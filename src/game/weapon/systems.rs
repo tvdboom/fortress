@@ -345,7 +345,7 @@ pub fn move_bullets(
     }
 }
 
-pub fn update_fence_resources(
+pub fn update_resources(
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
@@ -358,6 +358,9 @@ pub fn update_fence_resources(
             player.fence.enabled = false;
         }
     }
+
+    player.resources.gasoline -=
+        player.spotlight.cost.gasoline * game_settings.speed * time.delta_secs();
 }
 
 pub fn resolve_enemy_impact(

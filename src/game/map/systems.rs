@@ -44,8 +44,8 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         Sprite {
-            image: asset_server.load("map/fog.png"),
-            custom_size: Some(Vec2::new(MAP_SIZE.x, MAP_SIZE.y * 0.3)),
+            image: asset_server.load("map/fow.png"),
+            custom_size: Some(FOW_SIZE),
             ..default()
         },
         Transform::from_xyz(
@@ -309,6 +309,7 @@ pub fn weapons_panel(
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
+    game_state: Res<State<GameState>>,
     assets: Local<WorldAssets>,
 ) {
     let weapon_texture = contexts.add_image(assets.get_image("weapon"));
@@ -441,20 +442,23 @@ pub fn weapons_panel(
 
                 ui.add_space(5.);
 
-                ui.add_enabled_ui(player.technology.spotlight, |ui| {
+                ui.add_enabled_ui(player.technology.spotlight && *game_state.get() == GameState::Running, |ui| {
                     ui.horizontal(|ui| {
                         ui.add_image(spotlight_texture, [20., 20.]);
                         ui.add(egui::Label::new("Spotlight: "));
-                        let slider = ui.add(egui::Slider::new(&mut player.weapons.settings.spotlight, 0..=100).show_value(false))
+                        let slider = ui.add(egui::Slider::new(&mut player.spotlight.power, 0..=100).show_value(false))
                             .on_hover_text("More power means more visibility, but costs more gasoline.");
 
-                        if player.weapons.settings.spotlight > 0 {
+                        if player.spotlight.power > 0 {
                             ui.add_image(bulb_texture, [20., 20.]);
                         }
 
                         if slider.changed() {
                             if let Some(mut fow) = fow_q.iter_mut().next() {
-                                fow.translation.y = SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.15 - player.weapons.settings.spotlight as f32;
+                                fow.translation.y = SIZE.y * 0.5
+                                    - MENU_PANEL_SIZE.y
+                                    - FOW_SIZE.y * 0.5
+                                    + (FOW_SIZE.y / 100. * player.spotlight.power as f32);
                             }
                         }
                     });

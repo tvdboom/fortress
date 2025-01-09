@@ -5,16 +5,17 @@ pub const NORMAL_FONT_SIZE: f32 = 16.;
 pub const LARGE_FONT_SIZE: f32 = 24.;
 
 // Window block sizes (panels and background images)
-pub const SIZE: Vec2 = Vec2::new(1400., 900.); // Fix the window size to avoid issues with resizing
-pub const WALL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.12);
-pub const FENCE_SIZE: Vec2 = Vec2::new(WALL_SIZE.x, WALL_SIZE.y * 0.3);
+pub const SIZE: Vec2 = Vec2::new(1440., 900.); // Fix the window size to avoid issues with resizing
 pub const MENU_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.04);
-pub const WEAPONS_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x * 0.203, SIZE.y);
+pub const WEAPONS_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x * 0.205, SIZE.y);
 pub const RESOURCES_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x, SIZE.y * 0.05);
 pub const MAP_SIZE: Vec2 = Vec2::new(
     SIZE.x - WEAPONS_PANEL_SIZE.x,
     SIZE.y - MENU_PANEL_SIZE.y - RESOURCES_PANEL_SIZE.y,
 );
+pub const WALL_SIZE: Vec2 = Vec2::new(MAP_SIZE.x, SIZE.y * 0.12);
+pub const FENCE_SIZE: Vec2 = Vec2::new(MAP_SIZE.x, WALL_SIZE.y * 0.3);
+pub const FOW_SIZE: Vec2 = Vec2::new(MAP_SIZE.x, MAP_SIZE.y * 0.3);
 
 // Game settings
 pub const MAX_GAME_SPEED: f32 = 5.;
