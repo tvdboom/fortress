@@ -1,10 +1,10 @@
-use std::f32::consts::PI;
 use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::FogOfWar;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
+use std::f32::consts::PI;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -617,18 +617,18 @@ impl Default for WeaponManager {
                 image: "weapon/bomb.png",
                 dim: Vec2::new(30., 20.),
                 speed: 0.6 * MAP_SIZE.y,
-                angle: PI * 0.5,
+                angle: -PI * 0.5,
                 detonation: Detonation::OnLocationExplosion(Explosion {
                     atlas: "explosion2",
-                    interval: 0.05,
-                    radius: 0.4 * MAP_SIZE.y,
+                    interval: 0.02,
+                    radius: 0.3 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 80.,
                         air: 80.,
                         penetration: 20.,
                     },
                 }),
-                max_distance: 0.,  // Set during spawn
+                max_distance: 0., // Set during spawn
                 distance: 0.,
             },
             mine: Bullet {

@@ -4,7 +4,7 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
-use crate::game::weapon::systems::resolve_enemy_impact;
+use crate::game::weapon::systems::{calculate_distance, resolve_enemy_impact};
 use crate::game::{AppState, GameState};
 use crate::utils::{collision, scale_duration, toggle, CustomUi, NameFromEnum};
 use bevy::color::palettes::basic::WHITE;
@@ -304,6 +304,9 @@ pub fn weapons_panel(
     mut commands: Commands,
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
+    enemy_q: Query<(&Transform, &Enemy), (With<Enemy>, Without<FogOfWar>)>,
+    fence_q: Query<(&Transform, &Sprite), (With<Fence>, Without<FogOfWar>)>,
+    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
@@ -482,7 +485,29 @@ pub fn weapons_panel(
                                 player.weapons.bombs -= 1;
 
                                 let mut bomb = weapons.bomb.clone();
-                                bomb.max_distance = 100.;
+
+                                let (enemy_t, enemy) = match player.weapons.settings.bombing_strategy {
+                                    // FireStrategy::Density => {
+                                    //     Vec3::new(0., 0., 0.)
+                                    // },
+                                    FireStrategy::Strongest => {
+                                        enemy_q.iter().max_by(|(_, e1), (_, e2)| {
+                                            e1.max_health.partial_cmp(&e2.max_health).unwrap()
+                                        }).unwrap()
+                                    },
+                                    _ => unreachable!(),
+                                };
+
+                                let pos = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, 3.0);
+                                bomb.max_distance = calculate_distance(
+                                    enemy,
+                                    &enemy_t.translation,
+                                    &bomb,
+                                    &pos,
+                                    fence_q.iter().next(),
+                                    wall_q.iter().next(),
+                                    player.technology.movement_prediction
+                                ).length();
 
                                 commands.spawn((
                                     Sprite {
@@ -491,7 +516,7 @@ pub fn weapons_panel(
                                         ..default()
                                     },
                                     Transform {
-                                        translation: Vec3::new(0., 0., 3.),
+                                        translation: pos,
                                         rotation: Quat::from_rotation_z(bomb.angle),
                                         ..default()
                                     },

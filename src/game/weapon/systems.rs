@@ -99,6 +99,7 @@ pub fn spawn_weapons(
         {
             positions.push(pos);
 
+            println!("Mine at {:?}", pos);
             commands.spawn((
                 Sprite {
                     image: asset_server.load(weapons.mine.image),
@@ -132,30 +133,15 @@ pub fn spawn_bullets(
             if player.resources >= weapon.fire_cost {
                 let mut bullet = weapon.bullet.clone();
 
-                let mut d = -(enemy_t.translation - transform.translation);
-
-                // If smart weapons technology is researched, predict enemy movement
-                if player.technology.movement_prediction {
-                    // No need to take game speed into account since
-                    // the effect cancels out on enemy and bullet speed
-                    let mut next_pos = enemy_t.translation
-                        - Vec3::new(0., enemy.speed * d.length() / bullet.speed, 0.);
-
-                    // If there's a structure, stop movement there
-                    if let Some((t, fence)) = fence_q.iter().next() {
-                        let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5 + 5.;
-                        if next_pos.y < fence_y {
-                            next_pos.y = fence_y;
-                        }
-                    } else if let Some((t, wall)) = wall_q.iter().next() {
-                        let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5 + 5.;
-                        if next_pos.y < wall_y {
-                            next_pos.y = wall_y;
-                        }
-                    }
-
-                    d = next_pos - transform.translation;
-                }
+                let d = calculate_distance(
+                    enemy,
+                    &enemy_t.translation,
+                    &bullet,
+                    &transform.translation,
+                    fence_q.iter().next(),
+                    wall_q.iter().next(),
+                    player.technology.movement_prediction,
+                );
 
                 let angle = d.y.atan2(d.x);
                 bullet.angle = angle;
@@ -302,11 +288,11 @@ pub fn move_bullets(
                     if ((e.damage.ground > 0. && !enemy.can_fly)
                         || (e.damage.air > 0. && enemy.can_fly))
                         && collision(
-                        &transform.translation,
-                        &bullet.dim,
-                        &transform_enemy.translation,
-                        &enemy.dim,
-                    )
+                            &transform.translation,
+                            &bullet.dim,
+                            &transform_enemy.translation,
+                            &enemy.dim,
+                        )
                     {
                         // Only mines have 0 speed
                         if bullet.speed == 0. {
@@ -407,4 +393,41 @@ pub fn spawn_explosion(
             explosion: Some(explosion.clone()),
         },
     ));
+}
+
+pub fn calculate_distance(
+    enemy: &Enemy,
+    enemy_pos: &Vec3,
+    bullet: &Bullet,
+    bullet_pos: &Vec3,
+    fence_q: Option<(&Transform, &Sprite)>,
+    wall_q: Option<(&Transform, &Sprite)>,
+    movement_prediction: bool,
+) -> Vec3 {
+    let mut d = -(enemy_pos - bullet_pos);
+
+    // Predict enemy movement comes with a technology
+    if movement_prediction {
+        // No need to take game speed into account since
+        // the effect cancels out on enemy and bullet speed
+        let mut next_pos = enemy_pos
+            - Vec3::new(0., enemy.speed * d.length() / bullet.speed, 0.);
+
+        // If there's a structure, stop movement there
+        if let Some((t, fence)) = fence_q {
+            let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5 + 5.;
+            if next_pos.y < fence_y {
+                next_pos.y = fence_y;
+            }
+        } else if let Some((t, wall)) = wall_q {
+            let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5 + 5.;
+            if next_pos.y < wall_y {
+                next_pos.y = wall_y;
+            }
+        }
+
+        d = next_pos - bullet_pos
+    }
+
+    d
 }
