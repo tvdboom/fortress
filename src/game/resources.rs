@@ -56,11 +56,11 @@ impl PartialOrd for Resources {
 macro_rules! resources_binary_ops {
     ($($trait:ident, $method:ident, $op:tt);*;) => {
         $(
-            // Binary operations with Resources
-            impl $trait for Resources {
+            // Binary operations with Resources reference
+            impl $trait<&Self> for Resources {
                 type Output = Self;
 
-                fn $method(self, rhs: Self) -> Self::Output {
+                fn $method(self, rhs: &Resources) -> Self::Output {
                     Self {
                         bullets: self.bullets $op rhs.bullets,
                         gasoline: self.gasoline $op rhs.gasoline,
@@ -82,6 +82,20 @@ macro_rules! resources_binary_ops {
                     }
                 }
             }
+
+            // Binary operations with float on reference
+            impl<T: Into<f32>> $trait<T> for &Resources {
+                type Output = Resources;
+
+                fn $method(self, rhs: T) -> Resources {
+                    let float = rhs.into();
+                    Resources {
+                        bullets: self.bullets $op float,
+                        gasoline: self.gasoline $op float,
+                        materials: self.materials $op float,
+                    }
+                }
+            }
         )*
     };
 }
@@ -93,11 +107,10 @@ resources_binary_ops!(
     Div, div, /;
 );
 
-
 macro_rules! resources_assignment_ops {
     ($($trait:ident, $method:ident, $op:tt);*;) => {
         $(
-            // Assignment operations with Resources
+            // Assignment operations with Resources reference
             impl $trait<&Self> for Resources {
                 fn $method(&mut self, rhs: &Self) {
                     self.bullets $op rhs.bullets;
@@ -125,7 +138,6 @@ resources_assignment_ops!(
     MulAssign, mul_assign, *=;
     DivAssign, div_assign, /=;
 );
-
 
 pub struct Wall {
     pub health: f32,
@@ -155,11 +167,14 @@ pub struct WeaponSettings {
     pub aaa_fire_strategy: AAAFireStrategy,
     pub mortar_shell: MortarShell,
     pub turret_fire_strategy: FireStrategy,
+    pub missile_launcher_shells: u32,
+    pub bombing_strategy: FireStrategy,
     pub mine_sensibility: Size,
 }
 
 pub struct Weapons {
     pub spots: Vec<Option<WeaponName>>,
+    pub bombs: u32,
     pub mines: u32,
     pub settings: WeaponSettings,
 }
@@ -231,20 +246,25 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
+                    Some(WeaponName::MissileLauncher),
                     Some(WeaponName::MachineGun),
                     Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
                     Some(WeaponName::Flamethrower),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
+                    Some(WeaponName::MissileLauncher),
                 ],
-                mines: 0,
+                bombs: 10,
+                mines: 10,
                 settings: WeaponSettings {
                     sentry_gun_fire_rate: 0,
                     flamethrower_power: 0,
                     aaa_fire_strategy: AAAFireStrategy::None,
                     mortar_shell: MortarShell::None,
                     turret_fire_strategy: FireStrategy::None,
+                    missile_launcher_shells: 0,
+                    bombing_strategy: FireStrategy::Density,
                     mine_sensibility: Size::Medium,
                 },
             },

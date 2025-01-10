@@ -3,10 +3,7 @@ use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::resources::{GameSettings, NightStats, Player};
-use crate::game::weapon::components::{
-    AAAFireStrategy, Bullet, ExplosionInfo, Fence, FireStrategy, MortarShell, Wall, Weapon,
-    WeaponName,
-};
+use crate::game::weapon::components::*;
 use crate::game::weapon::systems::resolve_enemy_impact;
 use crate::game::{AppState, GameState};
 use crate::utils::{collision, scale_duration, toggle, CustomUi, NameFromEnum};
@@ -304,17 +301,21 @@ pub fn resources_panel(
 }
 
 pub fn weapons_panel(
+    mut commands: Commands,
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
+    weapons: Res<WeaponManager>,
     assets: Local<WorldAssets>,
+    asset_server: Res<AssetServer>,
 ) {
     let weapon_texture = contexts.add_image(assets.get_image("weapon"));
     let lightning_texture = contexts.add_image(assets.get_image("lightning"));
     let fence_texture = contexts.add_image(assets.get_image("fence"));
+    let bomb_texture = contexts.add_image(assets.get_image("bomb"));
     let mine_texture = contexts.add_image(assets.get_image("mine"));
     let spotlight_texture = contexts.add_image(assets.get_image("spotlight"));
     let bulb_texture = contexts.add_image(assets.get_image("bulb"));
@@ -326,7 +327,8 @@ pub fn weapons_panel(
         .resizable(false)
         .show(contexts.ctx_mut(), |ui| {
             ui.add_enabled_ui(*app_state.get() == AppState::Night, |ui| {
-                ui.add_space(5.);
+                ui.add_space(7.);
+
                 ui.vertical_centered(|ui| {
                     ui.horizontal(|ui| {
                         ui.add_space(65.);
@@ -335,7 +337,8 @@ pub fn weapons_panel(
                     });
                 });
 
-                ui.add_space(5.);
+                ui.add_space(7.);
+
                 ui.separator();
 
                 // Machine gun
@@ -433,81 +436,148 @@ pub fn weapons_panel(
                     });
                 }
 
+                // Missile launcher
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::MissileLauncher,
+                    None => false,
+                }) {
+                    ui.add_space(7.);
+                    ui.horizontal(|ui| {
+                        let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MissileLauncher))).on_hover_cursor(CursorIcon::PointingHand);
+
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.missile_launcher_shells, 0..=MAX_MISSILE_LAUNCHER_SHELLS))
+                            .on_hover_text("Shoot N shells per firing round.");
+
+                        if label.clicked() {
+                            player.weapons.settings.missile_launcher_shells = if player.weapons.settings.missile_launcher_shells > 0 {
+                                0
+                            } else {
+                                MAX_MISSILE_LAUNCHER_SHELLS
+                            };
+                        }
+                    });
+                }
+
                 // Update all weapons with the selected settings
                 weapon_q
                     .iter_mut()
                     .for_each(|mut w| w.as_mut().update(&player));
 
-                ui.add_space(5.);
-                ui.separator();
-                ui.add_space(5.);
-
-                ui.add_enabled_ui(player.fence.health > 0., |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_image(fence_texture, [20., 25.]);
-                        let label = ui.add(egui::Label::new("Fence: ")).on_hover_cursor(CursorIcon::PointingHand);
-                        ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
-                            "Electrifying the fence does damage to adjacent enemies, but costs gasoline.",
-                        );
-
-                        if label.clicked() {
-                            player.fence.enabled = !player.fence.enabled;
-                        }
-
-                        if player.fence.enabled {
-                            ui.add_image(lightning_texture, [20., 20.]);
-                        }
-                    });
-                });
-
                 ui.add_space(7.);
 
-                ui.add_enabled_ui(player.technology.spotlight && *game_state.get() == GameState::Running, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_image(spotlight_texture, [20., 20.]);
-                        let label = ui.add(egui::Label::new("Spotlight: ")).on_hover_cursor(CursorIcon::PointingHand);
-                        ui.add(egui::Slider::new(&mut player.spotlight.power, 0..=MAX_SPOTLIGHT_POWER).show_value(false))
-                            .on_hover_text("More power means more visibility, but costs more gasoline.");
+                if player.weapons.bombs > 0 || player.weapons.mines > 0 {
+                    ui.separator();
 
-                        if player.spotlight.power > 0 {
-                            ui.add_image(bulb_texture, [20., 20.]);
-                        }
+                    ui.add_enabled_ui(player.weapons.bombs > 0, |ui| {
+                        ui.add_space(7.);
+                        ui.horizontal(|ui| {
+                            ui.add_image(bomb_texture, [20., 20.]);
+                            let label = ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs))).on_hover_cursor(CursorIcon::PointingHand);
+                            ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Density, FireStrategy::Density.name())
+                                .on_hover_text("Launch at highest enemy density location.");
+                            ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Strongest, FireStrategy::Strongest.name())
+                                .on_hover_text("Launch at strongest enemy.");
 
-                        if label.clicked() {
-                            player.spotlight.power = if player.spotlight.power > 0 {
-                                0
-                            } else {
-                                MAX_SPOTLIGHT_POWER
+                            if label.clicked() && *game_state.get() == GameState::Running {
+                                player.weapons.bombs -= 1;
+
+                                let mut bomb = weapons.bomb.clone();
+                                bomb.max_distance = 100.;
+
+                                commands.spawn((
+                                    Sprite {
+                                        image: asset_server.load(bomb.image),
+                                        custom_size: Some(bomb.dim),
+                                        ..default()
+                                    },
+                                    Transform {
+                                        translation: Vec3::new(0., 0., 3.),
+                                        rotation: Quat::from_rotation_z(bomb.angle),
+                                        ..default()
+                                    },
+                                    bomb,
+                                ));
                             }
-                        }
-
-                        if let Some(mut fow) = fow_q.iter_mut().next() {
-                            fow.translation.y = SIZE.y * 0.5
-                                - MENU_PANEL_SIZE.y
-                                - FOW_SIZE.y * 0.5
-                                + (FOW_SIZE.y / MAX_SPOTLIGHT_POWER as f32 * player.spotlight.power as f32);
-                        }
+                        });
                     });
-                });
 
-                ui.add_space(7.);
-
-                ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_image(mine_texture, [20., 20.]);
-                        ui.add(egui::Label::new(format!("Mine ({}): ", player.weapons.mines)));
-                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Small, Size::Small.name())
-                            .on_hover_text("Detonate for all enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Medium, Size::Medium.name())
-                            .on_hover_text("Detonate for medium and large enemies.");
-                        ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Large, Size::Large.name())
-                            .on_hover_text("Detonate only for large enemies.");
+                    ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
+                        ui.add_space(7.);
+                        ui.horizontal(|ui| {
+                            ui.add_image(mine_texture, [20., 20.]);
+                            ui.add(egui::Label::new(format!("Mine ({}): ", player.weapons.mines)));
+                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Small, Size::Small.name())
+                                .on_hover_text("Detonate for all enemies.");
+                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Medium, Size::Medium.name())
+                                .on_hover_text("Detonate for medium and large enemies.");
+                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Large, Size::Large.name())
+                                .on_hover_text("Detonate only for large enemies.");
+                        });
                     });
-                });
 
-                ui.add_space(5.);
+                    ui.add_space(7.);
+                }
+
+                if player.fence.max_health > 0. || player.technology.spotlight {
+                    ui.separator();
+
+                    if player.fence.max_health > 0. {
+                        ui.add_space(7.);
+                        ui.add_enabled_ui(player.fence.health > 0. && player.resources >= player.fence.cost, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.add_image(fence_texture, [20., 25.]);
+                                let label = ui.add(egui::Label::new("Fence: ")).on_hover_cursor(CursorIcon::PointingHand);
+                                ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
+                                    "Electrifying the fence does damage to adjacent enemies, but costs gasoline.",
+                                );
+
+                                if label.clicked() {
+                                    player.fence.enabled = !player.fence.enabled;
+                                }
+
+                                if player.fence.enabled {
+                                    ui.add_image(lightning_texture, [20., 20.]);
+                                }
+                            });
+                        });
+                    }
+
+                    if player.technology.spotlight {
+                        ui.add_space(7.);
+                        ui.add_enabled_ui(*game_state.get() == GameState::Running && player.resources >= player.spotlight.cost, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.add_image(spotlight_texture, [20., 20.]);
+                                let label = ui.add(egui::Label::new("Spotlight: ")).on_hover_cursor(CursorIcon::PointingHand);
+                                ui.add(egui::Slider::new(&mut player.spotlight.power, 0..=MAX_SPOTLIGHT_POWER).show_value(false))
+                                    .on_hover_text("More power means more visibility, but costs more gasoline.");
+
+                                if player.spotlight.power > 0 {
+                                    ui.add_image(bulb_texture, [20., 20.]);
+                                }
+
+                                if label.clicked() {
+                                    player.spotlight.power = if player.spotlight.power > 0 {
+                                        0
+                                    } else {
+                                        MAX_SPOTLIGHT_POWER
+                                    }
+                                }
+
+                                if let Some(mut fow) = fow_q.iter_mut().next() {
+                                    fow.translation.y = SIZE.y * 0.5
+                                        - MENU_PANEL_SIZE.y
+                                        - FOW_SIZE.y * 0.5
+                                        + (FOW_SIZE.y / MAX_SPOTLIGHT_POWER as f32 * player.spotlight.power as f32);
+                                }
+                            });
+                        });
+                    }
+
+                    ui.add_space(7.);
+                }
+
                 ui.separator();
-                ui.add_space(5.);
+                ui.add_space(7.);
 
                 ui.horizontal(|ui| {
                     ui.add_image(bullets_texture, [20., 25.]);
@@ -773,7 +843,7 @@ pub fn run_animations(
 
                 // Resolve explosion damage halfway the animation
                 if atlas.index == animation.last_index / 2 {
-                    if let Some(ExplosionInfo { radius, damage, .. }) = &animation.explosion {
+                    if let Some(Explosion { radius, damage, .. }) = &animation.explosion {
                         // Resolve damage to structures
                         if let Some((entity, t2)) = fence_q.iter().next() {
                             if collision(

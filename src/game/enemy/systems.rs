@@ -1,11 +1,9 @@
 use super::components::*;
 use crate::constants::{RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::assets::WorldAssets;
-use crate::game::map::components::AnimationComponent;
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
-use crate::game::weapon::components::{Fence, Mine, Wall};
+use crate::game::weapon::components::{Fence, Wall};
 use crate::game::AppState;
-use crate::utils::{collision, scale_duration};
+use crate::utils::scale_duration;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
     Color,
@@ -94,7 +92,6 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut commands: Commands,
     mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
-    mine_q: Query<(Entity, &Transform, &Mine), (With<Mine>, Without<Enemy>)>,
     fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
     wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
     mut player: ResMut<Player>,
@@ -102,7 +99,6 @@ pub fn move_enemies(
     mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
     mut night_stats: ResMut<NightStats>,
-    assets: Local<WorldAssets>,
 ) {
     for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
         let new_pos =
@@ -169,37 +165,6 @@ pub fn move_enemies(
             }
         } else {
             transform.translation.y = new_pos;
-
-            // Check collision with mines
-            if !enemy.can_fly && enemy.size >= player.weapons.settings.mine_sensibility {
-                for (mine_entity, mine_t, mine) in mine_q.iter() {
-                    if collision(
-                        &transform.translation,
-                        &enemy.dim,
-                        &mine_t.translation,
-                        &mine.dim,
-                    ) {
-                        player.weapons.mines -= 1;
-                        commands.entity(mine_entity).try_despawn();
-
-                        let atlas = assets.get_atlas(&mine.atlas);
-                        commands.spawn((
-                            Sprite {
-                                image: atlas.image,
-                                texture_atlas: Some(atlas.texture),
-                                custom_size: Some(Vec2::splat(mine.explosion.radius)),
-                                ..default()
-                            },
-                            Transform::from_translation(transform.translation),
-                            AnimationComponent {
-                                timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-                                last_index: atlas.last_index,
-                                explosion: Some(mine.explosion.clone()),
-                            },
-                        ));
-                    }
-                }
-            }
         }
     }
 }

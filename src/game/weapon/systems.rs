@@ -87,8 +87,8 @@ pub fn spawn_weapons(
         let x = thread_rng()
             .gen_range(-SIZE.x * 0.5 + size.x..=SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x - size.x);
         let y = thread_rng().gen_range(
-            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.6
-                ..=SIZE.y * 0.5 - MENU_PANEL_SIZE.y - size.y,
+            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.8
+                ..=SIZE.y * 0.5 - MENU_PANEL_SIZE.y - FOW_SIZE.y - size.y,
         );
         let pos = Vec2::new(x, y);
 
@@ -250,6 +250,7 @@ pub fn move_bullets(
     mut commands: Commands,
     mut bullet_q: Query<(&mut Transform, Entity, &mut Bullet)>,
     mut enemy_q: Query<(&Transform, Entity, &mut Enemy), Without<Bullet>>,
+    mut player: ResMut<Player>,
     time: Res<Time>,
     settings: Res<GameSettings>,
     mut night_stats: ResMut<NightStats>,
@@ -265,12 +266,11 @@ pub fn move_bullets(
         bullet.distance += d_pos.length();
 
         match &bullet.detonation {
-            Detonation::SingleTarget(damage) | Detonation::Piercing(damage) => {
+            Detonation::SingleTarget(d) | Detonation::Piercing(d) => {
                 for (transform_enemy, enemy_entity, mut enemy) in enemy_q.iter_mut() {
                     // If the bullet can hit grounded/airborne enemies
                     // and the bullet collided with an enemy -> despawn and resolve
-                    if ((damage.ground > 0. && !enemy.can_fly)
-                        || (damage.air > 0. && enemy.can_fly))
+                    if ((d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly))
                         && collision(
                             &transform.translation,
                             &bullet.dim,
@@ -285,42 +285,41 @@ pub fn move_bullets(
 
                         resolve_enemy_impact(
                             &mut commands,
-                            damage,
+                            d,
                             enemy_entity,
                             &mut enemy,
                             &mut night_stats,
                         );
+
                         break;
                     }
                 }
             }
-            Detonation::Explosion(ExplosionInfo {
-                atlas,
-                radius,
-                damage,
-            }) if bullet.distance >= bullet.max_distance => {
-                commands.entity(entity).try_despawn();
+            Detonation::OnHitExplosion(e) => {
+                for (transform_enemy, _, enemy) in enemy_q.iter_mut() {
+                    // If the bullet can hit grounded/airborne enemies
+                    // and the bullet collided with an enemy -> despawn and resolve
+                    if ((e.damage.ground > 0. && !enemy.can_fly)
+                        || (e.damage.air > 0. && enemy.can_fly))
+                        && collision(
+                        &transform.translation,
+                        &bullet.dim,
+                        &transform_enemy.translation,
+                        &enemy.dim,
+                    )
+                    {
+                        // Only mines have 0 speed
+                        if bullet.speed == 0. {
+                            player.weapons.mines -= 1;
+                        }
 
-                let atlas_asset = assets.get_atlas(atlas);
-                commands.spawn((
-                    Sprite {
-                        image: atlas_asset.image,
-                        texture_atlas: Some(atlas_asset.texture),
-                        custom_size: Some(Vec2::splat(*radius)),
-                        ..default()
-                    },
-                    Transform::from_translation(transform.translation),
-                    AnimationComponent {
-                        timer: Timer::from_seconds(0.01, TimerMode::Repeating),
-                        last_index: atlas_asset.last_index,
-                        explosion: Some(ExplosionInfo {
-                            atlas: *atlas,
-                            radius: *radius,
-                            damage: damage.clone(),
-                        }),
-                    },
-                ));
-
+                        spawn_explosion(&mut commands, &entity, &transform, e, &assets);
+                        break;
+                    }
+                }
+            }
+            Detonation::OnLocationExplosion(e) if bullet.distance >= bullet.max_distance => {
+                spawn_explosion(&mut commands, &entity, &transform, e, &assets);
                 break;
             }
             _ => (),
@@ -352,7 +351,16 @@ pub fn update_resources(
         }
     }
 
-    player.resources -= &player.spotlight.cost * player.spotlight.power as f32 * game_settings.speed * time.delta_secs();
+    let spotlight_cost = &player.spotlight.cost
+        * player.spotlight.power as f32
+        * game_settings.speed
+        * time.delta_secs();
+
+    if player.resources >= spotlight_cost {
+        player.resources -= &spotlight_cost;
+    } else {
+        player.spotlight.power = 0;
+    }
 }
 
 pub fn resolve_enemy_impact(
@@ -373,4 +381,30 @@ pub fn resolve_enemy_impact(
     } else {
         enemy.health -= damage;
     }
+}
+
+pub fn spawn_explosion(
+    commands: &mut Commands,
+    entity: &Entity,
+    transform: &Transform,
+    explosion: &Explosion,
+    assets: &Local<WorldAssets>,
+) {
+    commands.entity(*entity).try_despawn();
+
+    let atlas_asset = assets.get_atlas(explosion.atlas);
+    commands.spawn((
+        Sprite {
+            image: atlas_asset.image,
+            texture_atlas: Some(atlas_asset.texture),
+            custom_size: Some(Vec2::splat(explosion.radius)),
+            ..default()
+        },
+        Transform::from_translation(transform.translation),
+        AnimationComponent {
+            timer: Timer::from_seconds(explosion.interval, TimerMode::Repeating),
+            last_index: atlas_asset.last_index,
+            explosion: Some(explosion.clone()),
+        },
+    ));
 }

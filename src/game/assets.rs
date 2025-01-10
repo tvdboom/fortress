@@ -36,6 +36,7 @@ impl FromWorld for WorldAssets {
             ("wall", assets.load("icons/wall.png")),
             ("fence", assets.load("icons/fence.png")),
             ("lightning", assets.load("icons/lightning.png")),
+            ("bomb", assets.load("icons/bomb.png")),
             ("mine", assets.load("icons/mine.png")),
             ("spotlight", assets.load("icons/spotlight.png")),
             ("bulb", assets.load("icons/bulb.png")),
@@ -70,6 +71,7 @@ impl FromWorld for WorldAssets {
             ("flashes", assets.load("weapon/flashes.png")),
             ("flame", assets.load("weapon/flame.png")),
             ("explosion1", assets.load("weapon/explosion1.png")),
+            ("explosion2", assets.load("weapon/explosion2.png")),
         ]);
 
         let mut texture = world
@@ -82,6 +84,7 @@ impl FromWorld for WorldAssets {
         let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
         let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(129, 121), 5, 5, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(73, 72), 8, 6, None, None);
 
         let atlas = HashMap::from([
             (
@@ -148,6 +151,17 @@ impl FromWorld for WorldAssets {
                         index: 1,
                     },
                     last_index: 25,
+                },
+            ),
+            (
+                "explosion2",
+                AtlasInfo {
+                    image: images["explosion2"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(explosion2),
+                        index: 1,
+                    },
+                    last_index: 48,
                 },
             ),
         ]);

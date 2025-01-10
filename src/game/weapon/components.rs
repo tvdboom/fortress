@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::FogOfWar;
@@ -19,6 +20,7 @@ pub enum WeaponName {
     Flamethrower,
     Mortar,
     Turret,
+    MissileLauncher,
 }
 
 #[derive(Clone)]
@@ -65,18 +67,25 @@ pub enum MortarShell {
 
 #[derive(Component, Clone)]
 pub struct Weapon {
+    /// Name of the weapon
     pub name: WeaponName,
 
     /// Name of the asset for sprite
     pub image: &'static str,
 
+    /// Dimensions (size) of the sprite
     pub dim: Vec2,
+
+    /// Rotation speed in radians per second
     pub rotation_speed: f32,
 
     /// Entity to shoot towards
     pub lock: Option<Entity>,
+
+    /// Price to buy the weapon
     pub price: Resources,
 
+    /// Animation to play when firing
     pub fire_animation: FireAnimation,
 
     /// Resources required to fire
@@ -85,7 +94,10 @@ pub struct Weapon {
     /// Time between shots (reload time)
     pub fire_timer: Option<Timer>,
 
+    /// Strategy to select a target
     pub fire_strategy: FireStrategy,
+
+    /// Bullet fired by the weapon
     pub bullet: Bullet,
 }
 
@@ -111,9 +123,12 @@ impl Damage {
 }
 
 #[derive(Clone)]
-pub struct ExplosionInfo {
+pub struct Explosion {
     /// Name of the asset for firing animation
     pub atlas: &'static str,
+
+    /// Interval between frames (in seconds)
+    pub interval: f32,
 
     /// Explosion radius
     pub radius: f32,
@@ -130,8 +145,14 @@ pub enum Detonation {
     /// Piercing bullets don't despawn after hitting an enemy
     Piercing(Damage),
 
-    /// Damage is applied to all enemies in radius `f32`
-    Explosion(ExplosionInfo),
+    /// Explodes after colliding with an enemy
+    OnHitExplosion(Explosion),
+
+    /// Explodes after reaching `max_distance`
+    OnLocationExplosion(Explosion),
+
+    /// Explodes after reaching a specific target
+    OnTargetExplosion(Explosion),
 }
 
 #[derive(Component, Clone)]
@@ -152,14 +173,6 @@ pub struct Bullet {
 
     /// Current distance traveled by the bullet
     pub distance: f32,
-}
-
-#[derive(Component, Clone)]
-pub struct Mine {
-    pub image: &'static str,
-    pub atlas: &'static str,
-    pub dim: Vec2,
-    pub explosion: ExplosionInfo,
 }
 
 impl Weapon {
@@ -212,7 +225,7 @@ impl Weapon {
                 e1.max_health.partial_cmp(&e2.max_health).unwrap()
             }),
             FireStrategy::Density => enemies.max_by_key(|(_, t1, _, _)| {
-                if let Detonation::Explosion(x) = &self.bullet.detonation {
+                if let Detonation::OnLocationExplosion(x) = &self.bullet.detonation {
                     enemy_q
                         .iter()
                         .filter(|(_, &t2, _)| t1.translation.distance(t2.translation) < x.radius)
@@ -312,8 +325,9 @@ impl Weapon {
                             bullets: 15.,
                             ..default()
                         };
-                        self.bullet.detonation = Detonation::Explosion(ExplosionInfo {
+                        self.bullet.detonation = Detonation::OnLocationExplosion(Explosion {
                             atlas: "explosion1",
+                            interval: 0.01,
                             radius: 0.15 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 50.,
@@ -328,8 +342,9 @@ impl Weapon {
                             bullets: 30.,
                             ..default()
                         };
-                        self.bullet.detonation = Detonation::Explosion(ExplosionInfo {
+                        self.bullet.detonation = Detonation::OnLocationExplosion(Explosion {
                             atlas: "explosion1",
+                            interval: 0.01,
                             radius: 0.25 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 75.,
@@ -343,6 +358,9 @@ impl Weapon {
             WeaponName::Turret => {
                 self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
             }
+            WeaponName::MissileLauncher => {
+                self.fire_strategy = FireStrategy::Closest;
+            }
         }
     }
 }
@@ -354,7 +372,9 @@ pub struct WeaponManager {
     pub flamethrower: Weapon,
     pub mortar: Weapon,
     pub turret: Weapon,
-    pub mine: Mine,
+    pub missile_launcher: Weapon,
+    pub bomb: Bullet,
+    pub mine: Bullet,
 }
 
 impl WeaponManager {
@@ -365,6 +385,7 @@ impl WeaponManager {
             WeaponName::Flamethrower => self.flamethrower.clone(),
             WeaponName::Mortar => self.mortar.clone(),
             WeaponName::Turret => self.turret.clone(),
+            WeaponName::MissileLauncher => self.missile_launcher.clone(),
         }
     }
 }
@@ -499,12 +520,13 @@ impl Default for WeaponManager {
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
                 bullet: Bullet {
-                    image: "weapon/mortar-bullet.png",
+                    image: "weapon/grenade.png",
                     dim: Vec2::new(25., 10.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::Explosion(ExplosionInfo {
+                    detonation: Detonation::OnLocationExplosion(Explosion {
                         atlas: "explosion1",
+                        interval: 0.01,
                         radius: 0.15 * MAP_SIZE.y,
                         damage: Damage {
                             ground: 50.,
@@ -551,19 +573,81 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
             },
-            mine: Mine {
-                image: "weapon/mine.png",
-                atlas: "explosion1",
+            missile_launcher: Weapon {
+                name: WeaponName::MissileLauncher,
+                image: "weapon/missile-launcher.png",
+                dim: Vec2::new(90., 90.),
+                rotation_speed: 3.,
+                lock: None,
+                price: Resources {
+                    materials: 1200.,
+                    ..default()
+                },
+                fire_animation: FireAnimation {
+                    atlas: "wide-flash",
+                    scale: Vec3::splat(0.7),
+                    duration: 0.1,
+                },
+                fire_cost: Resources {
+                    bullets: 15.,
+                    ..default()
+                },
+                fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
+                fire_strategy: FireStrategy::Strongest,
+                bullet: Bullet {
+                    image: "weapon/grenade.png",
+                    dim: Vec2::new(20., 10.),
+                    speed: 0.6 * MAP_SIZE.y,
+                    angle: 0.,
+                    detonation: Detonation::OnTargetExplosion(Explosion {
+                        atlas: "explosion1",
+                        interval: 0.01,
+                        radius: 0.1 * MAP_SIZE.y,
+                        damage: Damage {
+                            ground: 30.,
+                            air: 30.,
+                            penetration: 5.,
+                        },
+                    }),
+                    max_distance: 1.8 * MAP_SIZE.y,
+                    distance: 0.,
+                },
+            },
+            bomb: Bullet {
+                image: "weapon/bomb.png",
                 dim: Vec2::new(30., 20.),
-                explosion: ExplosionInfo {
+                speed: 0.6 * MAP_SIZE.y,
+                angle: PI * 0.5,
+                detonation: Detonation::OnLocationExplosion(Explosion {
+                    atlas: "explosion2",
+                    interval: 0.05,
+                    radius: 0.4 * MAP_SIZE.y,
+                    damage: Damage {
+                        ground: 80.,
+                        air: 80.,
+                        penetration: 20.,
+                    },
+                }),
+                max_distance: 0.,  // Set during spawn
+                distance: 0.,
+            },
+            mine: Bullet {
+                image: "weapon/mine.png",
+                dim: Vec2::new(30., 20.),
+                speed: 0.,
+                angle: 0.,
+                detonation: Detonation::OnHitExplosion(Explosion {
                     atlas: "explosion1",
+                    interval: 0.05,
                     radius: 0.2 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 50.,
                         air: 0.,
                         penetration: 20.,
                     },
-                },
+                }),
+                max_distance: 0.,
+                distance: 0.,
             },
         }
     }
