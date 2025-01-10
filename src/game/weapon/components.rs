@@ -616,12 +616,12 @@ impl Default for WeaponManager {
             bomb: Bullet {
                 image: "weapon/bomb.png",
                 dim: Vec2::new(30., 20.),
-                speed: 0.6 * MAP_SIZE.y,
+                speed: 0.4 * MAP_SIZE.y,
                 angle: -PI * 0.5,
                 detonation: Detonation::OnLocationExplosion(Explosion {
                     atlas: "explosion2",
-                    interval: 0.02,
-                    radius: 0.3 * MAP_SIZE.y,
+                    interval: 0.05,
+                    radius: 0.7 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 80.,
                         air: 80.,
@@ -646,7 +646,7 @@ impl Default for WeaponManager {
                         penetration: 20.,
                     },
                 }),
-                max_distance: 0.,
+                max_distance: f32::MAX,
                 distance: 0.,
             },
         }

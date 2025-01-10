@@ -8,6 +8,7 @@ use crate::utils::collision;
 use bevy::prelude::*;
 use rand::prelude::*;
 use std::f32::consts::PI;
+use bevy::ecs::query::QuerySingleError;
 
 pub fn spawn_weapons(
     mut commands: Commands,
@@ -99,7 +100,6 @@ pub fn spawn_weapons(
         {
             positions.push(pos);
 
-            println!("Mine at {:?}", pos);
             commands.spawn((
                 Sprite {
                     image: asset_server.load(weapons.mine.image),
@@ -138,8 +138,8 @@ pub fn spawn_bullets(
                     &enemy_t.translation,
                     &bullet,
                     &transform.translation,
-                    fence_q.iter().next(),
-                    wall_q.iter().next(),
+                    fence_q.get_single(),
+                    wall_q.get_single(),
                     player.technology.movement_prediction,
                 );
 
@@ -400,8 +400,8 @@ pub fn calculate_distance(
     enemy_pos: &Vec3,
     bullet: &Bullet,
     bullet_pos: &Vec3,
-    fence_q: Option<(&Transform, &Sprite)>,
-    wall_q: Option<(&Transform, &Sprite)>,
+    fence_q: Result<(&Transform, &Sprite), QuerySingleError>,
+    wall_q: Result<(&Transform, &Sprite), QuerySingleError>,
     movement_prediction: bool,
 ) -> Vec3 {
     let mut d = -(enemy_pos - bullet_pos);
@@ -414,12 +414,12 @@ pub fn calculate_distance(
             - Vec3::new(0., enemy.speed * d.length() / bullet.speed, 0.);
 
         // If there's a structure, stop movement there
-        if let Some((t, fence)) = fence_q {
+        if let Ok((t, fence)) = fence_q {
             let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5 + 5.;
             if next_pos.y < fence_y {
                 next_pos.y = fence_y;
             }
-        } else if let Some((t, wall)) = wall_q {
+        } else if let Ok((t, wall)) = wall_q {
             let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5 + 5.;
             if next_pos.y < wall_y {
                 next_pos.y = wall_y;

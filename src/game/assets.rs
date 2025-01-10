@@ -84,7 +84,7 @@ impl FromWorld for WorldAssets {
         let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
         let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(129, 121), 5, 5, None, None);
-        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(73, 72), 8, 6, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(256, 256), 8, 6, None, None);
 
         let atlas = HashMap::from([
             (

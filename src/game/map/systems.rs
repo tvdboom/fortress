@@ -475,7 +475,9 @@ pub fn weapons_panel(
                         ui.add_space(7.);
                         ui.horizontal(|ui| {
                             ui.add_image(bomb_texture, [20., 20.]);
-                            let label = ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs))).on_hover_cursor(CursorIcon::PointingHand);
+                            let label = ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs)))
+                                .on_hover_cursor(CursorIcon::PointingHand)
+                                .on_hover_text("Launch!");
                             ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Density, FireStrategy::Density.name())
                                 .on_hover_text("Launch at highest enemy density location.");
                             ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Strongest, FireStrategy::Strongest.name())
@@ -504,8 +506,8 @@ pub fn weapons_panel(
                                     &enemy_t.translation,
                                     &bomb,
                                     &pos,
-                                    fence_q.iter().next(),
-                                    wall_q.iter().next(),
+                                    fence_q.get_single(),
+                                    wall_q.get_single(),
                                     player.technology.movement_prediction
                                 ).length();
 
@@ -624,7 +626,7 @@ pub fn weapons_panel(
                         }
                     });
 
-                    ui.add_space(10.);
+                    ui.add_space(13.);
 
                     ui.add_image(gasoline_texture, [20., 20.]);
                     ui.add_enabled_ui(player.resources.materials >= 300., |ui| {
@@ -866,8 +868,8 @@ pub fn run_animations(
             if let Some(atlas) = &mut sprite.texture_atlas {
                 atlas.index += 1;
 
-                // Resolve explosion damage halfway the animation
-                if atlas.index == animation.last_index / 2 {
+                // Resolve explosion damage at third of the animation
+                if atlas.index == animation.last_index / 3 {
                     if let Some(Explosion { radius, damage, .. }) = &animation.explosion {
                         // Resolve damage to structures
                         if let Some((entity, t2)) = fence_q.iter().next() {
