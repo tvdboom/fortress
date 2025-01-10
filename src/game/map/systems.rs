@@ -12,7 +12,7 @@ use crate::game::{AppState, GameState};
 use crate::utils::{collision, scale_duration, toggle, CustomUi, NameFromEnum};
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
-use bevy_egui::egui::{Align, Layout, RichText, Style, TextStyle, UiBuilder};
+use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 
 pub fn set_style(mut contexts: EguiContexts) {
@@ -50,7 +50,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         Transform::from_xyz(
             -WEAPONS_PANEL_SIZE.x * 0.5,
-            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.15,
+            SIZE.y * 0.5 - MENU_PANEL_SIZE.y - FOW_SIZE.y * 0.5,
             10.,
         ),
         FogOfWar,
@@ -208,7 +208,7 @@ pub fn resources_panel(
                         .on_hover_text("Fence strength");
                     ui.add(
                         egui::ProgressBar::new(player.fence.health / player.fence.max_health)
-                            .desired_width(100.)
+                            .desired_width(160.)
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
@@ -343,12 +343,20 @@ pub fn weapons_panel(
                     Some(w) => *w == WeaponName::MachineGun,
                     None => false,
                 }) {
-                    ui.add_space(5.);
+                    ui.add_space(7.);
                     ui.horizontal(|ui| {
-                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun)));
+                        let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun))).on_hover_cursor(CursorIcon::PointingHand);
 
                         ui.add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=MAX_MACHINE_GUN_FIRE_RATE))
                             .on_hover_text("Shoot N bullets per second.");
+
+                        if label.clicked() {
+                            player.weapons.settings.sentry_gun_fire_rate = if player.weapons.settings.sentry_gun_fire_rate > 0 {
+                                0
+                            } else {
+                                MAX_MACHINE_GUN_FIRE_RATE
+                            };
+                        }
                     });
                 }
 
@@ -357,12 +365,20 @@ pub fn weapons_panel(
                     Some(w) => *w == WeaponName::Flamethrower,
                     None => false,
                 }) {
-                    ui.add_space(5.);
+                    ui.add_space(7.);
                     ui.horizontal(|ui| {
-                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Flamethrower)));
+                        let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Flamethrower))).on_hover_cursor(CursorIcon::PointingHand);
 
                         ui.add(egui::Slider::new(&mut player.weapons.settings.flamethrower_power, 0..=MAX_FLAMETHROWER_POWER))
                             .on_hover_text("More power means more range, but costs more.");
+
+                        if label.clicked() {
+                            player.weapons.settings.flamethrower_power = if player.weapons.settings.flamethrower_power > 0 {
+                                0
+                            } else {
+                                MAX_FLAMETHROWER_POWER
+                            };
+                        }
                     });
                 }
 
@@ -371,7 +387,7 @@ pub fn weapons_panel(
                     Some(w) => *w == WeaponName::AAA,
                     None => false,
                 }) {
-                    ui.add_space(5.);
+                    ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
                         ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::None, AAAFireStrategy::None.name())
@@ -388,7 +404,7 @@ pub fn weapons_panel(
                     Some(w) => *w == WeaponName::Mortar,
                     None => false,
                 }) {
-                    ui.add_space(5.);
+                    ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Mortar)));
                         ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::None, MortarShell::None.name())
@@ -405,7 +421,7 @@ pub fn weapons_panel(
                     Some(w) => *w == WeaponName::Turret,
                     None => false,
                 }) {
-                    ui.add_space(5.);
+                    ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
                         ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::None, FireStrategy::None.name())
@@ -429,10 +445,14 @@ pub fn weapons_panel(
                 ui.add_enabled_ui(player.fence.health > 0., |ui| {
                     ui.horizontal(|ui| {
                         ui.add_image(fence_texture, [20., 25.]);
-                        ui.add(egui::Label::new("Fence: "));
+                        let label = ui.add(egui::Label::new("Fence: ")).on_hover_cursor(CursorIcon::PointingHand);
                         ui.add(toggle(&mut player.fence.enabled)).on_hover_text(
-                            "The electric fence does damage to adjacent enemies, but costs gasoline.",
+                            "Electrifying the fence does damage to adjacent enemies, but costs gasoline.",
                         );
+
+                        if label.clicked() {
+                            player.fence.enabled = !player.fence.enabled;
+                        }
 
                         if player.fence.enabled {
                             ui.add_image(lightning_texture, [20., 20.]);
@@ -440,31 +460,37 @@ pub fn weapons_panel(
                     });
                 });
 
-                ui.add_space(5.);
+                ui.add_space(7.);
 
                 ui.add_enabled_ui(player.technology.spotlight && *game_state.get() == GameState::Running, |ui| {
                     ui.horizontal(|ui| {
                         ui.add_image(spotlight_texture, [20., 20.]);
-                        ui.add(egui::Label::new("Spotlight: "));
-                        let slider = ui.add(egui::Slider::new(&mut player.spotlight.power, 0..=100).show_value(false))
+                        let label = ui.add(egui::Label::new("Spotlight: ")).on_hover_cursor(CursorIcon::PointingHand);
+                        ui.add(egui::Slider::new(&mut player.spotlight.power, 0..=MAX_SPOTLIGHT_POWER).show_value(false))
                             .on_hover_text("More power means more visibility, but costs more gasoline.");
 
                         if player.spotlight.power > 0 {
                             ui.add_image(bulb_texture, [20., 20.]);
                         }
 
-                        if slider.changed() {
-                            if let Some(mut fow) = fow_q.iter_mut().next() {
-                                fow.translation.y = SIZE.y * 0.5
-                                    - MENU_PANEL_SIZE.y
-                                    - FOW_SIZE.y * 0.5
-                                    + (FOW_SIZE.y / 100. * player.spotlight.power as f32);
+                        if label.clicked() {
+                            player.spotlight.power = if player.spotlight.power > 0 {
+                                0
+                            } else {
+                                MAX_SPOTLIGHT_POWER
                             }
+                        }
+
+                        if let Some(mut fow) = fow_q.iter_mut().next() {
+                            fow.translation.y = SIZE.y * 0.5
+                                - MENU_PANEL_SIZE.y
+                                - FOW_SIZE.y * 0.5
+                                + (FOW_SIZE.y / MAX_SPOTLIGHT_POWER as f32 * player.spotlight.power as f32);
                         }
                     });
                 });
 
-                ui.add_space(5.);
+                ui.add_space(7.);
 
                 ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
                     ui.horizontal(|ui| {

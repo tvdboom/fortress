@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::AnimationComponent;
+use crate::game::map::components::{AnimationComponent, FogOfWar};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
 use crate::utils::collision;
@@ -16,10 +16,11 @@ pub fn spawn_weapons(
     asset_server: Res<AssetServer>,
 ) {
     if player.fence.max_health > 0. {
+        let level = (player.fence.max_health as u32 / 100).min(3);
         commands.spawn((
             Sprite {
-                image: asset_server.load("map/fence.png"),
-                custom_size: Some(FENCE_SIZE),
+                image: asset_server.load(format!("map/fence{}.png", level)),
+                custom_size: Some(Vec2::new(FENCE_SIZE.x, FENCE_SIZE.y * level as f32 / 3.)),
                 ..default()
             },
             Transform::from_xyz(
@@ -114,18 +115,10 @@ pub fn spawn_weapons(
 pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon), With<Weapon>>,
-    enemy_q: Query<
-        (Entity, &Transform, &Enemy),
-        (With<Enemy>, Without<Weapon>, Without<Fence>, Without<Wall>),
-    >,
-    fence_q: Query<
-        (&Transform, &Sprite),
-        (With<Fence>, Without<Enemy>, Without<Weapon>, Without<Wall>),
-    >,
-    wall_q: Query<
-        (&Transform, &Sprite),
-        (With<Wall>, Without<Enemy>, Without<Weapon>, Without<Fence>),
-    >,
+    enemy_q: Query<(Entity, &Transform, &Enemy), (With<Enemy>, Without<Weapon>)>,
+    fence_q: Query<(&Transform, &Sprite), (With<Fence>, Without<Weapon>)>,
+    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<Weapon>)>,
+    fow_q: Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
@@ -135,7 +128,7 @@ pub fn spawn_bullets(
 ) {
     for (mut transform, mut weapon) in weapon_q.iter_mut() {
         // Select a target in range
-        if let Some((enemy_t, enemy)) = weapon.get_lock(&transform, &enemy_q, &player) {
+        if let Some((enemy_t, enemy)) = weapon.get_lock(&transform, &enemy_q, &fow_q, &player) {
             if player.resources >= weapon.fire_cost {
                 let mut bullet = weapon.bullet.clone();
 
@@ -359,8 +352,7 @@ pub fn update_resources(
         }
     }
 
-    player.resources.gasoline -=
-        player.spotlight.cost.gasoline * game_settings.speed * time.delta_secs();
+    player.resources -= &player.spotlight.cost * player.spotlight.power as f32 * game_settings.speed * time.delta_secs();
 }
 
 pub fn resolve_enemy_impact(

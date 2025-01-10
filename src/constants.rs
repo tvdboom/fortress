@@ -31,4 +31,5 @@ pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 pub const MAX_SPOTS: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;
+pub const MAX_SPOTLIGHT_POWER: u32 = 100;
 pub const MAX_MINES: u32 = 25;

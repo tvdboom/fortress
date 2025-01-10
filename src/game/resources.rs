@@ -5,7 +5,7 @@ use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 use std::cmp::Ordering;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 #[derive(Resource)]
 pub struct GameSettings {
@@ -53,45 +53,79 @@ impl PartialOrd for Resources {
     }
 }
 
-impl Add for Resources {
-    type Output = Self;
+macro_rules! resources_binary_ops {
+    ($($trait:ident, $method:ident, $op:tt);*;) => {
+        $(
+            // Binary operations with Resources
+            impl $trait for Resources {
+                type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            bullets: self.bullets + rhs.bullets,
-            gasoline: self.gasoline + rhs.gasoline,
-            materials: self.materials + rhs.materials,
-        }
-    }
+                fn $method(self, rhs: Self) -> Self::Output {
+                    Self {
+                        bullets: self.bullets $op rhs.bullets,
+                        gasoline: self.gasoline $op rhs.gasoline,
+                        materials: self.materials $op rhs.materials,
+                    }
+                }
+            }
+
+            // Binary operations with float
+            impl<T: Into<f32>> $trait<T> for Resources {
+                type Output = Self;
+
+                fn $method(self, rhs: T) -> Self::Output {
+                    let float = rhs.into();
+                    Self {
+                        bullets: self.bullets $op float,
+                        gasoline: self.gasoline $op float,
+                        materials: self.materials $op float,
+                    }
+                }
+            }
+        )*
+    };
 }
 
-impl Sub for Resources {
-    type Output = Self;
+resources_binary_ops!(
+    Add, add, +;
+    Sub, sub, -;
+    Mul, mul, *;
+    Div, div, /;
+);
 
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            bullets: self.bullets - rhs.bullets,
-            gasoline: self.gasoline - rhs.gasoline,
-            materials: self.materials - rhs.materials,
-        }
-    }
+
+macro_rules! resources_assignment_ops {
+    ($($trait:ident, $method:ident, $op:tt);*;) => {
+        $(
+            // Assignment operations with Resources
+            impl $trait<&Self> for Resources {
+                fn $method(&mut self, rhs: &Self) {
+                    self.bullets $op rhs.bullets;
+                    self.gasoline $op rhs.gasoline;
+                    self.materials $op rhs.materials;
+                }
+            }
+
+            // Assignment operations with float
+            impl<T: Into<f32>> $trait<T> for Resources {
+                fn $method(&mut self, rhs: T) {
+                    let float = rhs.into();
+                    self.bullets $op float;
+                    self.gasoline $op float;
+                    self.materials $op float;
+                }
+            }
+        )*
+    };
 }
 
-impl AddAssign<&Self> for Resources {
-    fn add_assign(&mut self, rhs: &Self) {
-        self.bullets += rhs.bullets;
-        self.gasoline += rhs.gasoline;
-        self.materials += rhs.materials;
-    }
-}
+resources_assignment_ops!(
+    AddAssign, add_assign, +=;
+    SubAssign, sub_assign, -=;
+    MulAssign, mul_assign, *=;
+    DivAssign, div_assign, /=;
+);
 
-impl SubAssign<&Self> for Resources {
-    fn sub_assign(&mut self, rhs: &Self) {
-        self.bullets -= rhs.bullets;
-        self.gasoline -= rhs.gasoline;
-        self.materials -= rhs.materials;
-    }
-}
 
 pub struct Wall {
     pub health: f32,
@@ -206,9 +240,9 @@ impl Player {
                 ],
                 mines: 0,
                 settings: WeaponSettings {
-                    sentry_gun_fire_rate: 1,
-                    flamethrower_power: 1,
-                    aaa_fire_strategy: AAAFireStrategy::All,
+                    sentry_gun_fire_rate: 0,
+                    flamethrower_power: 0,
+                    aaa_fire_strategy: AAAFireStrategy::None,
                     mortar_shell: MortarShell::None,
                     turret_fire_strategy: FireStrategy::None,
                     mine_sensibility: Size::Medium,

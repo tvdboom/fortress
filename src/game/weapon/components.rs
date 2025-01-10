@@ -1,5 +1,6 @@
-use crate::constants::MAP_SIZE;
+use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
+use crate::game::map::components::FogOfWar;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
@@ -165,10 +166,8 @@ impl Weapon {
     pub fn get_lock<'a>(
         &mut self,
         transform: &Transform,
-        enemy_q: &'a Query<
-            (Entity, &Transform, &Enemy),
-            (With<Enemy>, Without<Weapon>, Without<Fence>, Without<Wall>),
-        >,
+        enemy_q: &'a Query<(Entity, &Transform, &Enemy), (With<Enemy>, Without<Weapon>)>,
+        fow_q: &Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
     ) -> Option<(&'a Transform, &'a Enemy)> {
         // If a target is locked and still exists, return it's current position
@@ -179,6 +178,15 @@ impl Weapon {
         }
 
         let enemies = enemy_q.iter().filter_map(|(entity, enemy_t, enemy)| {
+            // Ignore enemies behind the fow
+            if let Some(fow_t) = fow_q.iter().next() {
+                if fow_t.translation.y - FOW_SIZE.y * 0.5
+                    < enemy_t.translation.y - enemy.dim.y * 0.5
+                {
+                    return None;
+                }
+            }
+
             // Special case => AAA's don't shoot ground units when strategy is Airborne
             if self.name == WeaponName::AAA
                 && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
@@ -283,7 +291,7 @@ impl Weapon {
 
                     self.fire_strategy = FireStrategy::Closest;
                     self.fire_animation.scale.x = 1.5 + power * 0.5;
-                    if let Some(mut timer) = self.fire_timer.as_mut() {
+                    if let Some(timer) = self.fire_timer.as_mut() {
                         timer.set_duration(Duration::from_secs_f32(0.6 - power * 0.1));
                     }
                     self.bullet.max_distance = 100. * (1.5 + power * 0.5);
