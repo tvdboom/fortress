@@ -1,7 +1,8 @@
 use super::components::*;
-use crate::constants::{RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::constants::{EnemyQ, SpriteQ, ENEMY_Z, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Fence, Wall};
+use crate::game::weapon::utils::get_structure_top;
 use crate::game::AppState;
 use crate::utils::scale_duration;
 use bevy::color::{
@@ -48,7 +49,7 @@ pub fn spawn_enemies(
                         custom_size: Some(enemy.dim),
                         ..default()
                     },
-                    Transform::from_xyz(x, SIZE.y * 0.5, 2.0),
+                    Transform::from_xyz(x, SIZE.y * 0.5, ENEMY_Z),
                     enemy.clone(),
                 ))
                 .with_children(|parent| {
@@ -59,7 +60,7 @@ pub fn spawn_enemies(
                                 custom_size: Some(Vec2::new(enemy.dim.x * 0.8, enemy.dim.y * 0.1)),
                                 ..default()
                             },
-                            Transform::from_xyz(0., enemy.dim.y * 0.5 - 5.0, 1.5),
+                            Transform::from_xyz(0., enemy.dim.y * 0.5 - 5.0, ENEMY_Z + 0.1),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
@@ -71,7 +72,7 @@ pub fn spawn_enemies(
                                     )),
                                     ..default()
                                 },
-                                Transform::from_xyz(0., 0., 1.6),
+                                Transform::from_xyz(0., 0., ENEMY_Z + 0.2),
                                 EnemyHealth,
                             ));
                         });
@@ -92,24 +93,21 @@ pub fn spawn_enemies(
 pub fn move_enemies(
     mut commands: Commands,
     mut enemy_q: Query<(Entity, &mut Transform, &mut Enemy)>,
-    fence_q: Query<(Entity, &Transform, &Sprite), (With<Fence>, Without<Enemy>)>,
-    wall_q: Query<(Entity, &Transform, &Sprite), (With<Wall>, Without<Enemy>)>,
+    fence_q: Query<SpriteQ, (With<Fence>, Without<Enemy>)>,
+    wall_q: Query<SpriteQ, (With<Wall>, Without<Enemy>)>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
-    mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
-    mut night_stats: ResMut<NightStats>,
 ) {
-    for (enemy_entity, mut transform, mut enemy) in enemy_q.iter_mut() {
-        let new_pos =
-            transform.translation.y - enemy.speed * game_settings.speed * time.delta_secs();
+    for (enemy_e, mut enemy_t, mut enemy) in enemy_q.iter_mut() {
+        let new_pos = enemy_t.translation.y - enemy.speed * game_settings.speed * time.delta_secs();
 
         if !enemy.can_fly {
-            if let Some((entity, t, fence)) = fence_q.iter().next() {
-                let fence_y = t.translation.y + fence.custom_size.unwrap().y * 0.5;
-
-                if new_pos < fence_y + 5. {
-                    transform.translation.y = fence_y + 5.;
+            if let Some(fence_y) = get_structure_top(fence_q.get_single()) {
+                if new_pos < fence_y {
+                    enemy_t.translation.y = fence_y;
 
                     if player.fence.health > enemy.damage {
                         player.fence.health -=
@@ -121,7 +119,7 @@ pub fn move_enemies(
                             if enemy.health > damage {
                                 enemy.health -= damage;
                             } else {
-                                commands.entity(enemy_entity).try_despawn_recursive();
+                                commands.entity(enemy_e).try_despawn_recursive();
 
                                 night_stats
                                     .enemies
@@ -131,23 +129,25 @@ pub fn move_enemies(
                         }
                     } else {
                         player.fence.health = 0.;
-                        commands.entity(entity).try_despawn();
+                        commands
+                            .entity(fence_q.get_single().unwrap().0)
+                            .try_despawn();
                     }
 
                     continue;
                 }
-            } else if let Some((entity, t, wall)) = wall_q.iter().next() {
-                let wall_y = t.translation.y + wall.custom_size.unwrap().y * 0.5;
-
-                if new_pos < wall_y + 5. {
-                    transform.translation.y = wall_y + 5.;
+            } else if let Some(wall_y) = get_structure_top(wall_q.get_single()) {
+                if new_pos < wall_y {
+                    enemy_t.translation.y = wall_y;
 
                     if player.wall.health > enemy.damage {
                         player.wall.health -=
                             enemy.damage * game_settings.speed * time.delta_secs();
                     } else {
                         player.wall.health = 0.;
-                        commands.entity(entity).try_despawn();
+                        commands
+                            .entity(wall_q.get_single().unwrap().0)
+                            .try_despawn();
                     }
 
                     continue;
@@ -158,30 +158,30 @@ pub fn move_enemies(
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
                 player.survivors -= enemy.damage as u32;
-                commands.entity(enemy_entity).try_despawn_recursive();
+                commands.entity(enemy_e).try_despawn_recursive();
             } else {
                 player.survivors = 0;
                 next_state.set(AppState::GameOver);
             }
         } else {
-            transform.translation.y = new_pos;
+            enemy_t.translation.y = new_pos;
         }
     }
 }
 
 pub fn update_enemy_health_bars(
-    enemy_q: Query<(&Enemy, Entity)>,
+    enemy_q: Query<EnemyQ>,
     children_q: Query<&Children>,
     mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
 ) {
-    for (enemy, entity) in enemy_q.iter() {
+    for (entity, _, enemy) in enemy_q.iter() {
         if enemy.health < enemy.max_health {
             for child in children_q.iter_descendants(entity) {
-                if let Ok((mut transform, mut sprite)) = health_q.get_mut(child) {
+                if let Ok((mut sprite_t, mut sprite)) = health_q.get_mut(child) {
                     if let Some(size) = sprite.custom_size.as_mut() {
                         let full_size = enemy.dim.x * 0.8 - 2.0;
                         size.x = full_size * enemy.health / enemy.max_health;
-                        transform.translation.x = (size.x - full_size) * 0.5;
+                        sprite_t.translation.x = (size.x - full_size) * 0.5;
                     }
                 }
             }

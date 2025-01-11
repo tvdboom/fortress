@@ -1,5 +1,6 @@
-use crate::constants::{FOW_SIZE, MAP_SIZE};
+use crate::constants::{EnemyQ, SpriteQ, FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
+use crate::game::enemy::utils::{EnemyOperations, EnemySelection};
 use crate::game::map::components::FogOfWar;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
@@ -79,8 +80,8 @@ pub struct Weapon {
     /// Rotation speed in radians per second
     pub rotation_speed: f32,
 
-    /// Entity to shoot towards
-    pub lock: Option<Entity>,
+    /// Entity to point to
+    pub target: Option<Entity>,
 
     /// Price to buy the weapon
     pub price: Resources,
@@ -88,8 +89,8 @@ pub struct Weapon {
     /// Animation to play when firing
     pub fire_animation: FireAnimation,
 
-    /// Resources required to fire
-    pub fire_cost: Resources,
+    /// Number of bullets fired per shot
+    pub n_bullets: u32,
 
     /// Time between shots (reload time)
     pub fire_timer: Option<Timer>,
@@ -109,9 +110,18 @@ pub struct Damage {
     /// Damage to flying enemies
     pub air: f32,
 
-    /// Armor penetration
-    /// Penetration also damages structures when in explosion
+    /// Armor penetration. Also damages structures if in explosion
     pub penetration: f32,
+}
+
+impl Default for Damage {
+    fn default() -> Self {
+        Self {
+            ground: 0.,
+            air: 0.,
+            penetration: 0.,
+        }
+    }
 }
 
 impl Damage {
@@ -137,8 +147,28 @@ pub struct Explosion {
     pub damage: Damage,
 }
 
+impl Default for Explosion {
+    fn default() -> Self {
+        Self {
+            atlas: "explosion",
+            interval: 0.01,
+            radius: 0.,
+            damage: default(),
+        }
+    }
+}
+
 #[derive(Clone)]
-pub enum Detonation {
+pub enum Movement {
+    /// Bullets flies straight at `angle`
+    Straight,
+
+    /// Bullets homes in on `Entity`
+    Homing(Entity),
+}
+
+#[derive(Clone)]
+pub enum Impact {
     /// Damage is applied to a single enemy
     SingleTarget(Damage),
 
@@ -163,80 +193,74 @@ pub struct Bullet {
     /// Dimensions (size) of the sprite
     pub dim: Vec2,
 
+    /// Cost per bullet
+    pub price: Resources,
+
     /// Distance traveled per second
     pub speed: f32,
-    pub angle: f32,
-    pub detonation: Detonation,
 
-    /// Maximum distance the bullet can travel (despawned after)
-    pub max_distance: f32,
+    /// Movement type
+    pub movement: Movement,
+
+    /// Angle (in radians) the bullet points to
+    pub angle: f32,
+
+    /// Impact type (what happens on collision)
+    pub impact: Impact,
 
     /// Current distance traveled by the bullet
     pub distance: f32,
+
+    /// Maximum distance the bullet can travel (despawn after)
+    pub max_distance: f32,
 }
 
 impl Weapon {
-    pub fn get_lock<'a>(
+    pub fn acquire_targets(
         &mut self,
         transform: &Transform,
-        enemy_q: &'a Query<(Entity, &Transform, &Enemy), (With<Enemy>, Without<Weapon>)>,
-        fow_q: &Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
+        enemy_q: &Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
+        fow_q: &Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
-    ) -> Option<(&'a Transform, &'a Enemy)> {
-        // If a target is locked and still exists, return it's current position
-        if let Some(entity) = self.lock {
+    ) -> Option<Vec<(EnemyQ)>> {
+        // If a target is locked and still exists, return it
+        if let Some(entity) = self.target {
             if let Ok((_, t, e)) = enemy_q.get(entity) {
                 return Some((t, e));
             }
         }
 
-        let enemies = enemy_q.iter().filter_map(|(entity, enemy_t, enemy)| {
-            // Ignore enemies behind the fow
-            if let Some(fow_t) = fow_q.iter().next() {
-                if fow_t.translation.y - FOW_SIZE.y * 0.5
-                    < enemy_t.translation.y - enemy.dim.y * 0.5
-                {
-                    return None;
-                }
+        let enemies = enemy_q.iter().filter_map(|enemy_q| {
+            // Check if the enemy is behind the fog of war
+            if !enemy_q.is_visible(fow_q.get_single()) {
+                return None
             }
 
             // Special case => AAA's don't shoot ground units when strategy is Airborne
             if self.name == WeaponName::AAA
                 && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
-                && !enemy.can_fly
+                && !enemy_q.2.can_fly
             {
                 return None;
             }
 
-            let distance = transform.translation.distance(enemy_t.translation);
-            if distance <= self.bullet.max_distance {
-                Some((entity, enemy_t, enemy, distance))
-            } else {
-                None
+            // Check if the enemy is in range
+            let distance = transform.translation.distance(enemy_q.1.translation);
+            if distance > self.bullet.max_distance {
+                return None;
             }
+
+            Some((enemy_q, distance))
         });
 
-        if let Some((entity, t, enemy, _)) = match self.fire_strategy {
+        if let Some((enemy_e, enemy_t, enemy)) = match self.fire_strategy {
             FireStrategy::None => None,
-            FireStrategy::Closest => {
-                enemies.min_by(|(_, _, _, d1), (_, _, _, d2)| d1.partial_cmp(d2).unwrap())
-            }
-            FireStrategy::Strongest => enemies.max_by(|(_, _, e1, _), (_, _, e2, _)| {
-                e1.max_health.partial_cmp(&e2.max_health).unwrap()
-            }),
-            FireStrategy::Density => enemies.max_by_key(|(_, t1, _, _)| {
-                if let Detonation::OnLocationExplosion(x) = &self.bullet.detonation {
-                    enemy_q
-                        .iter()
-                        .filter(|(_, &t2, _)| t1.translation.distance(t2.translation) < x.radius)
-                        .count()
-                } else {
-                    panic!("Invalid detonation type for density fire strategy.")
-                }
-            }),
+            FireStrategy::Closest => enemies.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(e, _)| e),
+            FireStrategy::Strongest => Some(enemies.get_strongest()),
+            FireStrategy::Density => Some(enemies.get_most_dense(&self.bullet.impact)),
         } {
-            self.lock = Some(entity);
-            return Some((t, enemy));
+            self.target = Some(enemy_e);
+            return Some(vec![(enemy_e, enemy_t, enemy)]);
         }
 
         None
@@ -281,7 +305,7 @@ impl Weapon {
                     AAAFireStrategy::None => self.fire_strategy = FireStrategy::None,
                     AAAFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
-                        self.bullet.detonation = Detonation::SingleTarget(Damage {
+                        self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 5.,
                             air: 5.,
                             penetration: 0.,
@@ -289,7 +313,7 @@ impl Weapon {
                     }
                     AAAFireStrategy::Airborne => {
                         self.fire_strategy = FireStrategy::Closest;
-                        self.bullet.detonation = Detonation::SingleTarget(Damage {
+                        self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
                             air: 20.,
                             penetration: 0.,
@@ -308,7 +332,7 @@ impl Weapon {
                         timer.set_duration(Duration::from_secs_f32(0.6 - power * 0.1));
                     }
                     self.bullet.max_distance = 100. * (1.5 + power * 0.5);
-                    self.bullet.detonation = Detonation::Piercing(Damage {
+                    self.bullet.impact = Impact::Piercing(Damage {
                         ground: power,
                         air: power,
                         penetration: power,
@@ -325,15 +349,14 @@ impl Weapon {
                             bullets: 15.,
                             ..default()
                         };
-                        self.bullet.detonation = Detonation::OnLocationExplosion(Explosion {
-                            atlas: "explosion1",
-                            interval: 0.01,
+                        self.bullet.impact = Impact::OnLocationExplosion(Explosion {
                             radius: 0.15 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 50.,
                                 air: 50.,
                                 penetration: 0.,
                             },
+                            ..default()
                         })
                     }
                     MortarShell::Heavy => {
@@ -342,15 +365,14 @@ impl Weapon {
                             bullets: 30.,
                             ..default()
                         };
-                        self.bullet.detonation = Detonation::OnLocationExplosion(Explosion {
-                            atlas: "explosion1",
-                            interval: 0.01,
+                        self.bullet.impact = Impact::OnLocationExplosion(Explosion {
                             radius: 0.25 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 75.,
                                 air: 50.,
                                 penetration: 25.,
                             },
+                            ..default()
                         })
                     }
                 };
@@ -398,7 +420,7 @@ impl Default for WeaponManager {
                 image: "weapon/machine-gun.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 100.,
                     ..default()
@@ -419,7 +441,7 @@ impl Default for WeaponManager {
                     dim: Vec2::new(25., 7.),
                     speed: 0.8 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::SingleTarget(Damage {
+                    impact: Impact::SingleTarget(Damage {
                         ground: 5.,
                         air: 0.,
                         penetration: 0.,
@@ -433,7 +455,7 @@ impl Default for WeaponManager {
                 image: "weapon/flamethrower.png",
                 dim: Vec2::new(60., 60.),
                 rotation_speed: 5.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -454,7 +476,7 @@ impl Default for WeaponManager {
                     dim: Vec2::new(20., 7.),
                     speed: 1.2 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::Piercing(Damage {
+                    impact: Impact::Piercing(Damage {
                         ground: 1.,
                         air: 1.,
                         penetration: 0.,
@@ -468,7 +490,7 @@ impl Default for WeaponManager {
                 image: "weapon/aaa.png",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -489,7 +511,7 @@ impl Default for WeaponManager {
                     dim: Vec2::new(20., 7.),
                     speed: 1.2 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::SingleTarget(Damage {
+                    impact: Impact::SingleTarget(Damage {
                         ground: 5.,
                         air: 5.,
                         penetration: 0.,
@@ -503,7 +525,7 @@ impl Default for WeaponManager {
                 image: "weapon/mortar.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 3.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 400.,
                     ..default()
@@ -524,15 +546,14 @@ impl Default for WeaponManager {
                     dim: Vec2::new(25., 10.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::OnLocationExplosion(Explosion {
-                        atlas: "explosion1",
-                        interval: 0.01,
+                    impact: Impact::OnLocationExplosion(Explosion {
                         radius: 0.15 * MAP_SIZE.y,
                         damage: Damage {
                             ground: 50.,
                             air: 50.,
                             penetration: 0.,
                         },
+                        ..default()
                     }),
                     max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
@@ -543,7 +564,7 @@ impl Default for WeaponManager {
                 image: "weapon/turret.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 1000.,
                     ..default()
@@ -564,7 +585,7 @@ impl Default for WeaponManager {
                     dim: Vec2::new(25., 25.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::SingleTarget(Damage {
+                    impact: Impact::SingleTarget(Damage {
                         ground: 50.,
                         air: 50.,
                         penetration: 10.,
@@ -578,7 +599,7 @@ impl Default for WeaponManager {
                 image: "weapon/missile-launcher.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                lock: None,
+                target: None,
                 price: Resources {
                     materials: 1200.,
                     ..default()
@@ -599,15 +620,14 @@ impl Default for WeaponManager {
                     dim: Vec2::new(20., 10.),
                     speed: 0.6 * MAP_SIZE.y,
                     angle: 0.,
-                    detonation: Detonation::OnTargetExplosion(Explosion {
-                        atlas: "explosion1",
-                        interval: 0.01,
+                    impact: Impact::OnTargetExplosion(Explosion {
                         radius: 0.1 * MAP_SIZE.y,
                         damage: Damage {
                             ground: 30.,
                             air: 30.,
                             penetration: 5.,
                         },
+                        ..default()
                     }),
                     max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
@@ -618,8 +638,7 @@ impl Default for WeaponManager {
                 dim: Vec2::new(30., 20.),
                 speed: 0.4 * MAP_SIZE.y,
                 angle: -PI * 0.5,
-                detonation: Detonation::OnLocationExplosion(Explosion {
-                    atlas: "explosion2",
+                impact: Impact::OnLocationExplosion(Explosion {
                     interval: 0.05,
                     radius: 0.7 * MAP_SIZE.y,
                     damage: Damage {
@@ -627,6 +646,7 @@ impl Default for WeaponManager {
                         air: 80.,
                         penetration: 20.,
                     },
+                    ..default()
                 }),
                 max_distance: 0., // Set during spawn
                 distance: 0.,
@@ -636,8 +656,7 @@ impl Default for WeaponManager {
                 dim: Vec2::new(30., 20.),
                 speed: 0.,
                 angle: 0.,
-                detonation: Detonation::OnHitExplosion(Explosion {
-                    atlas: "explosion1",
+                impact: Impact::OnHitExplosion(Explosion {
                     interval: 0.05,
                     radius: 0.2 * MAP_SIZE.y,
                     damage: Damage {
@@ -645,6 +664,7 @@ impl Default for WeaponManager {
                         air: 0.,
                         penetration: 20.,
                     },
+                    ..default()
                 }),
                 max_distance: f32::MAX,
                 distance: 0.,

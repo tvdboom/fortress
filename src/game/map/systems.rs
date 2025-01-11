@@ -2,11 +2,13 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
+use crate::game::enemy::utils::EnemySelection;
+use crate::game::map::utils::{collision, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
-use crate::game::weapon::systems::{calculate_distance, resolve_enemy_impact};
+use crate::game::weapon::utils::resolve_impact;
 use crate::game::{AppState, GameState};
-use crate::utils::{collision, scale_duration, toggle, CustomUi, NameFromEnum};
+use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
@@ -34,7 +36,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         Transform::from_xyz(
             -WEAPONS_PANEL_SIZE.x * 0.5,
             SIZE.y * 0.5 - MENU_PANEL_SIZE.y - MAP_SIZE.y * 0.5,
-            0.0,
+            MAP_Z,
         ),
         Map,
     ));
@@ -48,7 +50,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
         Transform::from_xyz(
             -WEAPONS_PANEL_SIZE.x * 0.5,
             SIZE.y * 0.5 - MENU_PANEL_SIZE.y - FOW_SIZE.y * 0.5,
-            10.,
+            FOW_Z,
         ),
         FogOfWar,
     ));
@@ -63,7 +65,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
             Transform::from_xyz(
                 -WEAPONS_PANEL_SIZE.x * 0.5,
                 (RESOURCES_PANEL_SIZE.y + WALL_SIZE.y) * 0.5,
-                4.9,
+                f32::MAX - 0.1,
             ),
             Visibility::Hidden,
             PauseWrapper,
@@ -73,7 +75,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text2d::new("Paused".to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0., 0., 5.0),
+                Transform::from_xyz(0., 0., f32::MAX),
                 PauseText,
             ));
         });
@@ -304,9 +306,9 @@ pub fn weapons_panel(
     mut commands: Commands,
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    enemy_q: Query<(&Transform, &Enemy), (With<Enemy>, Without<FogOfWar>)>,
-    fence_q: Query<(&Transform, &Sprite), (With<Fence>, Without<FogOfWar>)>,
-    wall_q: Query<(&Transform, &Sprite), (With<Wall>, Without<FogOfWar>)>,
+    enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
+    fence_q: Query<SpriteQ, (With<Fence>, Without<FogOfWar>)>,
+    wall_q: Query<SpriteQ, (With<Wall>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     app_state: Res<State<AppState>>,
@@ -488,15 +490,9 @@ pub fn weapons_panel(
 
                                 let mut bomb = weapons.bomb.clone();
 
-                                let (enemy_t, enemy) = match player.weapons.settings.bombing_strategy {
-                                    // FireStrategy::Density => {
-                                    //     Vec3::new(0., 0., 0.)
-                                    // },
-                                    FireStrategy::Strongest => {
-                                        enemy_q.iter().max_by(|(_, e1), (_, e2)| {
-                                            e1.max_health.partial_cmp(&e2.max_health).unwrap()
-                                        }).unwrap()
-                                    },
+                                let (_, enemy_t, enemy) = match player.weapons.settings.bombing_strategy {
+                                    FireStrategy::Density => enemy_q.iter().get_most_dense(&bomb.impact),
+                                    FireStrategy::Strongest => enemy_q.iter().get_strongest(),
                                     _ => unreachable!(),
                                 };
 
@@ -506,8 +502,8 @@ pub fn weapons_panel(
                                     &enemy_t.translation,
                                     &bomb,
                                     &pos,
-                                    fence_q.get_single(),
-                                    wall_q.get_single(),
+                                    get_structure_top(fence_q.get_single()),
+                                    get_structure_top(wall_q.get_single()),
                                     player.technology.movement_prediction
                                 ).length();
 
@@ -590,7 +586,7 @@ pub fn weapons_panel(
                                     }
                                 }
 
-                                if let Some(mut fow) = fow_q.iter_mut().next() {
+                                if let Ok(mut fow) = fow_q.get_single_mut() {
                                     fow.translation.y = SIZE.y * 0.5
                                         - MENU_PANEL_SIZE.y
                                         - FOW_SIZE.y * 0.5
@@ -831,29 +827,10 @@ pub fn enemy_info_panel(
 
 pub fn run_animations(
     mut commands: Commands,
-    mut animation_q: Query<
-        (Entity, &Transform, &mut AnimationComponent, &mut Sprite),
-        With<AnimationComponent>,
-    >,
-    mut enemy_q: Query<(Entity, &Transform, &mut Enemy), With<Enemy>>,
-    fence_q: Query<
-        (Entity, &Transform),
-        (
-            With<Fence>,
-            Without<AnimationComponent>,
-            Without<Enemy>,
-            Without<Wall>,
-        ),
-    >,
-    wall_q: Query<
-        (Entity, &Transform),
-        (
-            With<Wall>,
-            Without<AnimationComponent>,
-            Without<Enemy>,
-            Without<Fence>,
-        ),
-    >,
+    mut animation_q: Query<(Entity, &Transform, &mut AnimationComponent, &mut Sprite)>,
+    mut enemy_q: Query<(Entity, &Transform, &mut Enemy)>,
+    fence_q: Query<(Entity, &Transform), With<Fence>>,
+    wall_q: Query<(Entity, &Transform), With<Wall>>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
@@ -914,12 +891,12 @@ pub fn run_animations(
                                     &enemy.dim,
                                 )
                             })
-                            .for_each(|(enemy_entity, _, mut enemy)| {
-                                resolve_enemy_impact(
+                            .for_each(|(enemy_e, _, mut enemy)| {
+                                resolve_impact(
                                     &mut commands,
-                                    damage,
-                                    enemy_entity,
+                                    enemy_e,
                                     &mut enemy,
+                                    damage,
                                     &mut night_stats,
                                 )
                             });

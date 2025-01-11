@@ -1,4 +1,12 @@
+use crate::game::enemy::components::Enemy;
+use crate::game::weapon::components::{Bullet, Weapon};
 use bevy::math::Vec2;
+use bevy::prelude::*;
+
+pub type BulletQ<'a> = (Entity, &'a Transform, &'a Bullet);
+pub type EnemyQ<'a> = (Entity, &'a Transform, &'a Enemy);
+pub type SpriteQ<'a> = (Entity, &'a Transform, &'a Sprite);
+pub type WeaponQ<'a> = (Entity, &'a Transform, &'a Weapon);
 
 // Font sizes
 pub const NORMAL_FONT_SIZE: f32 = 16.;
@@ -26,6 +34,14 @@ pub const NIGHT_DURATION: f32 = 60.; // In seconds
 pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
 pub const NO_SPAWN_STEP: f32 = 0.1; // Probability spawning decrease per night
 pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
+pub const STRUCTURE_OFFSET: f32 = 5.; // Distance of structure to stop enemy movement
+pub const MAP_Z: f32 = 0.0;
+pub const STRUCTURE_Z: f32 = 1.0;
+pub const BULLET_Z: f32 = 2.0;
+pub const ENEMY_Z: f32 = 3.0;
+pub const WEAPON_Z: f32 = 4.0;
+pub const EXPLOSION_Z: f32 = 5.0;
+pub const FOW_Z: f32 = 6.0;
 
 // Weapon settings
 pub const MAX_SPOTS: u32 = 10;

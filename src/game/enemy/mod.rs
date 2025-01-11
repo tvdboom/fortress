@@ -1,5 +1,6 @@
 pub mod components;
 mod systems;
+pub mod utils;
 
 use super::{AppState, GameState};
 use crate::game::enemy::components::EnemyManager;

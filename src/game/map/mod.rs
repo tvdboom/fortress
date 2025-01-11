@@ -1,5 +1,6 @@
 pub mod components;
 pub mod systems;
+pub mod utils;
 
 use crate::game::map::systems::*;
 use crate::game::{AppState, GameState};

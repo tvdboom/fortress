@@ -1,4 +1,4 @@
-use crate::constants::{BETA, MAP_SIZE, NIGHT_DURATION, NO_SPAWN_START, NO_SPAWN_STEP};
+use crate::constants::*;
 use bevy::prelude::*;
 use bevy::prelude::{Resource, Vec2};
 use rand::distributions::{Distribution, WeightedIndex};
