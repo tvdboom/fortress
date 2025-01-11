@@ -1,4 +1,4 @@
-use crate::constants::{EnemyQ, SpriteQ, FOW_SIZE, MAP_SIZE};
+use crate::constants::{EnemyQ, SpriteQ, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
 use crate::game::enemy::utils::{EnemyOperations, EnemySelection};
 use crate::game::map::components::FogOfWar;
@@ -7,6 +7,7 @@ use crate::utils::scale_duration;
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use std::time::Duration;
+use bevy::reflect::List;
 
 #[derive(Component)]
 pub struct Fence;
@@ -80,9 +81,6 @@ pub struct Weapon {
     /// Rotation speed in radians per second
     pub rotation_speed: f32,
 
-    /// Entity to point to
-    pub target: Option<Entity>,
-
     /// Price to buy the weapon
     pub price: Resources,
 
@@ -91,6 +89,9 @@ pub struct Weapon {
 
     /// Number of bullets fired per shot
     pub n_bullets: u32,
+
+    /// Target entities to point to (length is either zero or `n_bullets`)
+    pub target: Vec<Entity>,
 
     /// Time between shots (reload time)
     pub fire_timer: Option<Timer>,
@@ -211,11 +212,14 @@ pub struct Bullet {
     /// Current distance traveled by the bullet
     pub distance: f32,
 
-    /// Maximum distance the bullet can travel (despawn after)
+    /// The maximum distance the bullet can travel (despawn after)
     pub max_distance: f32,
 }
 
 impl Weapon {
+
+    /// Acquire the targets to fire at. If `self.target` is empty, it will
+    /// select new targets based on the `fire_strategy` and `fire_range`.
     pub fn acquire_targets(
         &mut self,
         transform: &Transform,
@@ -223,11 +227,8 @@ impl Weapon {
         fow_q: &Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
     ) -> Option<Vec<(EnemyQ)>> {
-        // If a target is locked and still exists, return it
-        if let Some(entity) = self.target {
-            if let Ok((_, t, e)) = enemy_q.get(entity) {
-                return Some((t, e));
-            }
+        if self.target.is_empty() {
+            return enemy_q.filter(|(enemy_e, _, _)| self.target.contains(enemy_e)).collect();
         }
 
         let enemies = enemy_q.iter().filter_map(|enemy_q| {
@@ -253,17 +254,19 @@ impl Weapon {
             Some((enemy_q, distance))
         });
 
-        if let Some((enemy_e, enemy_t, enemy)) = match self.fire_strategy {
-            FireStrategy::None => None,
-            FireStrategy::Closest => enemies.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(e, _)| e),
-            FireStrategy::Strongest => Some(enemies.get_strongest()),
-            FireStrategy::Density => Some(enemies.get_most_dense(&self.bullet.impact)),
-        } {
-            self.target = Some(enemy_e);
-            return Some(vec![(enemy_e, enemy_t, enemy)]);
+        let mut targets = match self.fire_strategy {
+            FireStrategy::None => vec![],
+            FireStrategy::Closest => enemies.sort_closest(),
+            FireStrategy::Strongest => enemies.sort_strongest(),
+            FireStrategy::Density => enemies.sort_densest(&self.bullet.impact),
+        }.take(..self.n_bullets).collect();
+
+        // Assign new targets
+        if !targets.is_empty() {
+            self.target = targets.map(|(e, _, _)| e).collect();
         }
 
-        None
+        targets
     }
 
     /// Whether the weapon's timer is finished
@@ -337,7 +340,7 @@ impl Weapon {
                         air: power,
                         penetration: power,
                     });
-                    self.fire_cost.gasoline = power;
+                    self.bullet.price.gasoline = power;
                 }
             },
             WeaponName::Mortar => {
@@ -345,7 +348,7 @@ impl Weapon {
                     MortarShell::None => self.fire_strategy = FireStrategy::None,
                     MortarShell::Light => {
                         self.fire_strategy = FireStrategy::Density;
-                        self.fire_cost = Resources {
+                        self.bullet.price = Resources {
                             bullets: 15.,
                             ..default()
                         };
@@ -361,7 +364,7 @@ impl Weapon {
                     }
                     MortarShell::Heavy => {
                         self.fire_strategy = FireStrategy::Density;
-                        self.fire_cost = Resources {
+                        self.bullet.price = Resources {
                             bullets: 30.,
                             ..default()
                         };
@@ -420,7 +423,7 @@ impl Default for WeaponManager {
                 image: "weapon/machine-gun.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 100.,
                     ..default()
@@ -430,16 +433,18 @@ impl Default for WeaponManager {
                     scale: Vec3::splat(0.5),
                     duration: 0.1,
                 },
-                fire_cost: Resources {
-                    bullets: 1.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: None,
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/bullet.png",
                     dim: Vec2::new(25., 7.),
+                    price: Resources {
+                        bullets: 1.,
+                        ..default()
+                    },
                     speed: 0.8 * MAP_SIZE.y,
+                    movement: Movement::Straight,
                     angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
@@ -455,7 +460,7 @@ impl Default for WeaponManager {
                 image: "weapon/flamethrower.png",
                 dim: Vec2::new(60., 60.),
                 rotation_speed: 5.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -465,16 +470,18 @@ impl Default for WeaponManager {
                     scale: Vec3::new(3., 1., 1.),
                     duration: 0.02,
                 },
-                fire_cost: Resources {
-                    gasoline: 1.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/invisible-bullet.png",
                     dim: Vec2::new(20., 7.),
+                    price: Resources {
+                        gasoline: 1.,
+                        ..default()
+                    },
                     speed: 1.2 * MAP_SIZE.y,
+                    movement: Movement::Straight,
                     angle: 0.,
                     impact: Impact::Piercing(Damage {
                         ground: 1.,
@@ -490,7 +497,7 @@ impl Default for WeaponManager {
                 image: "weapon/aaa.png",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -500,16 +507,18 @@ impl Default for WeaponManager {
                     scale: Vec3::splat(0.5),
                     duration: 0.1,
                 },
-                fire_cost: Resources {
-                    bullets: 5.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
                     image: "weapon/shell.png",
                     dim: Vec2::new(20., 7.),
+                    price: Resources {
+                        bullets: 5.,
+                        ..default()
+                    },
                     speed: 1.2 * MAP_SIZE.y,
+                    movement: Movement::Straight,
                     angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
@@ -525,7 +534,7 @@ impl Default for WeaponManager {
                 image: "weapon/mortar.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 3.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 400.,
                     ..default()
@@ -535,16 +544,18 @@ impl Default for WeaponManager {
                     scale: Vec3::splat(0.5),
                     duration: 0.1,
                 },
-                fire_cost: Resources {
-                    bullets: 15.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(25., 10.),
+                    price: Resources {
+                        bullets: 15.,
+                        ..default()
+                    },
                     speed: 0.6 * MAP_SIZE.y,
+                    movement: Movement::Straight,
                     angle: 0.,
                     impact: Impact::OnLocationExplosion(Explosion {
                         radius: 0.15 * MAP_SIZE.y,
@@ -564,7 +575,7 @@ impl Default for WeaponManager {
                 image: "weapon/turret.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 1000.,
                     ..default()
@@ -574,16 +585,18 @@ impl Default for WeaponManager {
                     scale: Vec3::splat(0.6),
                     duration: 0.1,
                 },
-                fire_cost: Resources {
-                    bullets: 30.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png",
                     dim: Vec2::new(25., 25.),
+                    price: Resources {
+                        bullets: 30.,
+                        ..default()
+                    },
                     speed: 0.6 * MAP_SIZE.y,
+                    movement: Movement::Straight,
                     angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 50.,
@@ -599,7 +612,7 @@ impl Default for WeaponManager {
                 image: "weapon/missile-launcher.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                target: None,
+                target: vec![],
                 price: Resources {
                     materials: 1200.,
                     ..default()
@@ -609,16 +622,18 @@ impl Default for WeaponManager {
                     scale: Vec3::splat(0.7),
                     duration: 0.1,
                 },
-                fire_cost: Resources {
-                    bullets: 15.,
-                    ..default()
-                },
+                n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::Strongest,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(20., 10.),
+                    price: Resources {
+                        bullets: 15.,
+                        ..default()
+                    },
                     speed: 0.6 * MAP_SIZE.y,
+                    movement: Movement::Homing(Entity::from_raw(0)), // Set by spawn_bullet
                     angle: 0.,
                     impact: Impact::OnTargetExplosion(Explosion {
                         radius: 0.1 * MAP_SIZE.y,
@@ -636,7 +651,13 @@ impl Default for WeaponManager {
             bomb: Bullet {
                 image: "weapon/bomb.png",
                 dim: Vec2::new(30., 20.),
+                price: Resources {
+                    bullets: 250.,
+                    gasoline: 250.,
+                    ..default()
+                },
                 speed: 0.4 * MAP_SIZE.y,
+                movement: Movement::Straight,
                 angle: -PI * 0.5,
                 impact: Impact::OnLocationExplosion(Explosion {
                     interval: 0.05,
@@ -654,7 +675,13 @@ impl Default for WeaponManager {
             mine: Bullet {
                 image: "weapon/mine.png",
                 dim: Vec2::new(30., 20.),
+                price: Resources {
+                    bullets: 25.,
+                    gasoline: 25.,
+                    ..default()
+                },
                 speed: 0.,
+                movement: Movement::Straight,
                 angle: 0.,
                 impact: Impact::OnHitExplosion(Explosion {
                     interval: 0.05,

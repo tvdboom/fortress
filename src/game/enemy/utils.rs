@@ -26,12 +26,17 @@ impl EnemyOperations for EnemyQ {
 }
 
 pub trait EnemySelection {
-    fn get_strongest(&self) -> EnemyQ;
-    fn get_most_dense(&self, detonation: &Impact) -> EnemyQ;
+    fn sort_closest(&self) -> Iterator<dyn EnemyQ>;
+    fn sort_strongest(&self) -> Vec<EnemyQ>;
+    fn sort_densest(&self, detonation: &Impact) -> Vec<EnemyQ>;
 }
 
 /// Return the enemy with the highest `max_health`
 impl<I: Sized> EnemySelection for I {
+    fn get_closest(&self) -> EnemyQ {
+        self.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(e, _)| e).unwrap()
+    }
+
     fn get_strongest(&self) -> EnemyQ {
         self.max_by(|(_, _, e1), (_, _, e2)| e1.max_health.partial_cmp(&e2.max_health).unwrap())
             .unwrap()

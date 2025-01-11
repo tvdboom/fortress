@@ -130,7 +130,7 @@ pub fn spawn_bullets(
 ) {
     'e: for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
         if let Some(targets) = weapon.acquire_targets(&weapon_t, &enemy_q, &fow_q, &player) {
-            for (i, (_, enemy_t, enemy)) in targets.iter().enumerate() {
+            for (i, (enemy_e, enemy_t, enemy)) in targets.iter().enumerate() {
                 let mut bullet = weapon.bullet.clone();
 
                 // Homing bullets point at the target and move the angle while flying
@@ -144,7 +144,10 @@ pub fn spawn_bullets(
                         wall_q.get_single(),
                         player.technology.movement_prediction,
                     ),
-                    Movement::Homing { .. } => -(enemy_t.translation - weapon_t.translation),
+                    Movement::Homing(mut entity) => {
+                        entity = *enemy_e;
+                        -(enemy_t.translation - weapon_t.translation)
+                    },
                 };
 
                 let angle = d.y.atan2(d.x);
