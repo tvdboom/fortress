@@ -2,7 +2,7 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
-use crate::game::enemy::utils::EnemySelection;
+use crate::game::enemy::utils::{calculate_distance, EnemySelection};
 use crate::game::map::utils::{collision, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
@@ -491,8 +491,8 @@ pub fn weapons_panel(
                                 let mut bomb = weapons.bomb.clone();
 
                                 let (_, enemy_t, enemy) = match player.weapons.settings.bombing_strategy {
-                                    FireStrategy::Density => enemy_q.iter().get_most_dense(&bomb.impact),
-                                    FireStrategy::Strongest => enemy_q.iter().get_strongest(),
+                                    FireStrategy::Strongest => enemy_q.iter().sort_strongest(),
+                                    FireStrategy::Density => enemy_q.iter().sort_densest(&bomb.impact),
                                     _ => unreachable!(),
                                 };
 
@@ -502,8 +502,8 @@ pub fn weapons_panel(
                                     &enemy_t.translation,
                                     &bomb,
                                     &pos,
-                                    get_structure_top(fence_q.get_single()),
-                                    get_structure_top(wall_q.get_single()),
+                                    fence_q.get_single(),
+                                    wall_q.get_single(),
                                     player.technology.movement_prediction
                                 ).length();
 

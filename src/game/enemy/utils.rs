@@ -33,16 +33,16 @@ pub trait EnemySelection {
 
 /// Return the enemy with the highest `max_health`
 impl<I: Sized> EnemySelection for I {
-    fn get_closest(&self) -> EnemyQ {
+    fn sort_closest(&self) -> EnemyQ {
         self.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(e, _)| e).unwrap()
     }
 
-    fn get_strongest(&self) -> EnemyQ {
+    fn sort_strongest(&self) -> EnemyQ {
         self.max_by(|(_, _, e1), (_, _, e2)| e1.max_health.partial_cmp(&e2.max_health).unwrap())
             .unwrap()
     }
 
-    fn get_most_dense(&self, detonation: &Impact) -> EnemyQ {
+    fn sort_densest(&self, detonation: &Impact) -> EnemyQ {
         self.max_by_key(|(_, t1, _, _)| {
             if let Impact::OnLocationExplosion(e) = detonation {
                 self.filter(|(_, &t2, _)| t1.translation.distance(t2.translation) < e.radius)

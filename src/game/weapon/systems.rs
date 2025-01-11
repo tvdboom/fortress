@@ -128,7 +128,7 @@ pub fn spawn_bullets(
     assets: Local<WorldAssets>,
     asset_server: Res<AssetServer>,
 ) {
-    'e: for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
+    'w: for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
         if let Some(targets) = weapon.acquire_targets(&weapon_t, &enemy_q, &fow_q, &player) {
             for (i, (enemy_e, enemy_t, enemy)) in targets.iter().enumerate() {
                 let mut bullet = weapon.bullet.clone();
@@ -162,8 +162,8 @@ pub fn spawn_bullets(
                             night_stats.resources += &bullet.price;
                             player.resources -= &bullet.price;
 
-                            // Release target lock
-                            weapon.target = None;
+                            // Reset targets
+                            weapon.target = vec![];
 
                             if let FireStrategy::Density = weapon.fire_strategy {
                                 bullet.max_distance = d.length() - bullet.dim.length();
@@ -221,6 +221,8 @@ pub fn spawn_bullets(
                                 bullet,
                             ));
                         }
+                    } else {
+                        continue 'w; // The weapon is not pointing towards the target yet
                     }
                 }
 
@@ -232,7 +234,7 @@ pub fn spawn_bullets(
                     );
                 }
 
-                continue 'e; // Not enough resources to fire -> go to next weapon
+                continue 'w; // Not enough resources to fire
             }
         }
 
