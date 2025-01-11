@@ -2,7 +2,7 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
-use crate::game::enemy::utils::{calculate_distance, EnemySelection};
+use crate::game::enemy::utils::calculate_distance;
 use crate::game::map::utils::{collision, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
@@ -306,7 +306,7 @@ pub fn weapons_panel(
     mut commands: Commands,
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
+    mut enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
     fence_q: Query<SpriteQ, (With<Fence>, Without<FogOfWar>)>,
     wall_q: Query<SpriteQ, (With<Wall>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
@@ -490,11 +490,34 @@ pub fn weapons_panel(
 
                                 let mut bomb = weapons.bomb.clone();
 
-                                let (_, enemy_t, enemy) = match player.weapons.settings.bombing_strategy {
-                                    FireStrategy::Strongest => enemy_q.iter().sort_strongest(),
-                                    FireStrategy::Density => enemy_q.iter().sort_densest(&bomb.impact),
+                                let targets = match player.weapons.settings.bombing_strategy {
+                                    FireStrategy::Strongest => {
+                                        enemy_q.into_iter().sort_by(|(_, _, enemy1), (_, _, enemy2): &(_, _, &Enemy)| {
+                                            enemy1.max_health.partial_cmp(&enemy2.max_health).unwrap()
+                                        })
+                                    },
+                                    FireStrategy::Density => {
+                                        if let Impact::OnLocationExplosion(e) = &bomb.impact {
+                                            enemy_q.into_iter().sort_by(|(_, t1, _): &(_, &Transform, _), (_, t2, _): &(_, &Transform, _)| {
+                                                let density_a = enemy_q
+                                                    .iter()
+                                                    .filter(|(_, t, _)| t1.translation.distance(t.translation) <= e.radius)
+                                                    .count();
+                                                let density_b = enemy_q
+                                                    .iter()
+                                                    .filter(|(_, t, _)| t2.translation.distance(t.translation) <= e.radius)
+                                                    .count();
+
+                                                density_b.cmp(&density_a)
+                                            })
+                                        } else {
+                                            panic!("Invalid detonation type for density fire strategy.")
+                                        }
+                                    },
                                     _ => unreachable!(),
                                 };
+
+                                let (_, enemy_t, enemy) = targets.take(1).collect();
 
                                 let pos = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, 3.0);
                                 bomb.max_distance = calculate_distance(

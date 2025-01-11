@@ -1,6 +1,6 @@
 use crate::constants::{EnemyQ, SpriteQ};
 use crate::game::enemy::components::Enemy;
-use crate::game::weapon::components::{Bullet, Impact};
+use crate::game::weapon::components::Bullet;
 use crate::game::weapon::utils::get_structure_top;
 use bevy::ecs::query::QuerySingleError;
 use bevy::math::Vec3;
@@ -9,48 +9,19 @@ pub trait EnemyOperations {
     fn is_visible(&self, fow_q: Result<SpriteQ, QuerySingleError>) -> bool;
 }
 
-impl EnemyOperations for EnemyQ {
-
+impl EnemyOperations for EnemyQ<'_> {
     /// Whether the enemy is visible or behind the fog of war
     fn is_visible(&self, fow_q: Result<SpriteQ, QuerySingleError>) -> bool {
         if let Ok((_, fow_t, fow)) = fow_q {
-            if fow_t.translation.y - fow.custom_size.expect("Fog of war has no custom size.").y * 0.5
+            if fow_t.translation.y
+                - fow.custom_size.expect("Fog of war has no custom size.").y * 0.5
                 < self.1.translation.y - self.2.dim.y * 0.5
             {
-                return false
+                return false;
             }
         }
 
         true
-    }
-}
-
-pub trait EnemySelection {
-    fn sort_closest(&self) -> Iterator<dyn EnemyQ>;
-    fn sort_strongest(&self) -> Vec<EnemyQ>;
-    fn sort_densest(&self, detonation: &Impact) -> Vec<EnemyQ>;
-}
-
-/// Return the enemy with the highest `max_health`
-impl<I: Sized> EnemySelection for I {
-    fn sort_closest(&self) -> EnemyQ {
-        self.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(e, _)| e).unwrap()
-    }
-
-    fn sort_strongest(&self) -> EnemyQ {
-        self.max_by(|(_, _, e1), (_, _, e2)| e1.max_health.partial_cmp(&e2.max_health).unwrap())
-            .unwrap()
-    }
-
-    fn sort_densest(&self, detonation: &Impact) -> EnemyQ {
-        self.max_by_key(|(_, t1, _, _)| {
-            if let Impact::OnLocationExplosion(e) = detonation {
-                self.filter(|(_, &t2, _)| t1.translation.distance(t2.translation) < e.radius)
-                    .count()
-            } else {
-                panic!("Invalid detonation type for density fire strategy.")
-            }
-        })
     }
 }
 

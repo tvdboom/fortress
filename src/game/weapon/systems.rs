@@ -129,113 +129,112 @@ pub fn spawn_bullets(
     asset_server: Res<AssetServer>,
 ) {
     'w: for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
-        if let Some(targets) = weapon.acquire_targets(&weapon_t, &enemy_q, &fow_q, &player) {
-            for (i, (enemy_e, enemy_t, enemy)) in targets.iter().enumerate() {
-                let mut bullet = weapon.bullet.clone();
+        let mut bullet = weapon.bullet.clone();
 
-                // Homing bullets point at the target and move the angle while flying
-                let d = match bullet.movement {
-                    Movement::Straight => calculate_distance(
-                        enemy,
-                        &enemy_t.translation,
-                        &bullet,
-                        &weapon_t.translation,
-                        fence_q.get_single(),
-                        wall_q.get_single(),
-                        player.technology.movement_prediction,
-                    ),
-                    Movement::Homing(mut entity) => {
-                        entity = *enemy_e;
-                        -(enemy_t.translation - weapon_t.translation)
-                    },
-                };
+        let targets = weapon.acquire_targets(&weapon_t, &enemy_q, &fow_q, &player);
+        for (i, (enemy_e, enemy_t, enemy)) in targets.iter().enumerate() {
+            // Homing bullets point at the target and move the angle while flying
+            let d = match bullet.movement {
+                Movement::Straight => calculate_distance(
+                    enemy,
+                    &enemy_t.translation,
+                    &bullet,
+                    &weapon_t.translation,
+                    fence_q.get_single(),
+                    wall_q.get_single(),
+                    player.technology.movement_prediction,
+                ),
+                Movement::Homing(ref mut entity) => {
+                    *entity = *enemy_e;
+                    -(enemy_t.translation - weapon_t.translation)
+                }
+            };
 
-                let angle = d.y.atan2(d.x);
-                bullet.angle = angle;
+            let angle = d.y.atan2(d.x);
+            bullet.angle = angle;
 
-                // Check if the player has enough resources to fire
-                if player.resources >= bullet.price {
-                    // Check if the weapon points towards the first target
-                    if i > 0 || weapon.is_aiming(&angle, &weapon_t) {
-                        // Check if the weapon can fire (fire timer is finished)
-                        if weapon.can_fire(&time, &game_settings) {
-                            night_stats.resources += &bullet.price;
-                            player.resources -= &bullet.price;
+            // Check if the player has enough resources to fire
+            if player.resources >= bullet.price {
+                // Check if the weapon points towards the first target
+                if i > 0 || weapon.is_aiming(&angle, &weapon_t) {
+                    // Check if the weapon can fire (fire timer is finished)
+                    if weapon.can_fire(&time, &game_settings) {
+                        night_stats.resources += &bullet.price;
+                        player.resources -= &bullet.price;
 
-                            // Reset targets
-                            weapon.target = vec![];
+                        // Reset targets
+                        weapon.target = vec![];
 
-                            if let FireStrategy::Density = weapon.fire_strategy {
-                                bullet.max_distance = d.length() - bullet.dim.length();
-                            }
-
-                            // Spawn fire animation
-                            let atlas = assets.get_atlas(&weapon.fire_animation.atlas);
-                            commands.spawn((
-                                Sprite {
-                                    image: atlas.image,
-                                    texture_atlas: Some(atlas.texture),
-                                    ..default()
-                                },
-                                Transform {
-                                    translation: Vec3::new(
-                                        weapon_t.translation.x
-                                            + weapon.dim.x
-                                                * weapon.fire_animation.scale.x
-                                                * angle.cos(),
-                                        weapon_t.translation.y
-                                            + weapon.dim.y
-                                                * weapon.fire_animation.scale.x
-                                                * angle.sin(),
-                                        4.0,
-                                    ),
-                                    rotation: Quat::from_rotation_z(bullet.angle),
-                                    scale: weapon.fire_animation.scale,
-                                    ..default()
-                                },
-                                AnimationComponent {
-                                    timer: Timer::from_seconds(
-                                        weapon.fire_animation.duration,
-                                        TimerMode::Repeating,
-                                    ),
-                                    last_index: atlas.last_index,
-                                    explosion: None,
-                                },
-                            ));
-
-                            commands.spawn((
-                                Sprite {
-                                    image: asset_server.load(bullet.image),
-                                    custom_size: Some(bullet.dim),
-                                    ..default()
-                                },
-                                Transform {
-                                    translation: Vec3::new(
-                                        weapon_t.translation.x + weapon.dim.x * 0.5 * angle.cos(),
-                                        weapon_t.translation.y + weapon.dim.y * 0.5 * angle.sin(),
-                                        3.0,
-                                    ),
-                                    rotation: Quat::from_rotation_z(bullet.angle),
-                                    ..default()
-                                },
-                                bullet,
-                            ));
+                        if let FireStrategy::Density = weapon.fire_strategy {
+                            bullet.max_distance = d.length() - bullet.dim.length();
                         }
-                    } else {
-                        continue 'w; // The weapon is not pointing towards the target yet
+
+                        // Spawn fire animation
+                        let atlas = assets.get_atlas(&weapon.fire_animation.atlas);
+                        commands.spawn((
+                            Sprite {
+                                image: atlas.image,
+                                texture_atlas: Some(atlas.texture),
+                                ..default()
+                            },
+                            Transform {
+                                translation: Vec3::new(
+                                    weapon_t.translation.x
+                                        + weapon.dim.x
+                                            * weapon.fire_animation.scale.x
+                                            * angle.cos(),
+                                    weapon_t.translation.y
+                                        + weapon.dim.y
+                                            * weapon.fire_animation.scale.x
+                                            * angle.sin(),
+                                    4.0,
+                                ),
+                                rotation: Quat::from_rotation_z(bullet.angle),
+                                scale: weapon.fire_animation.scale,
+                                ..default()
+                            },
+                            AnimationComponent {
+                                timer: Timer::from_seconds(
+                                    weapon.fire_animation.duration,
+                                    TimerMode::Repeating,
+                                ),
+                                last_index: atlas.last_index,
+                                explosion: None,
+                            },
+                        ));
+
+                        commands.spawn((
+                            Sprite {
+                                image: asset_server.load(bullet.image),
+                                custom_size: Some(bullet.dim),
+                                ..default()
+                            },
+                            Transform {
+                                translation: Vec3::new(
+                                    weapon_t.translation.x + weapon.dim.x * 0.5 * angle.cos(),
+                                    weapon_t.translation.y + weapon.dim.y * 0.5 * angle.sin(),
+                                    3.0,
+                                ),
+                                rotation: Quat::from_rotation_z(bullet.angle),
+                                ..default()
+                            },
+                            bullet,
+                        ));
                     }
+                } else {
+                    continue 'w; // The weapon is not pointing towards the target yet
                 }
-
-                if i == 0 {
-                    // Rotate only towards the first target
-                    weapon_t.rotation = weapon_t.rotation.slerp(
-                        Quat::from_rotation_z(angle),
-                        weapon.rotation_speed * game_settings.speed * time.delta_secs(),
-                    );
-                }
-
-                continue 'w; // Not enough resources to fire
             }
+
+            if i == 0 {
+                // Rotate only towards the first target
+                weapon_t.rotation = weapon_t.rotation.slerp(
+                    Quat::from_rotation_z(angle),
+                    weapon.rotation_speed * game_settings.speed * time.delta_secs(),
+                );
+            }
+
+            continue 'w; // Not enough resources to fire
         }
 
         // If the weapon couldn't shoot, return to the default position
@@ -329,7 +328,7 @@ pub fn move_bullets(
             }
             Impact::OnTargetExplosion(e) => {
                 if let Movement::Homing(enemy_e) = bullet.movement {
-                    if let Ok((_, enemy_t, enemy)) = enemy_q.get(*enemy_e) {
+                    if let Ok((_, enemy_t, enemy)) = enemy_q.get(enemy_e) {
                         if collision(
                             &bullet_t.translation,
                             &bullet.dim,

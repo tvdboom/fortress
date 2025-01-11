@@ -1,9 +1,9 @@
 use crate::game::resources::Player;
-use bevy::prelude::*;
+use bevy::prelude::{Vec2 as BVec2, Vec3};
 use bevy_egui::egui::*;
 
 /// AABB collision detection
-pub fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
+pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool {
     let p1_min = pos1 - Vec3::new(size1.x / 3.0, size1.y / 3.0, 0.0);
     let p1_max = pos1 + Vec3::new(size1.x / 3.0, size1.y / 3.0, 0.0);
 
@@ -16,7 +16,7 @@ pub fn collision(pos1: &Vec3, size1: &Vec2, pos2: &Vec3, size2: &Vec2) -> bool {
 /// Custom syntactic sugar for repetitive UI elements
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
-    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response;
+    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response;
     fn add_night_stats(&mut self, player: &Player);
 }
 
@@ -25,7 +25,7 @@ impl CustomUi for Ui {
         self.add_sized([120., 40.], Button::new(text))
     }
 
-    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<epaint::Vec2>) -> Response {
+    fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         self.add(Image::new(load::SizedTexture::new(id, size)))
     }
 

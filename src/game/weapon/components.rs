@@ -1,13 +1,12 @@
 use crate::constants::{EnemyQ, SpriteQ, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
-use crate::game::enemy::utils::{EnemyOperations, EnemySelection};
+use crate::game::enemy::utils::EnemyOperations;
 use crate::game::map::components::FogOfWar;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use std::time::Duration;
-use bevy::reflect::List;
 
 #[derive(Component)]
 pub struct Fence;
@@ -90,7 +89,7 @@ pub struct Weapon {
     /// Number of bullets fired per shot
     pub n_bullets: u32,
 
-    /// Target entities to point to (length is either zero or `n_bullets`)
+    /// Target entities to point to
     pub target: Vec<Entity>,
 
     /// Time between shots (reload time)
@@ -217,53 +216,91 @@ pub struct Bullet {
 }
 
 impl Weapon {
-
     /// Acquire the targets to fire at. If `self.target` is empty, it will
     /// select new targets based on the `fire_strategy` and `fire_range`.
-    pub fn acquire_targets(
+    pub fn acquire_targets<'a>(
         &mut self,
         transform: &Transform,
-        enemy_q: &Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
+        enemy_q: &'a Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
         fow_q: &Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
-    ) -> Option<Vec<(EnemyQ)>> {
-        if self.target.is_empty() {
-            return enemy_q.filter(|(enemy_e, _, _)| self.target.contains(enemy_e)).collect();
+    ) -> Vec<&'a EnemyQ> {
+        if !self.target.is_empty() {
+            return self
+                .target
+                .iter_mut()
+                .map(|e| enemy_q.get(*e).unwrap())
+                .collect();
         }
 
-        let enemies = enemy_q.iter().filter_map(|enemy_q| {
-            // Check if the enemy is behind the fog of war
-            if !enemy_q.is_visible(fow_q.get_single()) {
-                return None
+        let mut targets = enemy_q
+            .into_iter()
+            .filter_map(|enemy_q| {
+                // Check if the enemy is behind the fog of war
+                if !enemy_q.is_visible(fow_q.get_single()) {
+                    return None;
+                }
+
+                // Special case => AAA's don't shoot ground units when strategy is Airborne
+                if self.name == WeaponName::AAA
+                    && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
+                    && !enemy_q.2.can_fly
+                {
+                    return None;
+                }
+
+                // Check if the enemy is in range
+                let distance = transform.translation.distance(enemy_q.1.translation);
+                if distance > self.bullet.max_distance {
+                    return None;
+                }
+
+                Some((enemy_q, distance))
+            })
+            .collect::<Vec<(EnemyQ, f32)>>();
+
+        match self.fire_strategy {
+            FireStrategy::None => return vec![],
+            FireStrategy::Closest => {
+                targets.sort_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
             }
-
-            // Special case => AAA's don't shoot ground units when strategy is Airborne
-            if self.name == WeaponName::AAA
-                && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
-                && !enemy_q.2.can_fly
-            {
-                return None;
+            FireStrategy::Strongest => {
+                targets.sort_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
+                    enemy2.max_health.partial_cmp(&enemy1.max_health).unwrap()
+                })
             }
+            FireStrategy::Density => {
+                if let Impact::OnLocationExplosion(e) = &self.bullet.impact {
+                    targets.sort_by(|((_, t1, _), _), ((_, t2, _), _)| {
+                        let density_a = targets
+                            .iter()
+                            .filter(|((_, t, _), _)| {
+                                t1.translation.distance(t.translation) <= e.radius
+                            })
+                            .count();
+                        let density_b = targets
+                            .iter()
+                            .filter(|((_, t, _), _)| {
+                                t2.translation.distance(t.translation) <= e.radius
+                            })
+                            .count();
 
-            // Check if the enemy is in range
-            let distance = transform.translation.distance(enemy_q.1.translation);
-            if distance > self.bullet.max_distance {
-                return None;
+                        density_b.cmp(&density_a)
+                    })
+                } else {
+                    panic!("Invalid detonation type for the density fire strategy.")
+                }
             }
+        };
 
-            Some((enemy_q, distance))
-        });
+        let targets: Vec<&EnemyQ> = targets
+            .iter()
+            .map(|(enemy_q, d)| enemy_q)
+            .take(self.n_bullets as usize)
+            .collect();
 
-        let mut targets = match self.fire_strategy {
-            FireStrategy::None => vec![],
-            FireStrategy::Closest => enemies.sort_closest(),
-            FireStrategy::Strongest => enemies.sort_strongest(),
-            FireStrategy::Density => enemies.sort_densest(&self.bullet.impact),
-        }.take(..self.n_bullets).collect();
-
-        // Assign new targets
         if !targets.is_empty() {
-            self.target = targets.map(|(e, _, _)| e).collect();
+            self.target = targets.iter().map(|(e, _, _)| *e).collect();
         }
 
         targets
@@ -384,7 +421,7 @@ impl Weapon {
                 self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
             }
             WeaponName::MissileLauncher => {
-                self.fire_strategy = FireStrategy::Closest;
+                self.n_bullets = player.weapons.settings.missile_launcher_shells;
             }
         }
     }
