@@ -1,14 +1,14 @@
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
-use crate::game::enemy::utils::calculate_distance;
+use crate::game::enemy::utils::get_future_position;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
 use crate::game::map::utils::collision;
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
-use crate::game::weapon::utils::{resolve_impact, spawn_explosion};
 use bevy::prelude::*;
 use rand::prelude::*;
+use std::collections::HashSet;
 use std::f32::consts::PI;
 
 pub fn spawn_weapons(
@@ -128,47 +128,35 @@ pub fn spawn_bullets(
     assets: Local<WorldAssets>,
     asset_server: Res<AssetServer>,
 ) {
-    'w: for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
-        let mut bullet = weapon.bullet.clone();
+    for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
+        let targets = HashSet::new();
 
-        let targets = weapon.acquire_targets(&weapon_t, &enemy_q, &fow_q, &player);
-        for (i, (enemy_e, enemy_t, enemy)) in targets.iter().enumerate() {
-            // Homing bullets point at the target and move the angle while flying
-            let d = match bullet.movement {
-                Movement::Straight => calculate_distance(
-                    enemy,
-                    &enemy_t.translation,
-                    &bullet,
-                    &weapon_t.translation,
-                    fence_q.get_single(),
-                    wall_q.get_single(),
-                    player.technology.movement_prediction,
-                ),
-                Movement::Homing(ref mut entity) => {
-                    *entity = *enemy_e;
-                    -(enemy_t.translation - weapon_t.translation)
-                }
-            };
+        weapon.target = weapon.acquire_target(&weapon_t, &enemy_q, &fow_q, &player, &targets);
+        if let Some(enemy_e) = weapon.target {
+            let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
 
+            // Determine the bullet's angle towards the target
+            let d = weapon_t.translation
+                - (if player.technology.movement_prediction {
+                    get_future_position(
+                        enemy_t.translation,
+                        enemy.speed,
+                        weapon_t.translation,
+                        weapon.bullet.speed,
+                        fence_q.get_single(),
+                        wall_q.get_single(),
+                    )
+                } else {
+                    enemy_t.translation
+                });
             let angle = d.y.atan2(d.x);
-            bullet.angle = angle;
 
             // Check if the player has enough resources to fire
-            if player.resources >= bullet.price {
+            if player.resources >= weapon.bullet.price {
                 // Check if the weapon points towards the first target
-                if i > 0 || weapon.is_aiming(&angle, &weapon_t) {
+                if weapon.is_aiming(&angle, &weapon_t) {
                     // Check if the weapon can fire (fire timer is finished)
                     if weapon.can_fire(&time, &game_settings) {
-                        night_stats.resources += &bullet.price;
-                        player.resources -= &bullet.price;
-
-                        // Reset targets
-                        weapon.target = vec![];
-
-                        if let FireStrategy::Density = weapon.fire_strategy {
-                            bullet.max_distance = d.length() - bullet.dim.length();
-                        }
-
                         // Spawn fire animation
                         let atlas = assets.get_atlas(&weapon.fire_animation.atlas);
                         commands.spawn((
@@ -189,7 +177,7 @@ pub fn spawn_bullets(
                                             * angle.sin(),
                                     4.0,
                                 ),
-                                rotation: Quat::from_rotation_z(bullet.angle),
+                                rotation: Quat::from_rotation_z(angle),
                                 scale: weapon.fire_animation.scale,
                                 ..default()
                             },
@@ -203,41 +191,79 @@ pub fn spawn_bullets(
                             },
                         ));
 
-                        commands.spawn((
-                            Sprite {
-                                image: asset_server.load(bullet.image),
-                                custom_size: Some(bullet.dim),
-                                ..default()
-                            },
-                            Transform {
-                                translation: Vec3::new(
-                                    weapon_t.translation.x + weapon.dim.x * 0.5 * angle.cos(),
-                                    weapon_t.translation.y + weapon.dim.y * 0.5 * angle.sin(),
-                                    3.0,
-                                ),
-                                rotation: Quat::from_rotation_z(bullet.angle),
-                                ..default()
-                            },
-                            bullet,
-                        ));
+                        for i in 0..weapon.n_bullets {
+                            // Always passes for the first bullet, else go to the next weapon
+                            if player.resources < weapon.bullet.price {
+                                break;
+                            }
+
+                            let mut bullet = weapon.bullet.clone();
+
+                            night_stats.resources += &bullet.price;
+                            player.resources -= &bullet.price;
+
+                            // From the 2nd bullet onwards: update the target
+                            if i > 0 {
+                                if let Some(enemy_e) = weapon
+                                    .acquire_target(&weapon_t, &enemy_q, &fow_q, &player, &targets)
+                                {
+                                    match bullet.movement {
+                                        Movement::Location(_) => {
+                                            let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
+                                            bullet.movement =
+                                                Movement::Location(get_future_position(
+                                                    enemy_t.translation,
+                                                    enemy.speed,
+                                                    weapon_t.translation,
+                                                    bullet.speed,
+                                                    fence_q.get_single(),
+                                                    wall_q.get_single(),
+                                                ));
+                                        }
+                                        Movement::Homing(_) => {
+                                            bullet.movement = Movement::Homing(enemy_e)
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+
+                            commands.spawn((
+                                Sprite {
+                                    image: asset_server.load(bullet.image),
+                                    custom_size: Some(bullet.dim),
+                                    ..default()
+                                },
+                                Transform {
+                                    translation: Vec3::new(
+                                        weapon_t.translation.x + weapon.dim.x * 0.5 * angle.cos(),
+                                        weapon_t.translation.y + weapon.dim.y * 0.5 * angle.sin(),
+                                        3.0,
+                                    ),
+                                    rotation: Quat::from_rotation_z(angle),
+                                    ..default()
+                                },
+                                bullet,
+                            ));
+                        }
+
+                        // Reset target lock
+                        weapon.target = None;
                     }
                 } else {
-                    continue 'w; // The weapon is not pointing towards the target yet
+                    // Not pointing at target -> rotate towards it
+                    weapon_t.rotation = weapon_t.rotation.slerp(
+                        Quat::from_rotation_z(angle),
+                        weapon.rotation_speed * game_settings.speed * time.delta_secs(),
+                    );
+
+                    continue;
                 }
             }
-
-            if i == 0 {
-                // Rotate only towards the first target
-                weapon_t.rotation = weapon_t.rotation.slerp(
-                    Quat::from_rotation_z(angle),
-                    weapon.rotation_speed * game_settings.speed * time.delta_secs(),
-                );
-            }
-
-            continue 'w; // Not enough resources to fire
         }
 
-        // If the weapon couldn't shoot, return to the default position
+        // If it didn't find a target or doesn't have the
+        // resources to fire, return to the default position
         weapon_t.rotation = weapon_t.rotation.slerp(
             Quat::from_rotation_z(PI * 0.5),
             weapon.rotation_speed * game_settings.speed * time.delta_secs(),
@@ -249,99 +275,108 @@ pub fn move_bullets(
     mut commands: Commands,
     mut bullet_q: Query<(Entity, &mut Transform, &mut Bullet)>,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy), Without<Bullet>>,
-    mut player: ResMut<Player>,
-    time: Res<Time>,
-    settings: Res<GameSettings>,
     mut night_stats: ResMut<NightStats>,
+    mut player: ResMut<Player>,
+    settings: Res<GameSettings>,
+    time: Res<Time>,
     assets: Local<WorldAssets>,
 ) {
     for (bullet_e, mut bullet_t, mut bullet) in bullet_q.iter_mut() {
-        if let Movement::Homing(enemy_e) = &bullet.movement {
-            if let Ok((_, enemy_t, _)) = enemy_q.get(*enemy_e) {
-                let d = -(enemy_t.translation - bullet_t.translation);
-
-                // Move the bullet's angle towards the target's current position
-                bullet.angle = d.y.atan2(d.x);
-            } else {
-                // If the target doesn't exist anymore, despawn the bullet
-                commands.entity(bullet_e).try_despawn();
+        // Calculate the new target's position wrt the bullet
+        let d = match bullet.movement {
+            Movement::Straight => None,
+            Movement::Location(v) => Some(-v + bullet_t.translation),
+            Movement::Homing(enemy_e) => {
+                if let Ok((_, enemy_t, _)) = enemy_q.get(*enemy_e) {
+                    Some(-enemy_t.translation + bullet_t.translation)
+                } else {
+                    // If the target doesn't exist anymore, despawn the bullet
+                    commands.entity(bullet_e).try_despawn();
+                    continue;
+                }
             }
+        };
+
+        // Turn the bullet's rotation towards the target's position
+        if let Some(d) = d {
+            bullet_t.rotation = bullet_t.rotation.slerp(
+                Quat::from_rotation_z(d.y.atan2(d.x)),
+                5.0 * settings.speed * time.delta_secs(),
+            );
         }
 
-        let dx = bullet.speed * bullet.angle.cos() * settings.speed * time.delta_secs();
-        let dy = bullet.speed * bullet.angle.sin() * settings.speed * time.delta_secs();
+        // Move the bullet in the direction it's pointing
+        let d_pos = (bullet_t.rotation * Vec3::Y).normalize()
+            * bullet.speed
+            * settings.speed
+            * time.delta_secs();
 
-        let d_pos = Vec3::new(dx, dy, 0.);
         bullet_t.translation += d_pos;
-
         bullet.distance += d_pos.length();
 
-        match &bullet.impact {
-            Impact::SingleTarget(d) | Impact::Piercing(d) => {
+        // If the bullet is at target -> resolve
+        match bullet.movement {
+            Movement::Straight => {
                 for (enemy_e, enemy_t, mut enemy) in enemy_q.iter_mut() {
                     // If the bullet can hit grounded/airborne enemies
                     // and the bullet collided with an enemy -> despawn and resolve
-                    if ((d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly))
-                        && collision(
-                            &bullet_t.translation,
-                            &bullet.dim,
-                            &enemy_t.translation,
-                            &enemy.dim,
-                        )
-                    {
-                        // Piercing bullets don't despawn on impact
-                        if let Impact::SingleTarget(_) = bullet.impact {
-                            commands.entity(bullet_e).try_despawn();
-                        }
+                    if collision(
+                        &bullet_t.translation,
+                        &bullet.dim,
+                        &enemy_t.translation,
+                        &enemy.dim,
+                    ) {
+                        bullet.impact.resolve(
+                            &mut commands,
+                            bullet_e,
+                            &bullet_t,
+                            Some(enemy_e),
+                            Some(&mut enemy),
+                            &mut night_stats,
+                            &assets,
+                        );
 
-                        resolve_impact(&mut commands, enemy_e, &mut enemy, d, &mut night_stats);
-                        break;
-                    }
-                }
-            }
-            Impact::OnHitExplosion(e) => {
-                for (_, enemy_t, enemy) in enemy_q.iter_mut() {
-                    // If the bullet can hit grounded/airborne enemies
-                    // and the bullet collided with an enemy -> despawn and resolve
-                    if ((e.damage.ground > 0. && !enemy.can_fly)
-                        || (e.damage.air > 0. && enemy.can_fly))
-                        && collision(
-                            &bullet_t.translation,
-                            &bullet.dim,
-                            &enemy_t.translation,
-                            &enemy.dim,
-                        )
-                    {
-                        // Only mines have 0 speed
+                        // Special case: update mine counts (only mines have 0 speed)
                         if bullet.speed == 0. {
                             player.weapons.mines -= 1;
                         }
+                    }
+                }
+            }
+            Movement::Location(v) => {
+                // Accept a 5% error margin
+                if bullet_t.translation.distance(v) <= MAP_SIZE.y * 0.05 {
+                    bullet.impact.resolve(
+                        &mut commands,
+                        bullet_e,
+                        &bullet_t,
+                        None,
+                        None,
+                        &mut night_stats,
+                        &assets,
+                    );
+                }
+            }
+            Movement::Homing(enemy_e) => {
+                let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
 
-                        spawn_explosion(&mut commands, &bullet_e, &bullet_t, e, &assets);
-                        break;
-                    }
+                if collision(
+                    &bullet_t.translation,
+                    &bullet.dim,
+                    &enemy_t.translation,
+                    &enemy.dim,
+                ) {
+                    bullet.impact.resolve(
+                        &mut commands,
+                        bullet_e,
+                        &bullet_t,
+                        None,
+                        None,
+                        &mut night_stats,
+                        &assets,
+                    );
                 }
             }
-            Impact::OnLocationExplosion(e) if bullet.distance >= bullet.max_distance => {
-                spawn_explosion(&mut commands, &bullet_e, &bullet_t, e, &assets);
-                break;
-            }
-            Impact::OnTargetExplosion(e) => {
-                if let Movement::Homing(enemy_e) = bullet.movement {
-                    if let Ok((_, enemy_t, enemy)) = enemy_q.get(enemy_e) {
-                        if collision(
-                            &bullet_t.translation,
-                            &bullet.dim,
-                            &enemy_t.translation,
-                            &enemy.dim,
-                        ) {
-                            spawn_explosion(&mut commands, &bullet_e, &bullet_t, e, &assets);
-                            break;
-                        }
-                    }
-                }
-            }
-            _ => (),
         }
 
         // If the bullet traveled more than max distance or left window boundaries -> despawn

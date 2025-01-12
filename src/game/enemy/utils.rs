@@ -25,38 +25,30 @@ impl EnemyOperations for EnemyQ<'_> {
     }
 }
 
-/// Calculate the distance between an enemy and a bullet.
-/// If movement_prediction is true, the distance to the future position of the enemy is calculated.
-pub fn calculate_distance(
-    enemy: &Enemy,
-    enemy_pos: &Vec3,
-    bullet: &Bullet,
-    bullet_pos: &Vec3,
+/// Calculate the future position of an enemy relative to a bullet.
+pub fn get_future_position(
+    enemy_t: Vec3,
+    enemy_speed: f32,
+    bullet_t: Vec3,
+    bullet_speed: f32,
     fence_q: Result<SpriteQ, QuerySingleError>,
     wall_q: Result<SpriteQ, QuerySingleError>,
-    movement_prediction: bool,
 ) -> Vec3 {
-    let mut d = -(enemy_pos - bullet_pos);
+    // No need to take game speed into account since
+    // the effect cancels out on enemy and bullet speed
+    let yt = enemy_speed * enemy_t.distance(bullet_t) / bullet_speed;
+    let mut future_t = enemy_t - Vec3::new(0., yt, 0.);
 
-    // Predict enemy movement comes with a technology
-    if movement_prediction {
-        // No need to take game speed into account since
-        // the effect cancels out on enemy and bullet speed
-        let mut next_pos = enemy_pos - Vec3::new(0., enemy.speed * d.length() / bullet.speed, 0.);
-
-        // If there's a structure, stop movement there
-        if let Some(fence_y) = get_structure_top(fence_q) {
-            if next_pos.y < fence_y {
-                next_pos.y = fence_y;
-            }
-        } else if let Some(wall_y) = get_structure_top(wall_q) {
-            if next_pos.y < wall_y {
-                next_pos.y = wall_y;
-            }
+    // If there's a structure, stop movement there
+    if let Some(fence_y) = get_structure_top(fence_q) {
+        if future_t.y < fence_y {
+            future_t.y = fence_y;
         }
-
-        d = next_pos - bullet_pos
+    } else if let Some(wall_y) = get_structure_top(wall_q) {
+        if future_t.y < wall_y {
+            future_t.y = wall_y;
+        }
     }
 
-    d
+    future_t
 }

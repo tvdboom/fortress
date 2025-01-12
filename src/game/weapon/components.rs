@@ -1,11 +1,13 @@
 use crate::constants::{EnemyQ, SpriteQ, MAP_SIZE};
+use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
 use crate::game::enemy::utils::EnemyOperations;
 use crate::game::map::components::FogOfWar;
-use crate::game::resources::{GameSettings, Player, Resources};
+use crate::game::resources::{GameSettings, NightStats, Player, Resources};
+use crate::game::weapon::utils::{resolve_impact, spawn_explosion};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
-use std::f32::consts::PI;
+use std::collections::HashSet;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -89,8 +91,8 @@ pub struct Weapon {
     /// Number of bullets fired per shot
     pub n_bullets: u32,
 
-    /// Target entities to point to
-    pub target: Vec<Entity>,
+    /// Target entitiy to point to
+    pub target: Option<Entity>,
 
     /// Time between shots (reload time)
     pub fire_timer: Option<Timer>,
@@ -160,10 +162,13 @@ impl Default for Explosion {
 
 #[derive(Clone)]
 pub enum Movement {
-    /// Bullets flies straight at `angle`
+    /// Bullets impacts at fist enemy hit
     Straight,
 
-    /// Bullets homes in on `Entity`
+    /// Bullet impacts at location
+    Location(Vec3),
+
+    /// Bullets impacts on `Entity`
     Homing(Entity),
 }
 
@@ -176,13 +181,40 @@ pub enum Impact {
     Piercing(Damage),
 
     /// Explodes after colliding with an enemy
-    OnHitExplosion(Explosion),
+    Explosion(Explosion),
+}
 
-    /// Explodes after reaching `max_distance`
-    OnLocationExplosion(Explosion),
+impl Impact {
+    pub fn resolve(
+        &self,
+        mut commands: &mut Commands,
+        bullet_e: Entity,
+        bullet_t: &Transform,
+        enemy_e: Option<Entity>,
+        enemy: Option<&mut Enemy>,
+        night_stats: &mut NightStats,
+        assets: &Local<WorldAssets>,
+    ) {
+        match self {
+            Impact::SingleTarget(d) | Impact::Piercing(d) => {
+                let enemy_e = enemy_e.expect("No enemy entity to resolve impact.");
+                let enemy = enemy.expect("No enemy to resolve impact.");
 
-    /// Explodes after reaching a specific target
-    OnTargetExplosion(Explosion),
+                // Ground only damages ground units and air only damages flying units
+                if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
+                    resolve_impact(commands, enemy_e, enemy, d, night_stats);
+                }
+
+                // Piercing bullets don't despawn on impact
+                if matches!(self, Impact::SingleTarget { .. }) {
+                    commands.entity(bullet_e).try_despawn();
+                }
+            }
+            Impact::Explosion(explosion) => {
+                spawn_explosion(&mut commands, &bullet_e, &bullet_t, explosion, &assets);
+            }
+        }
+    }
 }
 
 #[derive(Component, Clone)]
@@ -202,9 +234,6 @@ pub struct Bullet {
     /// Movement type
     pub movement: Movement,
 
-    /// Angle (in radians) the bullet points to
-    pub angle: f32,
-
     /// Impact type (what happens on collision)
     pub impact: Impact,
 
@@ -216,21 +245,21 @@ pub struct Bullet {
 }
 
 impl Weapon {
-    /// Acquire the targets to fire at. If `self.target` is empty, it will
-    /// select new targets based on the `fire_strategy` and `fire_range`.
-    pub fn acquire_targets<'a>(
-        &mut self,
+    /// Acquire a target to fire at. If `self.target` is empty, it will
+    /// select a new target excluding the entities in `exclusions`.
+    pub fn acquire_target(
+        &self,
         transform: &Transform,
-        enemy_q: &'a Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
+        enemy_q: &Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
         fow_q: &Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
-    ) -> Vec<&'a EnemyQ> {
-        if !self.target.is_empty() {
-            return self
-                .target
-                .iter_mut()
-                .map(|e| enemy_q.get(*e).unwrap())
-                .collect();
+        exclusions: &HashSet<Entity>,
+    ) -> Option<Entity> {
+        // Return target if it's already acquired and it still exists
+        if let Some(enemy_e) = self.target {
+            if let Ok(_) = enemy_q.get(enemy_e) {
+                return Some(enemy_e);
+            }
         }
 
         let mut targets = enemy_q
@@ -260,7 +289,7 @@ impl Weapon {
             .collect::<Vec<(EnemyQ, f32)>>();
 
         match self.fire_strategy {
-            FireStrategy::None => return vec![],
+            FireStrategy::None => return None,
             FireStrategy::Closest => {
                 targets.sort_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
             }
@@ -270,38 +299,38 @@ impl Weapon {
                 })
             }
             FireStrategy::Density => {
-                if let Impact::OnLocationExplosion(e) = &self.bullet.impact {
+                if let Impact::Explosion(e) = &self.bullet.impact {
                     targets.sort_by(|((_, t1, _), _), ((_, t2, _), _)| {
+                        let t1_translation = t1.translation;
+                        let t2_translation = t2.translation;
+
                         let density_a = targets
                             .iter()
                             .filter(|((_, t, _), _)| {
-                                t1.translation.distance(t.translation) <= e.radius
+                                t1_translation.distance(t.translation) <= e.radius
                             })
                             .count();
+
                         let density_b = targets
                             .iter()
                             .filter(|((_, t, _), _)| {
-                                t2.translation.distance(t.translation) <= e.radius
+                                t2_translation.distance(t.translation) <= e.radius
                             })
                             .count();
 
                         density_b.cmp(&density_a)
                     })
                 } else {
-                    panic!("Invalid detonation type for the density fire strategy.")
+                    panic!("Invalid impact type for FireStrategy::Density, expected Explosion.")
                 }
             }
         };
 
-        let targets: Vec<&EnemyQ> = targets
+        let targets: Vec<EnemyQ> = targets
             .iter()
-            .map(|(enemy_q, d)| enemy_q)
+            .map(|(enemy_q, _)| *enemy_q)
             .take(self.n_bullets as usize)
             .collect();
-
-        if !targets.is_empty() {
-            self.target = targets.iter().map(|(e, _, _)| *e).collect();
-        }
 
         targets
     }
@@ -460,7 +489,7 @@ impl Default for WeaponManager {
                 image: "weapon/machine-gun.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 100.,
                     ..default()
@@ -482,7 +511,6 @@ impl Default for WeaponManager {
                     },
                     speed: 0.8 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
                         air: 0.,
@@ -497,7 +525,7 @@ impl Default for WeaponManager {
                 image: "weapon/flamethrower.png",
                 dim: Vec2::new(60., 60.),
                 rotation_speed: 5.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -519,7 +547,6 @@ impl Default for WeaponManager {
                     },
                     speed: 1.2 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    angle: 0.,
                     impact: Impact::Piercing(Damage {
                         ground: 1.,
                         air: 1.,
@@ -534,7 +561,7 @@ impl Default for WeaponManager {
                 image: "weapon/aaa.png",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 300.,
                     ..default()
@@ -556,7 +583,6 @@ impl Default for WeaponManager {
                     },
                     speed: 1.2 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
                         air: 5.,
@@ -571,7 +597,7 @@ impl Default for WeaponManager {
                 image: "weapon/mortar.png",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 3.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 400.,
                     ..default()
@@ -593,7 +619,6 @@ impl Default for WeaponManager {
                     },
                     speed: 0.6 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    angle: 0.,
                     impact: Impact::OnLocationExplosion(Explosion {
                         radius: 0.15 * MAP_SIZE.y,
                         damage: Damage {
@@ -612,7 +637,7 @@ impl Default for WeaponManager {
                 image: "weapon/turret.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 1000.,
                     ..default()
@@ -634,7 +659,6 @@ impl Default for WeaponManager {
                     },
                     speed: 0.6 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    angle: 0.,
                     impact: Impact::SingleTarget(Damage {
                         ground: 50.,
                         air: 50.,
@@ -649,7 +673,7 @@ impl Default for WeaponManager {
                 image: "weapon/missile-launcher.png",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 3.,
-                target: vec![],
+                target: None,
                 price: Resources {
                     materials: 1200.,
                     ..default()
@@ -671,7 +695,6 @@ impl Default for WeaponManager {
                     },
                     speed: 0.6 * MAP_SIZE.y,
                     movement: Movement::Homing(Entity::from_raw(0)), // Set by spawn_bullet
-                    angle: 0.,
                     impact: Impact::OnTargetExplosion(Explosion {
                         radius: 0.1 * MAP_SIZE.y,
                         damage: Damage {
@@ -695,7 +718,6 @@ impl Default for WeaponManager {
                 },
                 speed: 0.4 * MAP_SIZE.y,
                 movement: Movement::Straight,
-                angle: -PI * 0.5,
                 impact: Impact::OnLocationExplosion(Explosion {
                     interval: 0.05,
                     radius: 0.7 * MAP_SIZE.y,
@@ -719,7 +741,6 @@ impl Default for WeaponManager {
                 },
                 speed: 0.,
                 movement: Movement::Straight,
-                angle: 0.,
                 impact: Impact::OnHitExplosion(Explosion {
                     interval: 0.05,
                     radius: 0.2 * MAP_SIZE.y,

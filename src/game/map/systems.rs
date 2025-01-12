@@ -2,7 +2,7 @@ use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
-use crate::game::enemy::utils::calculate_distance;
+use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
@@ -13,6 +13,7 @@ use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
+use std::f32::consts::PI;
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -306,7 +307,7 @@ pub fn weapons_panel(
     mut commands: Commands,
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
-    mut enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
+    enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
     fence_q: Query<SpriteQ, (With<Fence>, Without<FogOfWar>)>,
     wall_q: Query<SpriteQ, (With<Wall>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
@@ -486,63 +487,30 @@ pub fn weapons_panel(
                                 .on_hover_text("Launch at strongest enemy.");
 
                             if label.clicked() && *game_state.get() == GameState::Running {
-                                player.weapons.bombs -= 1;
-
                                 let mut bomb = weapons.bomb.clone();
+                                if let Some(enemy_e) = bomb.acquire_target() {
+                                    let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
+                                    let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, 3.0);
 
-                                let targets = match player.weapons.settings.bombing_strategy {
-                                    FireStrategy::Strongest => {
-                                        enemy_q.into_iter().sort_by(|(_, _, enemy1), (_, _, enemy2): &(_, _, &Enemy)| {
-                                            enemy1.max_health.partial_cmp(&enemy2.max_health).unwrap()
-                                        })
-                                    },
-                                    FireStrategy::Density => {
-                                        if let Impact::OnLocationExplosion(e) = &bomb.impact {
-                                            enemy_q.into_iter().sort_by(|(_, t1, _): &(_, &Transform, _), (_, t2, _): &(_, &Transform, _)| {
-                                                let density_a = enemy_q
-                                                    .iter()
-                                                    .filter(|(_, t, _)| t1.translation.distance(t.translation) <= e.radius)
-                                                    .count();
-                                                let density_b = enemy_q
-                                                    .iter()
-                                                    .filter(|(_, t, _)| t2.translation.distance(t.translation) <= e.radius)
-                                                    .count();
+                                    // Calculate the detonation's position
+                                    bomb.movement = Movement::Location(pos);
 
-                                                density_b.cmp(&density_a)
-                                            })
-                                        } else {
-                                            panic!("Invalid detonation type for density fire strategy.")
-                                        }
-                                    },
-                                    _ => unreachable!(),
-                                };
+                                    commands.spawn((
+                                        Sprite {
+                                            image: asset_server.load(bomb.image),
+                                            custom_size: Some(bomb.dim),
+                                            ..default()
+                                        },
+                                        Transform {
+                                            translation: start,
+                                            rotation: Quat::from_rotation_z(-PI * 0.5),
+                                            ..default()
+                                        },
+                                        bomb,
+                                    ));
 
-                                let (_, enemy_t, enemy) = targets.take(1).collect();
-
-                                let pos = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, 3.0);
-                                bomb.max_distance = calculate_distance(
-                                    enemy,
-                                    &enemy_t.translation,
-                                    &bomb,
-                                    &pos,
-                                    fence_q.get_single(),
-                                    wall_q.get_single(),
-                                    player.technology.movement_prediction
-                                ).length();
-
-                                commands.spawn((
-                                    Sprite {
-                                        image: asset_server.load(bomb.image),
-                                        custom_size: Some(bomb.dim),
-                                        ..default()
-                                    },
-                                    Transform {
-                                        translation: pos,
-                                        rotation: Quat::from_rotation_z(bomb.angle),
-                                        ..default()
-                                    },
-                                    bomb,
-                                ));
+                                    player.weapons.bombs -= 1;
+                                }
                             }
                         });
                     });
