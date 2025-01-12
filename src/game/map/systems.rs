@@ -488,28 +488,60 @@ pub fn weapons_panel(
 
                             if label.clicked() && *game_state.get() == GameState::Running {
                                 let mut bomb = weapons.bomb.clone();
-                                if let Some(enemy_e) = bomb.acquire_target() {
-                                    let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
-                                    let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, 3.0);
 
-                                    // Calculate the detonation's position
-                                    bomb.movement = Movement::Location(pos);
+                                if let Impact::Explosion(e) = &bomb.impact {
+                                    if let Some((_, enemy_t, enemy)) = enemy_q.iter().max_by(|(_, t1, _), (_, t2, _)| {
+                                        let t1_translation = t1.translation;
+                                        let t2_translation = t2.translation;
 
-                                    commands.spawn((
-                                        Sprite {
-                                            image: asset_server.load(bomb.image),
-                                            custom_size: Some(bomb.dim),
-                                            ..default()
-                                        },
-                                        Transform {
-                                            translation: start,
-                                            rotation: Quat::from_rotation_z(-PI * 0.5),
-                                            ..default()
-                                        },
-                                        bomb,
-                                    ));
+                                        let density_a = enemy_q
+                                            .iter()
+                                            .filter(|(_, t, _)| {
+                                                t1_translation.distance(t.translation) <= e.radius
+                                            })
+                                            .count();
 
-                                    player.weapons.bombs -= 1;
+                                        let density_b = enemy_q
+                                            .iter()
+                                            .filter(|(_, t, _)| {
+                                                t2_translation.distance(t.translation) <= e.radius
+                                            })
+                                            .count();
+
+                                        density_b.cmp(&density_a)
+                                    }) {
+                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
+
+                                        // Calculate the detonation's position
+                                        bomb.movement = Movement::Location(if player.technology.movement_prediction {
+                                            get_future_position(
+                                                enemy_t.translation,
+                                                enemy.speed,
+                                                start,
+                                                bomb.speed,
+                                                fence_q.get_single(),
+                                                wall_q.get_single(),
+                                            )
+                                        } else {
+                                            enemy_t.translation
+                                        });
+
+                                        commands.spawn((
+                                            Sprite {
+                                                image: asset_server.load(bomb.image),
+                                                custom_size: Some(bomb.dim),
+                                                ..default()
+                                            },
+                                            Transform {
+                                                translation: start,
+                                                rotation: Quat::from_rotation_z(-PI * 0.5),
+                                                ..default()
+                                            },
+                                            bomb,
+                                        ));
+
+                                        player.weapons.bombs -= 1;
+                                    }
                                 }
                             }
                         });

@@ -1,8 +1,7 @@
-use crate::constants::{EnemyQ, SpriteQ, MAP_SIZE};
+use crate::constants::{EnemyQ, SpriteQ, EXPLOSION_Z, MAP_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
-use crate::game::enemy::utils::EnemyOperations;
-use crate::game::map::components::FogOfWar;
+use crate::game::map::components::{AnimationComponent, FogOfWar};
 use crate::game::resources::{GameSettings, NightStats, Player, Resources};
 use crate::game::weapon::utils::{resolve_impact, spawn_explosion};
 use crate::utils::scale_duration;
@@ -195,6 +194,11 @@ impl Impact {
         night_stats: &mut NightStats,
         assets: &Local<WorldAssets>,
     ) {
+        // Piercing bullets don't despawn on impact
+        if matches!(self, Impact::SingleTarget { .. } | Impact::Explosion { .. }) {
+            commands.entity(bullet_e).try_despawn();
+        }
+
         match self {
             Impact::SingleTarget(d) | Impact::Piercing(d) => {
                 let enemy_e = enemy_e.expect("No enemy entity to resolve impact.");
@@ -204,14 +208,23 @@ impl Impact {
                 if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
                     resolve_impact(commands, enemy_e, enemy, d, night_stats);
                 }
-
-                // Piercing bullets don't despawn on impact
-                if matches!(self, Impact::SingleTarget { .. }) {
-                    commands.entity(bullet_e).try_despawn();
-                }
             }
             Impact::Explosion(explosion) => {
-                spawn_explosion(&mut commands, &bullet_e, &bullet_t, explosion, &assets);
+                let atlas_asset = assets.get_atlas(explosion.atlas);
+                commands.spawn((
+                    Sprite {
+                        image: atlas_asset.image,
+                        texture_atlas: Some(atlas_asset.texture),
+                        custom_size: Some(Vec2::splat(explosion.radius)),
+                        ..default()
+                    },
+                    Transform::from_xyz(bullet_t.translation.x, bullet_t.translation.y, EXPLOSION_Z),
+                    AnimationComponent {
+                        timer: Timer::from_seconds(explosion.interval, TimerMode::Repeating),
+                        last_index: atlas_asset.last_index,
+                        explosion: Some(explosion.clone()),
+                    },
+                ));
             }
         }
     }
@@ -262,45 +275,49 @@ impl Weapon {
             }
         }
 
-        let mut targets = enemy_q
-            .into_iter()
-            .filter_map(|enemy_q| {
+        let targets: Vec<(EnemyQ, f32)> = enemy_q
+            .iter()
+            .filter_map(|(enemy_e, enemy_t, enemy)| {
                 // Check if the enemy is behind the fog of war
-                if !enemy_q.is_visible(fow_q.get_single()) {
+                let (_, fow_t, fow) = fow_q.get_single().unwrap();
+                if fow_t.translation.y - fow.custom_size.unwrap().y * 0.5 < enemy_t.translation.y - enemy.dim.y * 0.5 {
                     return None;
                 }
 
                 // Special case => AAA's don't shoot ground units when strategy is Airborne
                 if self.name == WeaponName::AAA
                     && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
-                    && !enemy_q.2.can_fly
+                    && !enemy.can_fly
                 {
                     return None;
                 }
 
                 // Check if the enemy is in range
-                let distance = transform.translation.distance(enemy_q.1.translation);
+                let distance = transform.translation.distance(enemy_t.translation);
                 if distance > self.bullet.max_distance {
                     return None;
                 }
 
-                Some((enemy_q, distance))
+                // Remove exclusions
+                if exclusions.contains(&enemy_e) {
+                    return None;
+                }
+
+                Some(((enemy_e, enemy_t, enemy), distance))
             })
-            .collect::<Vec<(EnemyQ, f32)>>();
+            .collect();
 
         match self.fire_strategy {
-            FireStrategy::None => return None,
-            FireStrategy::Closest => {
-                targets.sort_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
-            }
+            FireStrategy::None => None,
+            FireStrategy::Closest =>  targets.iter().min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(enemy_q, _)| enemy_q.0),
             FireStrategy::Strongest => {
-                targets.sort_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
+                targets.iter().max_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
                     enemy2.max_health.partial_cmp(&enemy1.max_health).unwrap()
-                })
+                }).map(|(enemy_q, _)| enemy_q.0)
             }
             FireStrategy::Density => {
                 if let Impact::Explosion(e) = &self.bullet.impact {
-                    targets.sort_by(|((_, t1, _), _), ((_, t2, _), _)| {
+                    targets.iter().max_by(|((_, t1, _), _), ((_, t2, _), _)| {
                         let t1_translation = t1.translation;
                         let t2_translation = t2.translation;
 
@@ -319,20 +336,12 @@ impl Weapon {
                             .count();
 
                         density_b.cmp(&density_a)
-                    })
+                    }).map(|(enemy_q, _)| enemy_q.0)
                 } else {
                     panic!("Invalid impact type for FireStrategy::Density, expected Explosion.")
                 }
             }
-        };
-
-        let targets: Vec<EnemyQ> = targets
-            .iter()
-            .map(|(enemy_q, _)| *enemy_q)
-            .take(self.n_bullets as usize)
-            .collect();
-
-        targets
+        }
     }
 
     /// Whether the weapon's timer is finished
@@ -418,7 +427,7 @@ impl Weapon {
                             bullets: 15.,
                             ..default()
                         };
-                        self.bullet.impact = Impact::OnLocationExplosion(Explosion {
+                        self.bullet.impact = Impact::Explosion(Explosion {
                             radius: 0.15 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 50.,
@@ -434,7 +443,7 @@ impl Weapon {
                             bullets: 30.,
                             ..default()
                         };
-                        self.bullet.impact = Impact::OnLocationExplosion(Explosion {
+                        self.bullet.impact = Impact::Explosion(Explosion {
                             radius: 0.25 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 75.,
@@ -619,7 +628,7 @@ impl Default for WeaponManager {
                     },
                     speed: 0.6 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    impact: Impact::OnLocationExplosion(Explosion {
+                    impact: Impact::Explosion(Explosion {
                         radius: 0.15 * MAP_SIZE.y,
                         damage: Damage {
                             ground: 50.,
@@ -695,7 +704,7 @@ impl Default for WeaponManager {
                     },
                     speed: 0.6 * MAP_SIZE.y,
                     movement: Movement::Homing(Entity::from_raw(0)), // Set by spawn_bullet
-                    impact: Impact::OnTargetExplosion(Explosion {
+                    impact: Impact::Explosion(Explosion {
                         radius: 0.1 * MAP_SIZE.y,
                         damage: Damage {
                             ground: 30.,
@@ -718,7 +727,7 @@ impl Default for WeaponManager {
                 },
                 speed: 0.4 * MAP_SIZE.y,
                 movement: Movement::Straight,
-                impact: Impact::OnLocationExplosion(Explosion {
+                impact: Impact::Explosion(Explosion {
                     interval: 0.05,
                     radius: 0.7 * MAP_SIZE.y,
                     damage: Damage {
@@ -741,7 +750,7 @@ impl Default for WeaponManager {
                 },
                 speed: 0.,
                 movement: Movement::Straight,
-                impact: Impact::OnHitExplosion(Explosion {
+                impact: Impact::Explosion(Explosion {
                     interval: 0.05,
                     radius: 0.2 * MAP_SIZE.y,
                     damage: Damage {

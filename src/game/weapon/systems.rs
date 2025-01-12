@@ -129,7 +129,7 @@ pub fn spawn_bullets(
     asset_server: Res<AssetServer>,
 ) {
     for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
-        let targets = HashSet::new();
+        let mut targets = HashSet::new();
 
         weapon.target = weapon.acquire_target(&weapon_t, &enemy_q, &fow_q, &player, &targets);
         if let Some(enemy_e) = weapon.target {
@@ -225,6 +225,8 @@ pub fn spawn_bullets(
                                         }
                                         _ => {}
                                     }
+
+                                    targets.insert(enemy_e);
                                 }
                             }
 
@@ -249,6 +251,8 @@ pub fn spawn_bullets(
 
                         // Reset target lock
                         weapon.target = None;
+
+                        continue;
                     }
                 } else {
                     // Not pointing at target -> rotate towards it
@@ -287,7 +291,7 @@ pub fn move_bullets(
             Movement::Straight => None,
             Movement::Location(v) => Some(-v + bullet_t.translation),
             Movement::Homing(enemy_e) => {
-                if let Ok((_, enemy_t, _)) = enemy_q.get(*enemy_e) {
+                if let Ok((_, enemy_t, _)) = enemy_q.get(enemy_e) {
                     Some(-enemy_t.translation + bullet_t.translation)
                 } else {
                     // If the target doesn't exist anymore, despawn the bullet

@@ -170,7 +170,7 @@ pub fn move_enemies(
 }
 
 pub fn update_enemy_health_bars(
-    enemy_q: Query<EnemyQ>,
+    enemy_q: Query<EnemyQ, Without<EnemyHealth>>,
     children_q: Query<&Children>,
     mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
 ) {
