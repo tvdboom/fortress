@@ -27,7 +27,7 @@ pub const FOW_SIZE: Vec2 = Vec2::new(MAP_SIZE.x, MAP_SIZE.y * 0.3);
 
 // Game settings
 pub const MAX_GAME_SPEED: f32 = 5.;
-pub const GAME_SPEED_STEP: f32 = 0.25;
+pub const GAME_SPEED_STEP: f32 = 0.5;
 
 // Night settings
 pub const NIGHT_DURATION: f32 = 60.; // In seconds

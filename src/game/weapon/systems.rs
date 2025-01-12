@@ -120,7 +120,7 @@ pub fn spawn_bullets(
     enemy_q: Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
     fence_q: Query<SpriteQ, (With<Fence>, Without<Weapon>)>,
     wall_q: Query<SpriteQ, (With<Wall>, Without<Weapon>)>,
-    fow_q: Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
+    fow_q: Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
@@ -330,18 +330,17 @@ pub fn move_bullets(
                         &enemy_t.translation,
                         &enemy.dim,
                     ) {
-                        bullet.impact.resolve(
+                        let impacted = bullet.impact.resolve(
                             &mut commands,
                             bullet_e,
                             &bullet_t,
-                            Some(enemy_e),
-                            Some(&mut enemy),
+                            Some((enemy_e, &mut enemy)),
                             &mut night_stats,
                             &assets,
                         );
 
                         // Special case: update mine counts (only mines have 0 speed)
-                        if bullet.speed == 0. {
+                        if impacted && bullet.speed == 0. {
                             player.weapons.mines -= 1;
                         }
                     }
@@ -354,7 +353,6 @@ pub fn move_bullets(
                         &mut commands,
                         bullet_e,
                         &bullet_t,
-                        None,
                         None,
                         &mut night_stats,
                         &assets,
@@ -374,7 +372,6 @@ pub fn move_bullets(
                         &mut commands,
                         bullet_e,
                         &bullet_t,
-                        None,
                         None,
                         &mut night_stats,
                         &assets,

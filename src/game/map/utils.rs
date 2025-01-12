@@ -1,6 +1,13 @@
+use crate::constants::FOW_SIZE;
+use crate::game::enemy::components::Enemy;
 use crate::game::resources::Player;
-use bevy::prelude::{Vec2 as BVec2, Vec3};
+use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy_egui::egui::*;
+
+/// Whether an enemy is behind the fog of war
+pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
+    fow_t.translation.y - FOW_SIZE.y * 0.5 >= enemy_t.translation.y - enemy.dim.y * 0.5
+}
 
 /// AABB collision detection
 pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool {

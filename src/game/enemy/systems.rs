@@ -60,7 +60,7 @@ pub fn spawn_enemies(
                                 custom_size: Some(Vec2::new(enemy.dim.x * 0.8, enemy.dim.y * 0.1)),
                                 ..default()
                             },
-                            Transform::from_xyz(0., enemy.dim.y * 0.5 - 5.0, ENEMY_Z + 0.1),
+                            Transform::from_xyz(0., enemy.dim.y * 0.5 - 5.0, 0.1),
                         ))
                         .with_children(|parent| {
                             parent.spawn((
@@ -72,7 +72,7 @@ pub fn spawn_enemies(
                                     )),
                                     ..default()
                                 },
-                                Transform::from_xyz(0., 0., ENEMY_Z + 0.2),
+                                Transform::from_xyz(0., 0., 0.2),
                                 EnemyHealth,
                             ));
                         });

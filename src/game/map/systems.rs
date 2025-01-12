@@ -3,7 +3,7 @@ use crate::constants::*;
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
-use crate::game::map::utils::{collision, toggle, CustomUi};
+use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
 use crate::game::weapon::utils::resolve_impact;
@@ -66,7 +66,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
             Transform::from_xyz(
                 -WEAPONS_PANEL_SIZE.x * 0.5,
                 (RESOURCES_PANEL_SIZE.y + WALL_SIZE.y) * 0.5,
-                f32::MAX - 0.1,
+                FOW_Z,
             ),
             Visibility::Hidden,
             PauseWrapper,
@@ -76,7 +76,7 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
                 Text2d::new("Paused".to_string()),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Center),
-                Transform::from_xyz(0., 0., f32::MAX),
+                Transform::from_xyz(0., 0., FOW_Z),
                 PauseText,
             ));
         });
@@ -490,27 +490,33 @@ pub fn weapons_panel(
                                 let mut bomb = weapons.bomb.clone();
 
                                 if let Impact::Explosion(e) = &bomb.impact {
-                                    if let Some((_, enemy_t, enemy)) = enemy_q.iter().max_by(|(_, t1, _), (_, t2, _)| {
-                                        let t1_translation = t1.translation;
-                                        let t2_translation = t2.translation;
+                                    if let Some((_, enemy_t, enemy)) = enemy_q
+                                        .iter()
+                                        .filter(|(_, enemy_t, enemy)| is_visible(fow_q.get_single().unwrap(), enemy_t, enemy))
+                                        .max_by(|(_, t1, _), (_, t2, _)| {
+                                            let t1_translation = t1.translation;
+                                            let t2_translation = t2.translation;
 
-                                        let density_a = enemy_q
-                                            .iter()
-                                            .filter(|(_, t, _)| {
-                                                t1_translation.distance(t.translation) <= e.radius
-                                            })
-                                            .count();
+                                            let density_a = enemy_q
+                                                .iter()
+                                                .filter(|(_, t, _)| {
+                                                    t1_translation.distance(t.translation) <= e.radius
+                                                })
+                                                .count();
 
-                                        let density_b = enemy_q
-                                            .iter()
-                                            .filter(|(_, t, _)| {
-                                                t2_translation.distance(t.translation) <= e.radius
-                                            })
-                                            .count();
+                                            let density_b = enemy_q
+                                                .iter()
+                                                .filter(|(_, t, _)| {
+                                                    t2_translation.distance(t.translation) <= e.radius
+                                                })
+                                                .count();
 
-                                        density_b.cmp(&density_a)
-                                    }) {
-                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
+                                            density_b.cmp(&density_a)
+                                        })
+                                    {
+                                        println!("Bombing at {:?}", enemy_t.translation);
+                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.1, WEAPON_Z);
+                                        println!("Bombing at {:?}", start);
 
                                         // Calculate the detonation's position
                                         bomb.movement = Movement::Location(if player.technology.movement_prediction {

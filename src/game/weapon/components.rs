@@ -1,9 +1,10 @@
-use crate::constants::{EnemyQ, SpriteQ, EXPLOSION_Z, MAP_SIZE};
+use crate::constants::{EnemyQ, EXPLOSION_Z, MAP_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
+use crate::game::map::utils::is_visible;
 use crate::game::resources::{GameSettings, NightStats, Player, Resources};
-use crate::game::weapon::utils::{resolve_impact, spawn_explosion};
+use crate::game::weapon::utils::resolve_impact;
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use std::collections::HashSet;
@@ -184,49 +185,70 @@ pub enum Impact {
 }
 
 impl Impact {
+    /// Resolve the impact of the bullet on the enemy
+    /// Return whether the impact was resolved
     pub fn resolve(
         &self,
-        mut commands: &mut Commands,
+        commands: &mut Commands,
         bullet_e: Entity,
         bullet_t: &Transform,
-        enemy_e: Option<Entity>,
-        enemy: Option<&mut Enemy>,
+        enemy: Option<(Entity, &mut Enemy)>,
         night_stats: &mut NightStats,
         assets: &Local<WorldAssets>,
-    ) {
-        // Piercing bullets don't despawn on impact
-        if matches!(self, Impact::SingleTarget { .. } | Impact::Explosion { .. }) {
-            commands.entity(bullet_e).try_despawn();
-        }
-
+    ) -> bool {
         match self {
             Impact::SingleTarget(d) | Impact::Piercing(d) => {
-                let enemy_e = enemy_e.expect("No enemy entity to resolve impact.");
-                let enemy = enemy.expect("No enemy to resolve impact.");
+                let (enemy_e, enemy) = enemy.expect("No enemy to resolve impact.");
 
-                // Ground only damages ground units and air only damages flying units
                 if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
                     resolve_impact(commands, enemy_e, enemy, d, night_stats);
+
+                    // Piercing bullets don't despawn on impact
+                    if matches!(self, Impact::SingleTarget { .. }) {
+                        commands.entity(bullet_e).try_despawn();
+                    }
+
+                    return true
                 }
             }
-            Impact::Explosion(explosion) => {
-                let atlas_asset = assets.get_atlas(explosion.atlas);
+            Impact::Explosion(e) => {
+                // If an enemy is passed, check it can trigger the explosion
+                // E.g., a mine can collide with a flying enemy, and it shouldn't explode
+                if let Some((_, enemy)) = enemy {
+                    if (e.damage.ground == 0. && !enemy.can_fly)
+                        || (e.damage.air == 0. && enemy.can_fly)
+                    {
+                        return false;
+                    }
+                }
+
+                commands.entity(bullet_e).try_despawn();
+
+                let atlas_asset = assets.get_atlas(e.atlas);
                 commands.spawn((
                     Sprite {
                         image: atlas_asset.image,
                         texture_atlas: Some(atlas_asset.texture),
-                        custom_size: Some(Vec2::splat(explosion.radius)),
+                        custom_size: Some(Vec2::splat(e.radius)),
                         ..default()
                     },
-                    Transform::from_xyz(bullet_t.translation.x, bullet_t.translation.y, EXPLOSION_Z),
+                    Transform::from_xyz(
+                        bullet_t.translation.x,
+                        bullet_t.translation.y,
+                        EXPLOSION_Z,
+                    ),
                     AnimationComponent {
-                        timer: Timer::from_seconds(explosion.interval, TimerMode::Repeating),
+                        timer: Timer::from_seconds(e.interval, TimerMode::Repeating),
                         last_index: atlas_asset.last_index,
-                        explosion: Some(explosion.clone()),
+                        explosion: Some(e.clone()),
                     },
                 ));
+
+                return true
             }
         }
+
+        false
     }
 }
 
@@ -264,7 +286,7 @@ impl Weapon {
         &self,
         transform: &Transform,
         enemy_q: &Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
-        fow_q: &Query<SpriteQ, (With<FogOfWar>, Without<Weapon>)>,
+        fow_q: &Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
         player: &Player,
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
@@ -279,8 +301,7 @@ impl Weapon {
             .iter()
             .filter_map(|(enemy_e, enemy_t, enemy)| {
                 // Check if the enemy is behind the fog of war
-                let (_, fow_t, fow) = fow_q.get_single().unwrap();
-                if fow_t.translation.y - fow.custom_size.unwrap().y * 0.5 < enemy_t.translation.y - enemy.dim.y * 0.5 {
+                if !is_visible(fow_q.get_single().unwrap(), enemy_t, enemy) {
                     return None;
                 }
 
@@ -309,34 +330,41 @@ impl Weapon {
 
         match self.fire_strategy {
             FireStrategy::None => None,
-            FireStrategy::Closest =>  targets.iter().min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap()).map(|(enemy_q, _)| enemy_q.0),
-            FireStrategy::Strongest => {
-                targets.iter().max_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
+            FireStrategy::Closest => targets
+                .iter()
+                .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
+                .map(|(enemy_q, _)| enemy_q.0),
+            FireStrategy::Strongest => targets
+                .iter()
+                .max_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
                     enemy2.max_health.partial_cmp(&enemy1.max_health).unwrap()
-                }).map(|(enemy_q, _)| enemy_q.0)
-            }
+                })
+                .map(|(enemy_q, _)| enemy_q.0),
             FireStrategy::Density => {
                 if let Impact::Explosion(e) = &self.bullet.impact {
-                    targets.iter().max_by(|((_, t1, _), _), ((_, t2, _), _)| {
-                        let t1_translation = t1.translation;
-                        let t2_translation = t2.translation;
+                    targets
+                        .iter()
+                        .max_by(|((_, t1, _), _), ((_, t2, _), _)| {
+                            let t1_translation = t1.translation;
+                            let t2_translation = t2.translation;
 
-                        let density_a = targets
-                            .iter()
-                            .filter(|((_, t, _), _)| {
-                                t1_translation.distance(t.translation) <= e.radius
-                            })
-                            .count();
+                            let density_a = targets
+                                .iter()
+                                .filter(|((_, t, _), _)| {
+                                    t1_translation.distance(t.translation) <= e.radius
+                                })
+                                .count();
 
-                        let density_b = targets
-                            .iter()
-                            .filter(|((_, t, _), _)| {
-                                t2_translation.distance(t.translation) <= e.radius
-                            })
-                            .count();
+                            let density_b = targets
+                                .iter()
+                                .filter(|((_, t, _), _)| {
+                                    t2_translation.distance(t.translation) <= e.radius
+                                })
+                                .count();
 
-                        density_b.cmp(&density_a)
-                    }).map(|(enemy_q, _)| enemy_q.0)
+                            density_b.cmp(&density_a)
+                        })
+                        .map(|(enemy_q, _)| enemy_q.0)
                 } else {
                     panic!("Invalid impact type for FireStrategy::Density, expected Explosion.")
                 }
@@ -751,7 +779,7 @@ impl Default for WeaponManager {
                 speed: 0.,
                 movement: Movement::Straight,
                 impact: Impact::Explosion(Explosion {
-                    interval: 0.05,
+                    interval: 0.02,
                     radius: 0.2 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 50.,

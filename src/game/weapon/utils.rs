@@ -1,9 +1,7 @@
 use crate::constants::{SpriteQ, STRUCTURE_OFFSET};
-use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
-use crate::game::map::components::AnimationComponent;
 use crate::game::resources::NightStats;
-use crate::game::weapon::components::{Damage, Explosion};
+use crate::game::weapon::components::Damage;
 use bevy::ecs::query::QuerySingleError;
 use bevy::prelude::*;
 
@@ -37,31 +35,4 @@ pub fn resolve_impact(
     } else {
         enemy.health -= damage;
     }
-}
-
-/// Spawn an explosion sprite
-pub fn spawn_explosion(
-    commands: &mut Commands,
-    entity: &Entity,
-    transform: &Transform,
-    explosion: &Explosion,
-    assets: &Local<WorldAssets>,
-) {
-    commands.entity(*entity).try_despawn();
-
-    let atlas_asset = assets.get_atlas(explosion.atlas);
-    commands.spawn((
-        Sprite {
-            image: atlas_asset.image,
-            texture_atlas: Some(atlas_asset.texture),
-            custom_size: Some(Vec2::splat(explosion.radius)),
-            ..default()
-        },
-        Transform::from_translation(transform.translation),
-        AnimationComponent {
-            timer: Timer::from_seconds(explosion.interval, TimerMode::Repeating),
-            last_index: atlas_asset.last_index,
-            explosion: Some(explosion.clone()),
-        },
-    ));
 }
