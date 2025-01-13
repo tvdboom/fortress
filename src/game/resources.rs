@@ -161,15 +161,16 @@ pub struct Spotlight {
     pub cost: Resources,
 }
 
+#[derive(Clone)]
 pub struct WeaponSettings {
-    pub sentry_gun_fire_rate: u32,
-    pub flamethrower_power: u32,
-    pub aaa_fire_strategy: AAAFireStrategy,
-    pub mortar_shell: MortarShell,
-    pub turret_fire_strategy: FireStrategy,
-    pub missile_launcher_shells: u32,
-    pub bombing_strategy: FireStrategy,
-    pub mine_sensibility: Size,
+    pub machine_gun: u32,
+    pub flamethrower: u32,
+    pub aaa: AAAFireStrategy,
+    pub mortar: MortarShell,
+    pub turret: FireStrategy,
+    pub missile_launcher: u32,
+    pub bomb: FireStrategy,
+    pub mine: Size,
 }
 
 pub struct Weapons {
@@ -246,26 +247,25 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
-                    Some(WeaponName::MissileLauncher),
                     Some(WeaponName::MachineGun),
                     Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
+                    Some(WeaponName::MissileLauncher),
                     Some(WeaponName::Flamethrower),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
-                    Some(WeaponName::MissileLauncher),
                 ],
                 bombs: 10,
                 mines: 10,
                 settings: WeaponSettings {
-                    sentry_gun_fire_rate: 0,
-                    flamethrower_power: 0,
-                    aaa_fire_strategy: AAAFireStrategy::None,
-                    mortar_shell: MortarShell::None,
-                    turret_fire_strategy: FireStrategy::None,
-                    missile_launcher_shells: 0,
-                    bombing_strategy: FireStrategy::Density,
-                    mine_sensibility: Size::Medium,
+                    machine_gun: 0,
+                    flamethrower: 0,
+                    aaa: AAAFireStrategy::None,
+                    mortar: MortarShell::None,
+                    turret: FireStrategy::None,
+                    missile_launcher: 0,
+                    bomb: FireStrategy::Density,
+                    mine: Size::Medium,
                 },
             },
             technology: Technology {

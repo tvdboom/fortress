@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
@@ -346,6 +347,9 @@ pub fn weapons_panel(
 
                 ui.separator();
 
+                // Store the old settings to only update weapons that changed
+                let old_s = player.weapons.settings.clone();
+
                 // Machine gun
                 if player.weapons.spots.iter().any(|w| match w {
                     Some(w) => *w == WeaponName::MachineGun,
@@ -355,11 +359,11 @@ pub fn weapons_panel(
                     ui.horizontal(|ui| {
                         let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MachineGun))).on_hover_cursor(CursorIcon::PointingHand);
 
-                        ui.add(egui::Slider::new(&mut player.weapons.settings.sentry_gun_fire_rate, 0..=MAX_MACHINE_GUN_FIRE_RATE))
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.machine_gun, 0..=MAX_MACHINE_GUN_FIRE_RATE))
                             .on_hover_text("Shoot N bullets per second.");
 
                         if label.clicked() {
-                            player.weapons.settings.sentry_gun_fire_rate = if player.weapons.settings.sentry_gun_fire_rate > 0 {
+                            player.weapons.settings.machine_gun = if player.weapons.settings.machine_gun > 0 {
                                 0
                             } else {
                                 MAX_MACHINE_GUN_FIRE_RATE
@@ -377,11 +381,11 @@ pub fn weapons_panel(
                     ui.horizontal(|ui| {
                         let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Flamethrower))).on_hover_cursor(CursorIcon::PointingHand);
 
-                        ui.add(egui::Slider::new(&mut player.weapons.settings.flamethrower_power, 0..=MAX_FLAMETHROWER_POWER))
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.flamethrower, 0..=MAX_FLAMETHROWER_POWER))
                             .on_hover_text("More power means more range, but costs more.");
 
                         if label.clicked() {
-                            player.weapons.settings.flamethrower_power = if player.weapons.settings.flamethrower_power > 0 {
+                            player.weapons.settings.flamethrower = if player.weapons.settings.flamethrower > 0 {
                                 0
                             } else {
                                 MAX_FLAMETHROWER_POWER
@@ -398,11 +402,11 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::None, AAAFireStrategy::None.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::None, AAAFireStrategy::None.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::All, AAAFireStrategy::All.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::All, AAAFireStrategy::All.name())
                             .on_hover_text("Fire at all enemies dealing reduced damage.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa_fire_strategy, AAAFireStrategy::Airborne, AAAFireStrategy::Airborne.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::Airborne, AAAFireStrategy::Airborne.name())
                             .on_hover_text("Fire only at flying enemies, dealing more damage.");
                     });
                 }
@@ -415,11 +419,11 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Mortar)));
-                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::None, MortarShell::None.name())
+                        ui.selectable_value(&mut player.weapons.settings.mortar, MortarShell::None, MortarShell::None.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::Light, MortarShell::Light.name())
+                        ui.selectable_value(&mut player.weapons.settings.mortar, MortarShell::Light, MortarShell::Light.name())
                             .on_hover_text("Light shells do standard damage and don't damage structures.");
-                        ui.selectable_value(&mut player.weapons.settings.mortar_shell, MortarShell::Heavy, MortarShell::Heavy.name())
+                        ui.selectable_value(&mut player.weapons.settings.mortar, MortarShell::Heavy, MortarShell::Heavy.name())
                             .on_hover_text("Heavy shells do more damage, but cost more and damage structures.");
                     });
                 }
@@ -432,11 +436,11 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::None, FireStrategy::None.name())
+                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::None, FireStrategy::None.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Closest, FireStrategy::Closest.name())
+                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::Closest, FireStrategy::Closest.name())
                             .on_hover_text("Fire on the closest enemy.");
-                        ui.selectable_value(&mut player.weapons.settings.turret_fire_strategy, FireStrategy::Strongest, FireStrategy::Strongest.name())
+                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::Strongest, FireStrategy::Strongest.name())
                             .on_hover_text("Fire on the strongest enemy.");
                     });
                 }
@@ -450,11 +454,11 @@ pub fn weapons_panel(
                     ui.horizontal(|ui| {
                         let label = ui.add(egui::Label::new(format!("{:?}: ", WeaponName::MissileLauncher))).on_hover_cursor(CursorIcon::PointingHand);
 
-                        ui.add(egui::Slider::new(&mut player.weapons.settings.missile_launcher_shells, 0..=MAX_MISSILE_LAUNCHER_SHELLS))
+                        ui.add(egui::Slider::new(&mut player.weapons.settings.missile_launcher, 0..=MAX_MISSILE_LAUNCHER_SHELLS))
                             .on_hover_text("Shoot N shells per firing round.");
 
                         if label.clicked() {
-                            player.weapons.settings.missile_launcher_shells = if player.weapons.settings.missile_launcher_shells > 0 {
+                            player.weapons.settings.missile_launcher = if player.weapons.settings.missile_launcher > 0 {
                                 0
                             } else {
                                 MAX_MISSILE_LAUNCHER_SHELLS
@@ -463,9 +467,17 @@ pub fn weapons_panel(
                     });
                 }
 
-                // Update all weapons with the selected settings
+                // Update weapons with the changed settings
                 weapon_q
                     .iter_mut()
+                    .filter(|w| match w.name {
+                        WeaponName::MachineGun => old_s.machine_gun != player.weapons.settings.machine_gun,
+                        WeaponName::Flamethrower => old_s.flamethrower != player.weapons.settings.flamethrower,
+                        WeaponName::AAA => old_s.aaa != player.weapons.settings.aaa,
+                        WeaponName::Mortar => old_s.mortar != player.weapons.settings.mortar,
+                        WeaponName::Turret => old_s.turret != player.weapons.settings.turret,
+                        WeaponName::MissileLauncher => old_s.missile_launcher != player.weapons.settings.missile_launcher,
+                    })
                     .for_each(|mut w| w.as_mut().update(&player));
 
                 ui.add_space(7.);
@@ -480,9 +492,9 @@ pub fn weapons_panel(
                             let label = ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs)))
                                 .on_hover_cursor(CursorIcon::PointingHand)
                                 .on_hover_text("Launch!");
-                            ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Density, FireStrategy::Density.name())
+                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Density, FireStrategy::Density.name())
                                 .on_hover_text("Launch at highest enemy density location.");
-                            ui.selectable_value(&mut player.weapons.settings.bombing_strategy, FireStrategy::Strongest, FireStrategy::Strongest.name())
+                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Strongest, FireStrategy::Strongest.name())
                                 .on_hover_text("Launch at strongest enemy.");
 
                             if label.clicked() && *game_state.get() == GameState::Running {
@@ -494,7 +506,7 @@ pub fn weapons_panel(
                                         .filter(|(_, enemy_t, enemy)| is_visible(fow_q.get_single().unwrap(), enemy_t, enemy))
                                         .collect::<Vec<_>>();
 
-                                    if let Some((_, enemy_t, enemy)) = match player.weapons.settings.bombing_strategy {
+                                    if let Some((_, enemy_t, enemy)) = match player.weapons.settings.bomb {
                                         FireStrategy::Strongest => {
                                             visible_enemies
                                                 .iter()
@@ -568,11 +580,11 @@ pub fn weapons_panel(
                         ui.horizontal(|ui| {
                             ui.add_image(mine_texture, [20., 20.]);
                             ui.add(egui::Label::new(format!("Mine ({}): ", player.weapons.mines)));
-                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Small, Size::Small.name())
+                            ui.selectable_value(&mut player.weapons.settings.mine, Size::Small, Size::Small.name())
                                 .on_hover_text("Detonate for all enemies.");
-                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Medium, Size::Medium.name())
+                            ui.selectable_value(&mut player.weapons.settings.mine, Size::Medium, Size::Medium.name())
                                 .on_hover_text("Detonate for medium and large enemies.");
-                            ui.selectable_value(&mut player.weapons.settings.mine_sensibility, Size::Large, Size::Large.name())
+                            ui.selectable_value(&mut player.weapons.settings.mine, Size::Large, Size::Large.name())
                                 .on_hover_text("Detonate only for large enemies.");
                         });
                     });
@@ -630,6 +642,23 @@ pub fn weapons_panel(
                                         - MENU_PANEL_SIZE.y
                                         - FOW_SIZE.y * 0.5
                                         + (FOW_SIZE.y / MAX_SPOTLIGHT_POWER as f32 * player.spotlight.power as f32);
+
+                                    // Untarget all enemies in the fow to avoid targeting invisible enemies
+                                    let enemies = enemy_q.iter()
+                                        .filter_map(|(enemy_e, enemy_t, enemy)| {
+                                            if is_visible(&fow, enemy_t, enemy) {
+                                                None
+                                            } else {
+                                                Some(enemy_e)
+                                            }
+                                        })
+                                        .collect::<HashSet<_>>();
+
+                                    weapon_q.iter_mut().for_each(|mut w| {
+                                        if w.target.filter(|e| enemies.contains(e)).is_some() {
+                                            w.target = None;
+                                        }
+                                    });
                                 }
                             });
                         });

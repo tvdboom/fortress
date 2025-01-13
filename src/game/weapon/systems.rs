@@ -137,7 +137,9 @@ pub fn spawn_bullets(
 
             // Determine the bullet's angle towards the target
             let d = -weapon_t.translation
-                + (if player.technology.movement_prediction {
+                + (if player.technology.movement_prediction
+                    && !matches!(weapon.bullet.movement, Movement::Homing(_))
+                {
                     get_future_position(
                         enemy_t.translation,
                         enemy.speed,
@@ -152,7 +154,7 @@ pub fn spawn_bullets(
             let angle = d.y.atan2(d.x);
 
             // Check if the player has enough resources to fire
-            if player.resources >= weapon.bullet.price {
+            if player.resources >= weapon.bullet.price && weapon.n_bullets > 0 {
                 // Check if the weapon points towards the first target
                 if weapon.is_aiming(&angle, &weapon_t) {
                     // Check if the weapon can fire (fire timer is finished)
@@ -202,32 +204,41 @@ pub fn spawn_bullets(
                             night_stats.resources += &bullet.price;
                             player.resources -= &bullet.price;
 
-                            // From the 2nd bullet onwards: update the target
-                            if i > 0 {
-                                if let Some(enemy_e) = weapon
-                                    .acquire_target(&weapon_t, &enemy_q, &fow_q, &player, &targets)
-                                {
-                                    match bullet.movement {
-                                        Movement::Location(_) => {
-                                            let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
-                                            bullet.movement =
-                                                Movement::Location(get_future_position(
-                                                    enemy_t.translation,
-                                                    enemy.speed,
-                                                    weapon_t.translation,
-                                                    bullet.speed,
-                                                    fence_q.get_single(),
-                                                    wall_q.get_single(),
-                                                ));
-                                        }
-                                        Movement::Homing(_) => {
-                                            bullet.movement = Movement::Homing(enemy_e)
-                                        }
-                                        _ => {}
-                                    }
-
-                                    targets.insert(enemy_e);
+                            // From the 2nd bullet onwards, update the target
+                            let (enemy_e, enemy_t, enemy) = match i {
+                                i if i > 0 => {
+                                    let enemy_e = weapon
+                                        .acquire_target(
+                                            &weapon_t, &enemy_q, &fow_q, &player, &targets,
+                                        )
+                                        .unwrap_or(enemy_e);
+                                    enemy_q.get(enemy_e).unwrap()
                                 }
+                                _ => (enemy_e, enemy_t, enemy),
+                            };
+
+                            targets.insert(enemy_e);
+
+                            // Determine the bullet's movement
+                            match bullet.movement {
+                                Movement::Location(_) => {
+                                    bullet.movement = Movement::Location(
+                                        if player.technology.movement_prediction {
+                                            get_future_position(
+                                                enemy_t.translation,
+                                                enemy.speed,
+                                                weapon_t.translation,
+                                                weapon.bullet.speed,
+                                                fence_q.get_single(),
+                                                wall_q.get_single(),
+                                            )
+                                        } else {
+                                            enemy_t.translation
+                                        },
+                                    );
+                                }
+                                Movement::Homing(_) => bullet.movement = Movement::Homing(enemy_e),
+                                _ => (),
                             }
 
                             commands.spawn((
@@ -289,7 +300,7 @@ pub fn move_bullets(
             Movement::Location(v) => Some(v - bullet_t.translation),
             Movement::Homing(enemy_e) => {
                 if let Ok((_, enemy_t, _)) = enemy_q.get(enemy_e) {
-                    Some(-enemy_t.translation + bullet_t.translation)
+                    Some(enemy_t.translation - bullet_t.translation)
                 } else {
                     // If the target doesn't exist anymore, despawn the bullet
                     commands.entity(bullet_e).try_despawn();
@@ -302,7 +313,7 @@ pub fn move_bullets(
         if let Some(d) = d {
             bullet_t.rotation = bullet_t.rotation.slerp(
                 Quat::from_rotation_z(d.y.atan2(d.x)),
-                5.0 * settings.speed * time.delta_secs(),
+                8. * settings.speed * time.delta_secs(),
             );
         }
 
@@ -329,9 +340,7 @@ pub fn move_bullets(
                     ) {
                         // Special case: mines are only triggered by a certain size
                         // (only mines have 0 speed)
-                        if bullet.speed == 0.
-                            && enemy.size < player.weapons.settings.mine_sensibility
-                        {
+                        if bullet.speed == 0. && enemy.size < player.weapons.settings.mine {
                             continue;
                         }
 
@@ -351,8 +360,8 @@ pub fn move_bullets(
                 }
             }
             Movement::Location(v) => {
-                // Accept a 5% error margin
-                if bullet_t.translation.distance(v) <= MAP_SIZE.y * 0.05 {
+                // Accept a 0.5% error margin
+                if bullet_t.translation.distance(v) <= MAP_SIZE.y * 0.005 {
                     bullet
                         .impact
                         .resolve(&mut commands, bullet_e, &bullet_t, None, &assets);

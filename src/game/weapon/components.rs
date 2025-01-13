@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use crate::constants::{EnemyQ, EXPLOSION_Z, MAP_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
@@ -6,7 +7,6 @@ use crate::game::map::utils::is_visible;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
-use std::collections::HashSet;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -289,10 +289,11 @@ impl Weapon {
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
         // Return target if it's already acquired and it still exists
-        if let Some(enemy_e) = self.target {
-            if let Ok(_) = enemy_q.get(enemy_e) {
-                return Some(enemy_e);
-            }
+        if let Some(enemy_e) = self
+            .target
+            .filter(|enemy_e| enemy_q.get(*enemy_e).is_ok() && !exclusions.contains(enemy_e))
+        {
+            return Some(enemy_e);
         }
 
         let targets: Vec<(EnemyQ, f32)> = enemy_q
@@ -303,9 +304,9 @@ impl Weapon {
                     return None;
                 }
 
-                // Special case => AAA's don't shoot ground units when strategy is Airborne
+                // Special case => AAAs don't shoot ground units when strategy is Airborne
                 if self.name == WeaponName::AAA
-                    && player.weapons.settings.aaa_fire_strategy == AAAFireStrategy::Airborne
+                    && player.weapons.settings.aaa == AAAFireStrategy::Airborne
                     && !enemy.can_fly
                 {
                     return None;
@@ -389,7 +390,7 @@ impl Weapon {
     pub fn update(&mut self, player: &Player) {
         match self.name {
             WeaponName::MachineGun => {
-                match player.weapons.settings.sentry_gun_fire_rate {
+                match player.weapons.settings.machine_gun {
                     0 => self.fire_timer = None,
                     v => {
                         if let Some(ref mut timer) = self.fire_timer {
@@ -402,13 +403,13 @@ impl Weapon {
                 };
             }
             WeaponName::AAA => {
-                // When changing bullet types, reset the target
-                // to avoid one last shot at the wrong enemy
-                match player.weapons.settings.aaa_fire_strategy {
+                // Reset the target to avoid one last shot at the wrong enemy
+                self.target = None;
+
+                match player.weapons.settings.aaa {
                     AAAFireStrategy::None => self.fire_strategy = FireStrategy::None,
                     AAAFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
-                        self.target = None;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 5.,
                             air: 5.,
@@ -417,7 +418,6 @@ impl Weapon {
                     }
                     AAAFireStrategy::Airborne => {
                         self.fire_strategy = FireStrategy::Closest;
-                        self.target = None;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
                             air: 20.,
@@ -426,10 +426,10 @@ impl Weapon {
                     }
                 };
             }
-            WeaponName::Flamethrower => match player.weapons.settings.flamethrower_power {
+            WeaponName::Flamethrower => match player.weapons.settings.flamethrower {
                 0 => self.fire_strategy = FireStrategy::None,
                 _ => {
-                    let power = player.weapons.settings.flamethrower_power as f32;
+                    let power = player.weapons.settings.flamethrower as f32;
 
                     self.fire_strategy = FireStrategy::Closest;
                     self.fire_animation.scale.x = 1.5 + power * 0.5;
@@ -446,7 +446,10 @@ impl Weapon {
                 }
             },
             WeaponName::Mortar => {
-                match player.weapons.settings.mortar_shell {
+                // Reset the target to recalculate the highest density
+                self.target = None;
+
+                match player.weapons.settings.mortar {
                     MortarShell::None => self.fire_strategy = FireStrategy::None,
                     MortarShell::Light => {
                         self.fire_strategy = FireStrategy::Density;
@@ -455,7 +458,7 @@ impl Weapon {
                             ..default()
                         };
                         self.bullet.impact = Impact::Explosion(Explosion {
-                            radius: 0.15 * MAP_SIZE.y,
+                            radius: 0.05 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 50.,
                                 air: 50.,
@@ -471,10 +474,10 @@ impl Weapon {
                             ..default()
                         };
                         self.bullet.impact = Impact::Explosion(Explosion {
-                            radius: 0.25 * MAP_SIZE.y,
+                            radius: 0.1 * MAP_SIZE.y,
                             damage: Damage {
                                 ground: 75.,
-                                air: 50.,
+                                air: 75.,
                                 penetration: 25.,
                             },
                             ..default()
@@ -483,10 +486,11 @@ impl Weapon {
                 };
             }
             WeaponName::Turret => {
-                self.fire_strategy = player.weapons.settings.turret_fire_strategy.clone();
+                self.target = None;
+                self.fire_strategy = player.weapons.settings.turret.clone();
             }
             WeaponName::MissileLauncher => {
-                self.n_bullets = player.weapons.settings.missile_launcher_shells;
+                self.n_bullets = player.weapons.settings.missile_launcher;
             }
         }
     }
@@ -524,7 +528,7 @@ impl Default for WeaponManager {
                 name: WeaponName::MachineGun,
                 image: "weapon/machine-gun.png",
                 dim: Vec2::new(70., 70.),
-                rotation_speed: 5.,
+                rotation_speed: 7.,
                 target: None,
                 price: Resources {
                     materials: 100.,
@@ -560,7 +564,7 @@ impl Default for WeaponManager {
                 name: WeaponName::Flamethrower,
                 image: "weapon/flamethrower.png",
                 dim: Vec2::new(60., 60.),
-                rotation_speed: 5.,
+                rotation_speed: 7.,
                 target: None,
                 price: Resources {
                     materials: 300.,
@@ -632,7 +636,7 @@ impl Default for WeaponManager {
                 name: WeaponName::Mortar,
                 image: "weapon/mortar.png",
                 dim: Vec2::new(70., 70.),
-                rotation_speed: 3.,
+                rotation_speed: 5.,
                 target: None,
                 price: Resources {
                     materials: 400.,
@@ -654,7 +658,7 @@ impl Default for WeaponManager {
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
-                    movement: Movement::Straight,
+                    movement: Movement::Location(Vec3::splat(0.)), // Set at spawn
                     impact: Impact::Explosion(Explosion {
                         radius: 0.15 * MAP_SIZE.y,
                         damage: Damage {
@@ -672,7 +676,7 @@ impl Default for WeaponManager {
                 name: WeaponName::Turret,
                 image: "weapon/turret.png",
                 dim: Vec2::new(90., 90.),
-                rotation_speed: 3.,
+                rotation_speed: 5.,
                 target: None,
                 price: Resources {
                     materials: 1000.,
@@ -708,7 +712,7 @@ impl Default for WeaponManager {
                 name: WeaponName::MissileLauncher,
                 image: "weapon/missile-launcher.png",
                 dim: Vec2::new(90., 90.),
-                rotation_speed: 3.,
+                rotation_speed: 5.,
                 target: None,
                 price: Resources {
                     materials: 1200.,
@@ -724,13 +728,13 @@ impl Default for WeaponManager {
                 fire_strategy: FireStrategy::Strongest,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
-                    dim: Vec2::new(20., 10.),
+                    dim: Vec2::new(20., 6.),
                     price: Resources {
                         bullets: 15.,
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
-                    movement: Movement::Homing(Entity::from_raw(0)), // Set by spawn_bullet
+                    movement: Movement::Homing(Entity::from_raw(0)), // Set at spawn
                     impact: Impact::Explosion(Explosion {
                         radius: 0.1 * MAP_SIZE.y,
                         damage: Damage {
@@ -753,7 +757,7 @@ impl Default for WeaponManager {
                     ..default()
                 },
                 speed: 0.4 * MAP_SIZE.y,
-                movement: Movement::Straight,
+                movement: Movement::Location(Vec3::splat(0.)), // Set at spawn
                 impact: Impact::Explosion(Explosion {
                     interval: 0.05,
                     radius: 0.35 * MAP_SIZE.y,
