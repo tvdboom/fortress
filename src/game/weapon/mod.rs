@@ -13,7 +13,7 @@ impl Plugin for WeaponPlugin {
         app.add_systems(OnEnter(AppState::Night), spawn_weapons)
             .add_systems(
                 Update,
-                (spawn_bullets, move_bullets, update_resources)
+                (spawn_bullets, move_bullets)
                     .run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
             );
     }

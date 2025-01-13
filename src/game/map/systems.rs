@@ -1,12 +1,11 @@
 use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
-use crate::game::enemy::components::{Enemy, EnemyManager, Size};
+use crate::game::enemy::components::{Enemy, EnemyHealth, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
-use crate::game::weapon::utils::resolve_impact;
 use crate::game::{AppState, GameState};
 use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
@@ -490,33 +489,44 @@ pub fn weapons_panel(
                                 let mut bomb = weapons.bomb.clone();
 
                                 if let Impact::Explosion(e) = &bomb.impact {
-                                    if let Some((_, enemy_t, enemy)) = enemy_q
+                                    let visible_enemies = enemy_q
                                         .iter()
                                         .filter(|(_, enemy_t, enemy)| is_visible(fow_q.get_single().unwrap(), enemy_t, enemy))
-                                        .max_by(|(_, t1, _), (_, t2, _)| {
-                                            let t1_translation = t1.translation;
-                                            let t2_translation = t2.translation;
+                                        .collect::<Vec<_>>();
 
-                                            let density_a = enemy_q
+                                    if let Some((_, enemy_t, enemy)) = match player.weapons.settings.bombing_strategy {
+                                        FireStrategy::Strongest => {
+                                            visible_enemies
                                                 .iter()
-                                                .filter(|(_, t, _)| {
-                                                    t1_translation.distance(t.translation) <= e.radius
+                                                .max_by(|(_, _, e1), (_, _, e2)| {
+                                                    e1.max_health.partial_cmp(&e2.max_health).unwrap()
                                                 })
-                                                .count();
-
-                                            let density_b = enemy_q
+                                        },
+                                        FireStrategy::Density => {
+                                            visible_enemies
                                                 .iter()
-                                                .filter(|(_, t, _)| {
-                                                    t2_translation.distance(t.translation) <= e.radius
-                                                })
-                                                .count();
+                                                .max_by(|(_, t1, _), (_, t2, _)| {
+                                                    let density_a = visible_enemies
+                                                        .iter()
+                                                        .filter(|(_, t, _)| {
+                                                            t1.translation.distance(t.translation) <= e.radius
+                                                        })
+                                                        .count();
 
-                                            density_b.cmp(&density_a)
-                                        })
+                                                    let density_b = visible_enemies
+                                                        .iter()
+                                                        .filter(|(_, t, _)| {
+                                                            t2.translation.distance(t.translation) <= e.radius
+                                                        })
+                                                        .count();
+
+                                                    density_a.cmp(&density_b)
+                                                })
+                                        },
+                                        _ => unreachable!(),
+                                    }
                                     {
-                                        println!("Bombing at {:?}", enemy_t.translation);
-                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.1, WEAPON_Z);
-                                        println!("Bombing at {:?}", start);
+                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
 
                                         // Calculate the detonation's position
                                         bomb.movement = Movement::Location(if player.technology.movement_prediction {
@@ -858,14 +868,13 @@ pub fn run_animations(
     mut commands: Commands,
     mut animation_q: Query<(Entity, &Transform, &mut AnimationComponent, &mut Sprite)>,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy)>,
-    fence_q: Query<(Entity, &Transform), With<Fence>>,
-    wall_q: Query<(Entity, &Transform), With<Wall>>,
-    mut night_stats: ResMut<NightStats>,
+    fence_q: Query<&Transform, With<Fence>>,
+    wall_q: Query<&Transform, With<Wall>>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
-    for (entity, t, mut animation, mut sprite) in animation_q.iter_mut() {
+    for (animation_e, animation_t, mut animation, mut sprite) in animation_q.iter_mut() {
         animation
             .timer
             .tick(scale_duration(time.delta(), game_settings.speed));
@@ -878,34 +887,24 @@ pub fn run_animations(
                 if atlas.index == animation.last_index / 3 {
                     if let Some(Explosion { radius, damage, .. }) = &animation.explosion {
                         // Resolve damage to structures
-                        if let Some((entity, t2)) = fence_q.iter().next() {
+                        if let Some(fence_t) = fence_q.iter().next() {
                             if collision(
-                                &t.translation,
-                                &Vec2::splat(*radius),
-                                &t2.translation,
+                                &animation_t.translation,
+                                &Vec2::splat(2. * radius),
+                                &fence_t.translation,
                                 &FENCE_SIZE,
                             ) {
-                                if player.fence.health > damage.penetration {
-                                    player.fence.health -= damage.penetration;
-                                } else {
-                                    player.fence.health = 0.;
-                                    commands.entity(entity).try_despawn();
-                                }
+                                player.fence.health -= damage.penetration.min(player.fence.health);
                             }
                         }
-                        if let Some((entity, t2)) = wall_q.iter().next() {
+                        if let Some(wall_t) = wall_q.iter().next() {
                             if collision(
-                                &t.translation,
-                                &Vec2::splat(*radius),
-                                &t2.translation,
+                                &animation_t.translation,
+                                &Vec2::splat(2. * radius),
+                                &wall_t.translation,
                                 &WALL_SIZE,
                             ) {
-                                if player.wall.health > damage.penetration {
-                                    player.wall.health -= damage.penetration;
-                                } else {
-                                    player.wall.health = 0.;
-                                    commands.entity(entity).try_despawn();
-                                }
+                                player.wall.health -= damage.penetration.min(player.wall.health);
                             }
                         }
 
@@ -914,24 +913,89 @@ pub fn run_animations(
                             .iter_mut()
                             .filter(|(_, &t2, enemy)| {
                                 collision(
-                                    &t.translation,
-                                    &Vec2::splat(*radius),
+                                    &animation_t.translation,
+                                    &Vec2::splat(2. * radius),
                                     &t2.translation,
                                     &enemy.dim,
                                 )
                             })
-                            .for_each(|(enemy_e, _, mut enemy)| {
-                                resolve_impact(
-                                    &mut commands,
-                                    enemy_e,
-                                    &mut enemy,
-                                    damage,
-                                    &mut night_stats,
-                                )
+                            .for_each(|(_, _, ref mut enemy)| {
+                                enemy.health -= damage.calculate(enemy).min(enemy.health)
                             });
                     }
                 } else if atlas.index == animation.last_index {
-                    commands.entity(entity).try_despawn();
+                    commands.entity(animation_e).try_despawn();
+                }
+            }
+        }
+    }
+}
+
+pub fn update_game(
+    mut commands: Commands,
+    enemy_q: Query<EnemyQ, (With<Enemy>, Without<EnemyHealth>)>,
+    children_q: Query<&Children>,
+    fence_q: Query<Entity, With<Fence>>,
+    wall_q: Query<Entity, With<Wall>>,
+    mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
+    mut player: ResMut<Player>,
+    mut night_stats: ResMut<NightStats>,
+    game_settings: Res<GameSettings>,
+    time: Res<Time>,
+) {
+    // Update resources
+    if player.fence.enabled {
+        let cost = player.fence.cost.gasoline * game_settings.speed * time.delta_secs();
+        if player.resources.gasoline >= cost {
+            player.resources.gasoline -= cost;
+        } else {
+            player.fence.enabled = false;
+        }
+    }
+
+    let spotlight_cost = &player.spotlight.cost
+        * player.spotlight.power as f32
+        * game_settings.speed
+        * time.delta_secs();
+
+    if player.resources >= spotlight_cost {
+        player.resources -= &spotlight_cost;
+    } else {
+        player.spotlight.power = 0;
+    }
+
+    // Despawn structures
+    if let Ok(fence_e) = fence_q.get_single() {
+        if player.fence.health == 0. {
+            commands.entity(fence_e).try_despawn();
+        }
+    }
+
+    if let Ok(wall_e) = wall_q.get_single() {
+        if player.wall.health == 0. {
+            commands.entity(wall_e).try_despawn();
+        }
+    }
+
+    // Update enemy health bars and despawn enemies
+    for (enemy_e, _, enemy) in enemy_q.iter() {
+        if enemy.health < enemy.max_health {
+            if enemy.health == 0. {
+                commands.entity(enemy_e).despawn_recursive();
+
+                night_stats
+                    .enemies
+                    .entry(enemy.name)
+                    .and_modify(|status| status.killed += 1);
+            } else {
+                for child in children_q.iter_descendants(enemy_e) {
+                    if let Ok((mut sprite_t, mut sprite)) = health_q.get_mut(child) {
+                        if let Some(size) = sprite.custom_size.as_mut() {
+                            let full_size = enemy.dim.x * 0.8 - 2.0;
+                            size.x = full_size * enemy.health / enemy.max_health;
+                            sprite_t.translation.x = (size.x - full_size) * 0.5;
+                        }
+                    }
                 }
             }
         }

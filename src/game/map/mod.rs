@@ -21,7 +21,9 @@ impl Plugin for MapPlugin {
                         in_state(AppState::StartGame)
                             .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),
                     ),
-                    run_animations.run_if(in_state(GameState::Running)),
+                    (run_animations, update_game)
+                        .chain()
+                        .run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
                 ),
             );
     }

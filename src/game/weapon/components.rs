@@ -3,8 +3,7 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
 use crate::game::map::utils::is_visible;
-use crate::game::resources::{GameSettings, NightStats, Player, Resources};
-use crate::game::weapon::utils::resolve_impact;
+use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use std::collections::HashSet;
@@ -193,22 +192,21 @@ impl Impact {
         bullet_e: Entity,
         bullet_t: &Transform,
         enemy: Option<(Entity, &mut Enemy)>,
-        night_stats: &mut NightStats,
         assets: &Local<WorldAssets>,
     ) -> bool {
         match self {
             Impact::SingleTarget(d) | Impact::Piercing(d) => {
-                let (enemy_e, enemy) = enemy.expect("No enemy to resolve impact.");
+                let (_, enemy) = enemy.expect("No enemy to resolve impact.");
 
                 if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
-                    resolve_impact(commands, enemy_e, enemy, d, night_stats);
+                    enemy.health -= d.calculate(enemy).min(enemy.health);
 
                     // Piercing bullets don't despawn on impact
                     if matches!(self, Impact::SingleTarget { .. }) {
                         commands.entity(bullet_e).try_despawn();
                     }
 
-                    return true
+                    return true;
                 }
             }
             Impact::Explosion(e) => {
@@ -229,7 +227,7 @@ impl Impact {
                     Sprite {
                         image: atlas_asset.image,
                         texture_atlas: Some(atlas_asset.texture),
-                        custom_size: Some(Vec2::splat(e.radius)),
+                        custom_size: Some(Vec2::splat(2. * e.radius)),
                         ..default()
                     },
                     Transform::from_xyz(
@@ -244,7 +242,7 @@ impl Impact {
                     },
                 ));
 
-                return true
+                return true;
             }
         }
 
@@ -333,38 +331,35 @@ impl Weapon {
             FireStrategy::Closest => targets
                 .iter()
                 .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
-                .map(|(enemy_q, _)| enemy_q.0),
+                .map(|((enemy_e, _, _), _)| *enemy_e),
             FireStrategy::Strongest => targets
                 .iter()
-                .max_by(|((_, _, enemy1), _), ((_, _, enemy2), _)| {
-                    enemy2.max_health.partial_cmp(&enemy1.max_health).unwrap()
+                .max_by(|((_, _, e1), _), ((_, _, e2), _)| {
+                    e1.max_health.partial_cmp(&e2.max_health).unwrap()
                 })
-                .map(|(enemy_q, _)| enemy_q.0),
+                .map(|((enemy_e, _, _), _)| *enemy_e),
             FireStrategy::Density => {
                 if let Impact::Explosion(e) = &self.bullet.impact {
                     targets
                         .iter()
                         .max_by(|((_, t1, _), _), ((_, t2, _), _)| {
-                            let t1_translation = t1.translation;
-                            let t2_translation = t2.translation;
-
                             let density_a = targets
                                 .iter()
                                 .filter(|((_, t, _), _)| {
-                                    t1_translation.distance(t.translation) <= e.radius
+                                    t1.translation.distance(t.translation) <= e.radius
                                 })
                                 .count();
 
                             let density_b = targets
                                 .iter()
                                 .filter(|((_, t, _), _)| {
-                                    t2_translation.distance(t.translation) <= e.radius
+                                    t2.translation.distance(t.translation) <= e.radius
                                 })
                                 .count();
 
-                            density_b.cmp(&density_a)
+                            density_a.cmp(&density_b)
                         })
-                        .map(|(enemy_q, _)| enemy_q.0)
+                        .map(|((enemy_e, _, _), _)| *enemy_e)
                 } else {
                     panic!("Invalid impact type for FireStrategy::Density, expected Explosion.")
                 }
@@ -407,10 +402,13 @@ impl Weapon {
                 };
             }
             WeaponName::AAA => {
+                // When changing bullet types, reset the target
+                // to avoid one last shot at the wrong enemy
                 match player.weapons.settings.aaa_fire_strategy {
                     AAAFireStrategy::None => self.fire_strategy = FireStrategy::None,
                     AAAFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
+                        self.target = None;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 5.,
                             air: 5.,
@@ -419,6 +417,7 @@ impl Weapon {
                     }
                     AAAFireStrategy::Airborne => {
                         self.fire_strategy = FireStrategy::Closest;
+                        self.target = None;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
                             air: 20.,
@@ -747,7 +746,7 @@ impl Default for WeaponManager {
             },
             bomb: Bullet {
                 image: "weapon/bomb.png",
-                dim: Vec2::new(30., 20.),
+                dim: Vec2::new(30., 15.),
                 price: Resources {
                     bullets: 250.,
                     gasoline: 250.,
@@ -757,7 +756,7 @@ impl Default for WeaponManager {
                 movement: Movement::Straight,
                 impact: Impact::Explosion(Explosion {
                     interval: 0.05,
-                    radius: 0.7 * MAP_SIZE.y,
+                    radius: 0.35 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 80.,
                         air: 80.,
@@ -765,7 +764,7 @@ impl Default for WeaponManager {
                     },
                     ..default()
                 }),
-                max_distance: 0., // Set during spawn
+                max_distance: f32::MAX,
                 distance: 0.,
             },
             mine: Bullet {
@@ -780,7 +779,7 @@ impl Default for WeaponManager {
                 movement: Movement::Straight,
                 impact: Impact::Explosion(Explosion {
                     interval: 0.02,
-                    radius: 0.2 * MAP_SIZE.y,
+                    radius: 0.1 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 50.,
                         air: 0.,

@@ -6,7 +6,7 @@ use bevy_egui::egui::*;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
-    fow_t.translation.y - FOW_SIZE.y * 0.5 >= enemy_t.translation.y - enemy.dim.y * 0.5
+    fow_t.translation.y - FOW_SIZE.y * 0.45 >= enemy_t.translation.y - enemy.dim.y * 0.5
 }
 
 /// AABB collision detection

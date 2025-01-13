@@ -89,7 +89,7 @@ pub fn spawn_weapons(
         let x = thread_rng()
             .gen_range(-SIZE.x * 0.5 + size.x..=SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x - size.x);
         let y = thread_rng().gen_range(
-            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.8
+            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + 2. * WALL_SIZE.y
                 ..=SIZE.y * 0.5 - MENU_PANEL_SIZE.y - FOW_SIZE.y - size.y,
         );
         let pos = Vec2::new(x, y);
@@ -136,8 +136,8 @@ pub fn spawn_bullets(
             let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
 
             // Determine the bullet's angle towards the target
-            let d = weapon_t.translation
-                - (if player.technology.movement_prediction {
+            let d = -weapon_t.translation
+                + (if player.technology.movement_prediction {
                     get_future_position(
                         enemy_t.translation,
                         enemy.speed,
@@ -251,8 +251,6 @@ pub fn spawn_bullets(
 
                         // Reset target lock
                         weapon.target = None;
-
-                        continue;
                     }
                 } else {
                     // Not pointing at target -> rotate towards it
@@ -260,9 +258,9 @@ pub fn spawn_bullets(
                         Quat::from_rotation_z(angle),
                         weapon.rotation_speed * game_settings.speed * time.delta_secs(),
                     );
-
-                    continue;
                 }
+
+                continue;
             }
         }
 
@@ -279,7 +277,6 @@ pub fn move_bullets(
     mut commands: Commands,
     mut bullet_q: Query<(Entity, &mut Transform, &mut Bullet)>,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy), Without<Bullet>>,
-    mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,
     settings: Res<GameSettings>,
     time: Res<Time>,
@@ -289,7 +286,7 @@ pub fn move_bullets(
         // Calculate the new target's position wrt the bullet
         let d = match bullet.movement {
             Movement::Straight => None,
-            Movement::Location(v) => Some(-v + bullet_t.translation),
+            Movement::Location(v) => Some(v - bullet_t.translation),
             Movement::Homing(enemy_e) => {
                 if let Ok((_, enemy_t, _)) = enemy_q.get(enemy_e) {
                     Some(-enemy_t.translation + bullet_t.translation)
@@ -310,7 +307,7 @@ pub fn move_bullets(
         }
 
         // Move the bullet in the direction it's pointing
-        let d_pos = (bullet_t.rotation * Vec3::Y).normalize()
+        let d_pos = (bullet_t.rotation * Vec3::X).normalize()
             * bullet.speed
             * settings.speed
             * time.delta_secs();
@@ -330,16 +327,23 @@ pub fn move_bullets(
                         &enemy_t.translation,
                         &enemy.dim,
                     ) {
+                        // Special case: mines are only triggered by a certain size
+                        // (only mines have 0 speed)
+                        if bullet.speed == 0.
+                            && enemy.size < player.weapons.settings.mine_sensibility
+                        {
+                            continue;
+                        }
+
                         let impacted = bullet.impact.resolve(
                             &mut commands,
                             bullet_e,
                             &bullet_t,
                             Some((enemy_e, &mut enemy)),
-                            &mut night_stats,
                             &assets,
                         );
 
-                        // Special case: update mine counts (only mines have 0 speed)
+                        // Update mine counts
                         if impacted && bullet.speed == 0. {
                             player.weapons.mines -= 1;
                         }
@@ -349,14 +353,9 @@ pub fn move_bullets(
             Movement::Location(v) => {
                 // Accept a 5% error margin
                 if bullet_t.translation.distance(v) <= MAP_SIZE.y * 0.05 {
-                    bullet.impact.resolve(
-                        &mut commands,
-                        bullet_e,
-                        &bullet_t,
-                        None,
-                        &mut night_stats,
-                        &assets,
-                    );
+                    bullet
+                        .impact
+                        .resolve(&mut commands, bullet_e, &bullet_t, None, &assets);
                 }
             }
             Movement::Homing(enemy_e) => {
@@ -368,14 +367,9 @@ pub fn move_bullets(
                     &enemy_t.translation,
                     &enemy.dim,
                 ) {
-                    bullet.impact.resolve(
-                        &mut commands,
-                        bullet_e,
-                        &bullet_t,
-                        None,
-                        &mut night_stats,
-                        &assets,
-                    );
+                    bullet
+                        .impact
+                        .resolve(&mut commands, bullet_e, &bullet_t, None, &assets);
                 }
             }
         }
@@ -389,31 +383,5 @@ pub fn move_bullets(
         {
             commands.entity(bullet_e).try_despawn();
         }
-    }
-}
-
-pub fn update_resources(
-    mut player: ResMut<Player>,
-    game_settings: Res<GameSettings>,
-    time: Res<Time>,
-) {
-    if player.fence.enabled {
-        let cost = player.fence.cost.gasoline * game_settings.speed * time.delta_secs();
-        if player.resources.gasoline >= cost {
-            player.resources.gasoline -= cost;
-        } else {
-            player.fence.enabled = false;
-        }
-    }
-
-    let spotlight_cost = &player.spotlight.cost
-        * player.spotlight.power as f32
-        * game_settings.speed
-        * time.delta_secs();
-
-    if player.resources >= spotlight_cost {
-        player.resources -= &spotlight_cost;
-    } else {
-        player.spotlight.power = 0;
     }
 }

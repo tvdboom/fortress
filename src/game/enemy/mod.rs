@@ -13,9 +13,8 @@ impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EnemyManager>().add_systems(
             Update,
-            (spawn_enemies, move_enemies, update_enemy_health_bars)
-                .run_if(in_state(AppState::Night))
-                .run_if(in_state(GameState::Running)),
+            (spawn_enemies, move_enemies)
+                .run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
         );
     }
 }
