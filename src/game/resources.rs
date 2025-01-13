@@ -163,12 +163,14 @@ pub struct Spotlight {
 
 #[derive(Clone)]
 pub struct WeaponSettings {
-    pub machine_gun: u32,
-    pub flamethrower: u32,
     pub aaa: AAAFireStrategy,
+    pub artillery: u32,
+    pub canon: u32,
+    pub flamethrower: u32,
+    pub machine_gun: u32,
+    pub missile_launcher: u32,
     pub mortar: MortarShell,
     pub turret: FireStrategy,
-    pub missile_launcher: u32,
     pub bomb: FireStrategy,
     pub mine: Size,
 }
@@ -241,26 +243,29 @@ impl Player {
                 },
             },
             resources: Resources {
-                bullets: 1_000.,
-                gasoline: 1_000.,
-                materials: 1_000.,
+                bullets: 10_000.,
+                gasoline: 10_000.,
+                materials: 10_000.,
             },
             weapons: Weapons {
                 spots: vec![
-                    Some(WeaponName::MachineGun),
+                    Some(WeaponName::Canon),
                     Some(WeaponName::Mortar),
                     Some(WeaponName::AAA),
                     Some(WeaponName::MissileLauncher),
                     Some(WeaponName::Flamethrower),
                     Some(WeaponName::Turret),
                     Some(WeaponName::MachineGun),
+                    Some(WeaponName::Artillery),
                 ],
                 bombs: 10,
                 mines: 10,
                 settings: WeaponSettings {
-                    machine_gun: 0,
-                    flamethrower: 0,
                     aaa: AAAFireStrategy::None,
+                    artillery: 0,
+                    canon: 0,
+                    flamethrower: 0,
+                    machine_gun: 0,
                     mortar: MortarShell::None,
                     turret: FireStrategy::None,
                     missile_launcher: 0,

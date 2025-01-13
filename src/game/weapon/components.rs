@@ -17,12 +17,14 @@ pub struct Wall;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WeaponName {
-    MachineGun,
     AAA,
+    Artillery,
+    Canon,
     Flamethrower,
+    MachineGun,
+    MissileLauncher,
     Mortar,
     Turret,
-    MissileLauncher,
 }
 
 #[derive(Clone)]
@@ -151,7 +153,7 @@ pub struct Explosion {
 impl Default for Explosion {
     fn default() -> Self {
         Self {
-            atlas: "explosion",
+            atlas: "explosion1",
             interval: 0.01,
             radius: 0.,
             damage: default(),
@@ -288,10 +290,17 @@ impl Weapon {
         player: &Player,
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
-        // Return target if it's already acquired and it still exists
+        // Return target if it's already acquired, it still exists and it's still visible
         if let Some(enemy_e) = self
             .target
-            .filter(|enemy_e| enemy_q.get(*enemy_e).is_ok() && !exclusions.contains(enemy_e))
+            .and_then(|enemy_e| {
+                if let Ok((enemy_e, enemy_t, enemy)) = enemy_q.get(enemy_e) {
+                    if is_visible(&fow_q.get_single().unwrap(), enemy_t, enemy) && !exclusions.contains(&enemy_e) {
+                        return Some(enemy_e);
+                    }
+                }
+                None
+            })
         {
             return Some(enemy_e);
         }
@@ -389,19 +398,6 @@ impl Weapon {
     /// Update the weapon's settings based on the player and game settings
     pub fn update(&mut self, player: &Player) {
         match self.name {
-            WeaponName::MachineGun => {
-                match player.weapons.settings.machine_gun {
-                    0 => self.fire_timer = None,
-                    v => {
-                        if let Some(ref mut timer) = self.fire_timer {
-                            timer.set_duration(Duration::from_secs_f32(1. / v as f32));
-                        } else {
-                            self.fire_timer =
-                                Some(Timer::from_seconds(1. / v as f32, TimerMode::Once))
-                        }
-                    }
-                };
-            }
             WeaponName::AAA => {
                 // Reset the target to avoid one last shot at the wrong enemy
                 self.target = None;
@@ -426,6 +422,8 @@ impl Weapon {
                     }
                 };
             }
+            WeaponName::Artillery => {}
+            WeaponName::Canon => {}
             WeaponName::Flamethrower => match player.weapons.settings.flamethrower {
                 0 => self.fire_strategy = FireStrategy::None,
                 _ => {
@@ -445,6 +443,22 @@ impl Weapon {
                     self.bullet.price.gasoline = power;
                 }
             },
+            WeaponName::MachineGun => {
+                match player.weapons.settings.machine_gun {
+                    0 => self.fire_timer = None,
+                    v => {
+                        if let Some(ref mut timer) = self.fire_timer {
+                            timer.set_duration(Duration::from_secs_f32(1. / v as f32));
+                        } else {
+                            self.fire_timer =
+                                Some(Timer::from_seconds(1. / v as f32, TimerMode::Once))
+                        }
+                    }
+                };
+            }
+            WeaponName::MissileLauncher => {
+                self.n_bullets = player.weapons.settings.missile_launcher;
+            }
             WeaponName::Mortar => {
                 // Reset the target to recalculate the highest density
                 self.target = None;
@@ -489,21 +503,21 @@ impl Weapon {
                 self.target = None;
                 self.fire_strategy = player.weapons.settings.turret.clone();
             }
-            WeaponName::MissileLauncher => {
-                self.n_bullets = player.weapons.settings.missile_launcher;
-            }
         }
     }
 }
 
 #[derive(Resource)]
 pub struct WeaponManager {
-    pub machine_gun: Weapon,
     pub aaa: Weapon,
+    pub artillery: Weapon,
+    pub canon: Weapon,
     pub flamethrower: Weapon,
+    pub machine_gun: Weapon,
     pub mortar: Weapon,
-    pub turret: Weapon,
     pub missile_launcher: Weapon,
+    pub turret: Weapon,
+
     pub bomb: Bullet,
     pub mine: Bullet,
 }
@@ -511,12 +525,14 @@ pub struct WeaponManager {
 impl WeaponManager {
     pub fn get(&self, name: &WeaponName) -> Weapon {
         match name {
-            WeaponName::MachineGun => self.machine_gun.clone(),
             WeaponName::AAA => self.aaa.clone(),
+            WeaponName::Artillery => self.artillery.clone(),
+            WeaponName::Canon => self.canon.clone(),
             WeaponName::Flamethrower => self.flamethrower.clone(),
+            WeaponName::MachineGun => self.machine_gun.clone(),
             WeaponName::Mortar => self.mortar.clone(),
-            WeaponName::Turret => self.turret.clone(),
             WeaponName::MissileLauncher => self.missile_launcher.clone(),
+            WeaponName::Turret => self.turret.clone(),
         }
     }
 }
@@ -524,14 +540,14 @@ impl WeaponManager {
 impl Default for WeaponManager {
     fn default() -> Self {
         Self {
-            machine_gun: Weapon {
-                name: WeaponName::MachineGun,
-                image: "weapon/machine-gun.png",
-                dim: Vec2::new(70., 70.),
-                rotation_speed: 7.,
+            aaa: Weapon {
+                name: WeaponName::AAA,
+                image: "weapon/aaa.png",
+                dim: Vec2::new(80., 80.),
+                rotation_speed: 5.,
                 target: None,
                 price: Resources {
-                    materials: 100.,
+                    materials: 300.,
                     ..default()
                 },
                 fire_animation: FireAnimation {
@@ -540,23 +556,100 @@ impl Default for WeaponManager {
                     duration: 0.1,
                 },
                 n_bullets: 1,
-                fire_timer: None,
+                fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
-                    image: "weapon/bullet.png",
-                    dim: Vec2::new(25., 7.),
+                    image: "weapon/shell.png",
+                    dim: Vec2::new(20., 7.),
                     price: Resources {
-                        bullets: 1.,
+                        bullets: 5.,
                         ..default()
                     },
-                    speed: 0.8 * MAP_SIZE.y,
+                    speed: 1.2 * MAP_SIZE.y,
                     movement: Movement::Straight,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
-                        air: 0.,
+                        air: 5.,
                         penetration: 0.,
                     }),
                     max_distance: 0.7 * MAP_SIZE.y,
+                    distance: 0.,
+                },
+            },
+            artillery: Weapon {
+                name: WeaponName::Artillery,
+                image: "weapon/artillery.png",
+                dim: Vec2::new(80., 80.),
+                rotation_speed: 5.,
+                target: None,
+                price: Resources {
+                    materials: 600.,
+                    ..default()
+                },
+                fire_animation: FireAnimation {
+                    atlas: "cone-flash",
+                    scale: Vec3::splat(0.5),
+                    duration: 0.1,
+                },
+                n_bullets: 1,
+                fire_timer: Some(Timer::from_seconds(1., TimerMode::Once)),
+                fire_strategy: FireStrategy::Closest,
+                bullet: Bullet {
+                    image: "weapon/bullet.png",
+                    dim: Vec2::new(30., 10.),
+                    price: Resources {
+                        bullets: 25.,
+                        ..default()
+                    },
+                    speed: 0.9 * MAP_SIZE.y,
+                    movement: Movement::Straight,
+                    impact: Impact::SingleTarget(Damage {
+                        ground: 45.,
+                        air: 45.,
+                        penetration: 40.,
+                    }),
+                    max_distance: 1. * MAP_SIZE.y,
+                    distance: 0.,
+                },
+            },
+            canon: Weapon {
+                name: WeaponName::Canon,
+                image: "weapon/canon.png",
+                dim: Vec2::new(70., 50.),
+                rotation_speed: 6.,
+                target: None,
+                price: Resources {
+                    materials: 200.,
+                    ..default()
+                },
+                fire_animation: FireAnimation {
+                    atlas: "cone-flash",
+                    scale: Vec3::splat(0.5),
+                    duration: 0.1,
+                },
+                n_bullets: 1,
+                fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
+                fire_strategy: FireStrategy::Closest,
+                bullet: Bullet {
+                    image: "weapon/grenade.png",
+                    dim: Vec2::new(25., 10.),
+                    price: Resources {
+                        bullets: 10.,
+                        ..default()
+                    },
+                    speed: 0.6 * MAP_SIZE.y,
+                    movement: Movement::Straight,
+                    impact: Impact::Explosion(Explosion {
+                        atlas: "explosion2",
+                        radius: 0.08 * MAP_SIZE.y,
+                        damage: Damage {
+                            ground: 20.,
+                            air: 20.,
+                            penetration: 10.,
+                        },
+                        ..default()
+                    }),
+                    max_distance: 0.9 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
@@ -596,14 +689,14 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
             },
-            aaa: Weapon {
-                name: WeaponName::AAA,
-                image: "weapon/aaa.png",
-                dim: Vec2::new(80., 80.),
-                rotation_speed: 5.,
+            machine_gun: Weapon {
+                name: WeaponName::MachineGun,
+                image: "weapon/machine-gun.png",
+                dim: Vec2::new(70., 70.),
+                rotation_speed: 7.,
                 target: None,
                 price: Resources {
-                    materials: 300.,
+                    materials: 100.,
                     ..default()
                 },
                 fire_animation: FireAnimation {
@@ -612,23 +705,63 @@ impl Default for WeaponManager {
                     duration: 0.1,
                 },
                 n_bullets: 1,
-                fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
+                fire_timer: None,
                 fire_strategy: FireStrategy::Closest,
                 bullet: Bullet {
-                    image: "weapon/shell.png",
-                    dim: Vec2::new(20., 7.),
+                    image: "weapon/bullet.png",
+                    dim: Vec2::new(25., 7.),
                     price: Resources {
-                        bullets: 5.,
+                        bullets: 1.,
                         ..default()
                     },
-                    speed: 1.2 * MAP_SIZE.y,
+                    speed: 0.8 * MAP_SIZE.y,
                     movement: Movement::Straight,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
-                        air: 5.,
+                        air: 0.,
                         penetration: 0.,
                     }),
-                    max_distance: 1.2 * MAP_SIZE.y,
+                    max_distance: 0.7 * MAP_SIZE.y,
+                    distance: 0.,
+                },
+            },
+            missile_launcher: Weapon {
+                name: WeaponName::MissileLauncher,
+                image: "weapon/missile-launcher.png",
+                dim: Vec2::new(90., 90.),
+                rotation_speed: 5.,
+                target: None,
+                price: Resources {
+                    materials: 1200.,
+                    ..default()
+                },
+                fire_animation: FireAnimation {
+                    atlas: "wide-flash",
+                    scale: Vec3::splat(0.7),
+                    duration: 0.1,
+                },
+                n_bullets: 1,
+                fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
+                fire_strategy: FireStrategy::Strongest,
+                bullet: Bullet {
+                    image: "weapon/grenade.png",
+                    dim: Vec2::new(20., 6.),
+                    price: Resources {
+                        bullets: 15.,
+                        ..default()
+                    },
+                    speed: 0.6 * MAP_SIZE.y,
+                    movement: Movement::Homing(Entity::from_raw(0)), // Set at spawn
+                    impact: Impact::Explosion(Explosion {
+                        radius: 0.1 * MAP_SIZE.y,
+                        damage: Damage {
+                            ground: 30.,
+                            air: 30.,
+                            penetration: 5.,
+                        },
+                        ..default()
+                    }),
+                    max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
@@ -705,46 +838,6 @@ impl Default for WeaponManager {
                         penetration: 10.,
                     }),
                     max_distance: 0.9 * MAP_SIZE.y,
-                    distance: 0.,
-                },
-            },
-            missile_launcher: Weapon {
-                name: WeaponName::MissileLauncher,
-                image: "weapon/missile-launcher.png",
-                dim: Vec2::new(90., 90.),
-                rotation_speed: 5.,
-                target: None,
-                price: Resources {
-                    materials: 1200.,
-                    ..default()
-                },
-                fire_animation: FireAnimation {
-                    atlas: "wide-flash",
-                    scale: Vec3::splat(0.7),
-                    duration: 0.1,
-                },
-                n_bullets: 1,
-                fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
-                fire_strategy: FireStrategy::Strongest,
-                bullet: Bullet {
-                    image: "weapon/grenade.png",
-                    dim: Vec2::new(20., 6.),
-                    price: Resources {
-                        bullets: 15.,
-                        ..default()
-                    },
-                    speed: 0.6 * MAP_SIZE.y,
-                    movement: Movement::Homing(Entity::from_raw(0)), // Set at spawn
-                    impact: Impact::Explosion(Explosion {
-                        radius: 0.1 * MAP_SIZE.y,
-                        damage: Damage {
-                            ground: 30.,
-                            air: 30.,
-                            penetration: 5.,
-                        },
-                        ..default()
-                    }),
-                    max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
                 },
             },

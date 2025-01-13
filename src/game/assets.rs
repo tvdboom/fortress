@@ -70,7 +70,8 @@ impl FromWorld for WorldAssets {
             // Sprite sheets
             ("flashes", assets.load("weapon/flashes.png")),
             ("flame", assets.load("weapon/flame.png")),
-            ("explosion", assets.load("weapon/explosion.png")),
+            ("explosion1", assets.load("weapon/explosion1.png")),
+            ("explosion2", assets.load("weapon/explosion2.png")),
         ]);
 
         let mut texture = world
@@ -82,7 +83,8 @@ impl FromWorld for WorldAssets {
         let cone_flash = TextureAtlasLayout::from_grid(UVec2::new(107, 105), 4, 6, None, None);
         let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
         let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
-        let explosion = TextureAtlasLayout::from_grid(UVec2::new(256, 256), 8, 6, None, None);
+        let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(256, 256), 8, 6, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(257, 252), 8, 6, None, None);
 
         let atlas = HashMap::from([
             (
@@ -141,14 +143,25 @@ impl FromWorld for WorldAssets {
                 },
             ),
             (
-                "explosion",
+                "explosion1",
                 AtlasInfo {
-                    image: images["explosion"].clone_weak(),
+                    image: images["explosion1"].clone_weak(),
                     texture: TextureAtlas {
-                        layout: texture.add(explosion),
+                        layout: texture.add(explosion1),
                         index: 1,
                     },
                     last_index: 48,
+                },
+            ),
+            (
+                "explosion2",
+                AtlasInfo {
+                    image: images["explosion2"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(explosion2),
+                        index: 1,
+                    },
+                    last_index: 32,
                 },
             ),
         ]);

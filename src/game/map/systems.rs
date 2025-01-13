@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use super::components::*;
 use crate::constants::*;
 use crate::game::assets::WorldAssets;
@@ -471,9 +470,11 @@ pub fn weapons_panel(
                 weapon_q
                     .iter_mut()
                     .filter(|w| match w.name {
+                        WeaponName::AAA => old_s.aaa != player.weapons.settings.aaa,
+                        WeaponName::Artillery => old_s.artillery != player.weapons.settings.artillery,
+                        WeaponName::Canon => old_s.canon != player.weapons.settings.canon,
                         WeaponName::MachineGun => old_s.machine_gun != player.weapons.settings.machine_gun,
                         WeaponName::Flamethrower => old_s.flamethrower != player.weapons.settings.flamethrower,
-                        WeaponName::AAA => old_s.aaa != player.weapons.settings.aaa,
                         WeaponName::Mortar => old_s.mortar != player.weapons.settings.mortar,
                         WeaponName::Turret => old_s.turret != player.weapons.settings.turret,
                         WeaponName::MissileLauncher => old_s.missile_launcher != player.weapons.settings.missile_launcher,
@@ -642,23 +643,6 @@ pub fn weapons_panel(
                                         - MENU_PANEL_SIZE.y
                                         - FOW_SIZE.y * 0.5
                                         + (FOW_SIZE.y / MAX_SPOTLIGHT_POWER as f32 * player.spotlight.power as f32);
-
-                                    // Untarget all enemies in the fow to avoid targeting invisible enemies
-                                    let enemies = enemy_q.iter()
-                                        .filter_map(|(enemy_e, enemy_t, enemy)| {
-                                            if is_visible(&fow, enemy_t, enemy) {
-                                                None
-                                            } else {
-                                                Some(enemy_e)
-                                            }
-                                        })
-                                        .collect::<HashSet<_>>();
-
-                                    weapon_q.iter_mut().for_each(|mut w| {
-                                        if w.target.filter(|e| enemies.contains(e)).is_some() {
-                                            w.target = None;
-                                        }
-                                    });
                                 }
                             });
                         });
