@@ -56,9 +56,10 @@ pub enum FireStrategy {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AAAFireStrategy {
+pub enum AirFireStrategy {
     None,
     All,
+    Grounded,
     Airborne,
 }
 
@@ -287,7 +288,6 @@ impl Weapon {
         transform: &Transform,
         enemy_q: &Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
         fow_q: &Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
-        player: &Player,
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
         // Return target if it's already acquired, it still exists and it's still visible
@@ -312,12 +312,15 @@ impl Weapon {
                     return None;
                 }
 
-                // Special case => AAAs don't shoot ground units when strategy is Airborne
-                if self.name == WeaponName::AAA
-                    && player.weapons.settings.aaa == AAAFireStrategy::Airborne
-                    && !enemy.can_fly
-                {
-                    return None;
+                // Don't shoot flying units when the bullet has only ground damage and vice versa
+                match &self.bullet.impact {
+                    Impact::SingleTarget(d)
+                    | Impact::Piercing(d)
+                    | Impact::Explosion(Explosion { damage: d, .. }) => {
+                        if (d.ground == 0. && !enemy.can_fly) || (d.air == 0. && enemy.can_fly) {
+                            return None;
+                        }
+                    }
                 }
 
                 // Check if the enemy is in range
@@ -402,8 +405,8 @@ impl Weapon {
                 self.target = None;
 
                 match player.weapons.settings.aaa {
-                    AAAFireStrategy::None => self.fire_strategy = FireStrategy::None,
-                    AAAFireStrategy::All => {
+                    AirFireStrategy::None => self.fire_strategy = FireStrategy::None,
+                    AirFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 5.,
@@ -411,18 +414,50 @@ impl Weapon {
                             penetration: 0.,
                         })
                     }
-                    AAAFireStrategy::Airborne => {
+                    AirFireStrategy::Airborne => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
                             air: 20.,
                             penetration: 0.,
                         })
-                    }
+                    },
+                    _ => unreachable!()
                 };
             }
-            WeaponName::Artillery => {}
-            WeaponName::Canon => {}
+            WeaponName::Artillery => {
+                self.target = None;
+                self.fire_strategy = player.weapons.settings.artillery.clone();
+            }
+            WeaponName::Canon => {
+                // Reset the target to avoid one last shot at the wrong enemy
+                self.target = None;
+
+                match player.weapons.settings.canon {
+                    AirFireStrategy::None => self.fire_strategy = FireStrategy::None,
+                    AirFireStrategy::Grounded => {
+                        self.fire_strategy = FireStrategy::Closest;
+                        if let Impact::Explosion(ref mut explosion) = self.bullet.impact {
+                            explosion.damage = Damage {
+                                ground: 20.,
+                                air: 0.,
+                                penetration: 0.,
+                            };
+                        }
+                    }
+                    AirFireStrategy::Airborne => {
+                        self.fire_strategy = FireStrategy::Closest;
+                        if let Impact::Explosion(ref mut explosion) = self.bullet.impact {
+                            explosion.damage = Damage {
+                                ground: 0.,
+                                air: 20.0,
+                                penetration: 0.,
+                            };
+                        }
+                    },
+                    _ => unreachable!()
+                };
+            }
             WeaponName::Flamethrower => match player.weapons.settings.flamethrower {
                 0 => self.fire_strategy = FireStrategy::None,
                 _ => {
@@ -498,10 +533,7 @@ impl Weapon {
                     }
                 };
             }
-            WeaponName::Turret => {
-                self.target = None;
-                self.fire_strategy = player.weapons.settings.turret.clone();
-            }
+            WeaponName::Turret => (),
         }
     }
 }
@@ -642,12 +674,7 @@ impl Default for WeaponManager {
                     impact: Impact::Explosion(Explosion {
                         atlas: "explosion2",
                         radius: 0.08 * MAP_SIZE.y,
-                        damage: Damage {
-                            ground: 20.,
-                            air: 20.,
-                            penetration: 10.,
-                        },
-                        ..default()
+                        ..default() // Damage set when updating fire strategy
                     }),
                     max_distance: 0.9 * MAP_SIZE.y,
                     distance: 0.,
@@ -821,7 +848,7 @@ impl Default for WeaponManager {
                     duration: 0.1,
                 },
                 n_bullets: 1,
-                fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
+                fire_timer: Some(Timer::from_seconds(1., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png",
@@ -831,13 +858,13 @@ impl Default for WeaponManager {
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
-                    movement: Movement::Straight,
+                    movement: Movement::Homing(Entity::from_raw(0)), // Set at spawn
                     impact: Impact::SingleTarget(Damage {
                         ground: 50.,
                         air: 50.,
                         penetration: 10.,
                     }),
-                    max_distance: 0.9 * MAP_SIZE.y,
+                    max_distance: 2. * MAP_SIZE.y,
                     distance: 0.,
                 },
             },
@@ -889,7 +916,7 @@ impl Default for WeaponManager {
             },
             nuke: Bullet {
                 image: "weapon/nuke.png",
-                dim: Vec2::new(40., 25.),
+                dim: Vec2::new(25., 10.),
                 price: Resources {
                     bullets: 2500.,
                     gasoline: 2500.,
@@ -903,7 +930,7 @@ impl Default for WeaponManager {
                 )),
                 impact: Impact::Explosion(Explosion {
                     interval: 0.05,
-                    radius: 1.2 * MAP_SIZE.y,
+                    radius: 1.5 * MAP_SIZE.y,
                     damage: Damage {
                         ground: 20_000.,
                         air: 20_000.,

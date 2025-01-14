@@ -372,6 +372,23 @@ pub fn weapons_panel(
                     });
                 }
 
+                // Canon
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::Canon,
+                    None => false,
+                }) {
+                    ui.add_space(7.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Canon)));
+                        ui.selectable_value(&mut player.weapons.settings.canon, AirFireStrategy::None, AirFireStrategy::None.name())
+                            .on_hover_text("Don't fire.");
+                        ui.selectable_value(&mut player.weapons.settings.canon, AirFireStrategy::Grounded, AirFireStrategy::Grounded.name())
+                            .on_hover_text("Fire only at grounded (non-flying) enemies.");
+                        ui.selectable_value(&mut player.weapons.settings.canon, AirFireStrategy::Airborne, AirFireStrategy::Airborne.name())
+                            .on_hover_text("Fire only at flying enemies.");
+                    });
+                }
+
                 // Flamethrower
                 if player.weapons.spots.iter().any(|w| match w {
                     Some(w) => *w == WeaponName::Flamethrower,
@@ -394,6 +411,23 @@ pub fn weapons_panel(
                     });
                 }
 
+                // Artillery
+                if player.weapons.spots.iter().any(|w| match w {
+                    Some(w) => *w == WeaponName::Artillery,
+                    None => false,
+                }) {
+                    ui.add_space(7.);
+                    ui.horizontal(|ui| {
+                        ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Artillery)));
+                        ui.selectable_value(&mut player.weapons.settings.artillery, FireStrategy::None, FireStrategy::None.name())
+                            .on_hover_text("Don't fire.");
+                        ui.selectable_value(&mut player.weapons.settings.artillery, FireStrategy::Closest, FireStrategy::Closest.name())
+                            .on_hover_text("Fire on the closest enemy.");
+                        ui.selectable_value(&mut player.weapons.settings.artillery, FireStrategy::Strongest, FireStrategy::Strongest.name())
+                            .on_hover_text("Fire on the strongest enemy.");
+                    });
+                }
+
                 // AAA
                 if player.weapons.spots.iter().any(|w| match w {
                     Some(w) => *w == WeaponName::AAA,
@@ -402,11 +436,11 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::AAA)));
-                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::None, AAAFireStrategy::None.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AirFireStrategy::None, AirFireStrategy::None.name())
                             .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::All, AAAFireStrategy::All.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AirFireStrategy::All, AirFireStrategy::All.name())
                             .on_hover_text("Fire at all enemies dealing reduced damage.");
-                        ui.selectable_value(&mut player.weapons.settings.aaa, AAAFireStrategy::Airborne, AAAFireStrategy::Airborne.name())
+                        ui.selectable_value(&mut player.weapons.settings.aaa, AirFireStrategy::Airborne, AirFireStrategy::Airborne.name())
                             .on_hover_text("Fire only at flying enemies, dealing more damage.");
                     });
                 }
@@ -436,12 +470,23 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                     ui.horizontal(|ui| {
                         ui.add(egui::Label::new(format!("{:?}: ", WeaponName::Turret)));
-                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::None, FireStrategy::None.name())
-                            .on_hover_text("Don't fire.");
-                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::Closest, FireStrategy::Closest.name())
-                            .on_hover_text("Fire on the closest enemy.");
-                        ui.selectable_value(&mut player.weapons.settings.turret, FireStrategy::Strongest, FireStrategy::Strongest.name())
-                            .on_hover_text("Fire on the strongest enemy.");
+                        ui.add(
+                            egui::ProgressBar::new(player.weapons.settings.turret / MAX_TURRET_POWER)
+                                .desired_width(120.)
+                                .desired_height(20.)
+                                .show_percentage()
+                        );
+
+                        let locked = weapon_q.iter().any(|w| w.name == WeaponName::Turret && w.fire_strategy == FireStrategy::Strongest);
+                        ui.add_enabled_ui(!locked && player.weapons.settings.turret > MAX_TURRET_POWER * 0.2 && *game_state.get() == GameState::Running, |ui| {
+                            let button = ui.add_sized([50., 20.], egui::Button::new("Fire!"));
+
+                            if button.clicked() {
+                                if let Some(mut turret) = weapon_q.iter_mut().find(|w| w.name == WeaponName::Turret) {
+                                    turret.fire_strategy = FireStrategy::Strongest;
+                                }
+                            }
+                        });
                     });
                 }
 
@@ -616,7 +661,7 @@ pub fn weapons_panel(
                                         ..default()
                                     },
                                     Transform {
-                                        translation: Vec3::new(-WEAPONS_PANEL_SIZE.x * 0.5, SIZE.y * 0.5, NUKE_Z),
+                                        translation: Vec3::new(-WEAPONS_PANEL_SIZE.x * 0.5, SIZE.y * 0.5, WEAPON_Z),
                                         rotation: Quat::from_rotation_z(-PI * 0.5),
                                         ..default()
                                     },
@@ -960,7 +1005,6 @@ pub fn run_animations(
                         }
 
                         // Resolve the impact on all enemies in radius
-                        println!("Explosion at {:?}, {}", animation_t.translation, 2. *radius);
                         enemy_q
                             .iter_mut()
                             .filter(|(_, &t2, enemy)| {
@@ -985,6 +1029,7 @@ pub fn run_animations(
 
 pub fn update_game(
     mut commands: Commands,
+    weapon_q: Query<&Weapon>,
     enemy_q: Query<EnemyQ, (With<Enemy>, Without<EnemyHealth>)>,
     children_q: Query<&Children>,
     fence_q: Query<Entity, With<Fence>>,
@@ -995,6 +1040,16 @@ pub fn update_game(
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
+    // Update turret's power
+    if let Some(turret) = weapon_q.iter().find(|w| w.name == WeaponName::Turret) {
+        // The default is to power-up in 10 seconds, but
+        // this decreases with the fire_timer's duration
+        let timer = turret.fire_timer.clone().unwrap().duration().as_secs_f32();
+        player.weapons.settings.turret = (player.weapons.settings.turret
+            + MAX_TURRET_POWER / DEFAULT_TURRET_POWER_TIME * timer.powf(-1.) * time.delta_secs())
+        .min(MAX_TURRET_POWER);
+    }
+
     // Update resources
     if player.fence.enabled {
         let cost = player.fence.cost.gasoline * game_settings.speed * time.delta_secs();

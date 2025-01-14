@@ -42,12 +42,15 @@ pub const ENEMY_Z: f32 = 3.0;
 pub const WEAPON_Z: f32 = 4.0;
 pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
-pub const NUKE_Z: f32 = 7.0;
 
 // Weapon settings
 pub const MAX_SPOTS: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;
+pub const DEFAULT_TURRET_POWER_TIME: f32 = 10.; // Seconds to power-up the turret
+pub const MAX_TURRET_POWER: f32 = 100.;
 pub const MAX_MISSILE_LAUNCHER_SHELLS: u32 = 10;
 pub const MAX_SPOTLIGHT_POWER: u32 = 100;
 pub const MAX_MINES: u32 = 25;
+pub const MAX_BOMBS: u32 = 5;
+pub const MAX_NUKES: u32 = 1;

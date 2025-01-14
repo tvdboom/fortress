@@ -1,6 +1,6 @@
 use crate::constants::NIGHT_DURATION;
 use crate::game::enemy::components::Size;
-use crate::game::weapon::components::{AAAFireStrategy, FireStrategy, MortarShell, WeaponName};
+use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell, WeaponName};
 use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
@@ -163,14 +163,14 @@ pub struct Spotlight {
 
 #[derive(Clone)]
 pub struct WeaponSettings {
-    pub aaa: AAAFireStrategy,
-    pub artillery: u32,
-    pub canon: u32,
+    pub aaa: AirFireStrategy,
+    pub artillery: FireStrategy,
+    pub canon: AirFireStrategy,
     pub flamethrower: u32,
     pub machine_gun: u32,
     pub missile_launcher: u32,
     pub mortar: MortarShell,
-    pub turret: FireStrategy,
+    pub turret: f32,
     pub bomb: FireStrategy,
     pub mine: Size,
 }
@@ -263,13 +263,13 @@ impl Player {
                 bombs: 10,
                 nuke: 5,
                 settings: WeaponSettings {
-                    aaa: AAAFireStrategy::None,
-                    artillery: 0,
-                    canon: 0,
+                    aaa: AirFireStrategy::None,
+                    artillery: FireStrategy::None,
+                    canon: AirFireStrategy::None,
                     flamethrower: 0,
                     machine_gun: 0,
                     mortar: MortarShell::None,
-                    turret: FireStrategy::None,
+                    turret: 0.,
                     missile_launcher: 0,
                     bomb: FireStrategy::Density,
                     mine: Size::Medium,

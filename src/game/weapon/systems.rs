@@ -131,7 +131,7 @@ pub fn spawn_bullets(
     for (mut weapon_t, mut weapon) in weapon_q.iter_mut() {
         let mut targets = HashSet::new();
 
-        weapon.target = weapon.acquire_target(&weapon_t, &enemy_q, &fow_q, &player, &targets);
+        weapon.target = weapon.acquire_target(&weapon_t, &enemy_q, &fow_q, &targets);
         if let Some(enemy_e) = weapon.target {
             let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
 
@@ -204,13 +204,23 @@ pub fn spawn_bullets(
                             night_stats.resources += &bullet.price;
                             player.resources -= &bullet.price;
 
+                            // Special case => turret only fires with ui button
+                            if weapon.name == WeaponName::Turret {
+                                // The damage increases exponentially with the firepower
+                                bullet.impact = Impact::SingleTarget(Damage {
+                                    ground: 1.05f32.powf(player.weapons.settings.turret),
+                                    air: 1.05f32.powf(player.weapons.settings.turret),
+                                    penetration: 1.04f32.powf(player.weapons.settings.turret),
+                                });
+                                player.weapons.settings.turret = 0.;
+                                weapon.fire_strategy = FireStrategy::None;
+                            }
+
                             // From the 2nd bullet onwards, update the target
                             let (enemy_e, enemy_t, enemy) = match i {
                                 i if i > 0 => {
                                     let enemy_e = weapon
-                                        .acquire_target(
-                                            &weapon_t, &enemy_q, &fow_q, &player, &targets,
-                                        )
+                                        .acquire_target(&weapon_t, &enemy_q, &fow_q, &targets)
                                         .unwrap_or(enemy_e);
                                     enemy_q.get(enemy_e).unwrap()
                                 }
@@ -368,7 +378,7 @@ pub fn move_bullets(
                 }
             }
             Movement::Homing(enemy_e) => {
-                let (_, enemy_t, enemy) = enemy_q.get(enemy_e).unwrap();
+                let (enemy_e, enemy_t, mut enemy) = enemy_q.get_mut(enemy_e).unwrap();
 
                 if collision(
                     &bullet_t.translation,
@@ -376,9 +386,13 @@ pub fn move_bullets(
                     &enemy_t.translation,
                     &enemy.dim,
                 ) {
-                    bullet
-                        .impact
-                        .resolve(&mut commands, bullet_e, &bullet_t, None, &assets);
+                    bullet.impact.resolve(
+                        &mut commands,
+                        bullet_e,
+                        &bullet_t,
+                        Some((enemy_e, &mut enemy)),
+                        &assets,
+                    );
                 }
             }
         }
