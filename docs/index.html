@@ -1,6 +1,54 @@
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Fortress</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            margin: 0;
+            background: white;
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            position: absolute;
+            z-index : -999;
+            -webkit-animation: spin 2s linear infinite;
+            animation: spin 2s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="loader"></div>
 <script type="module">
     import init from './fortress.js';
     init()
+        .then(() => {
+            document.querySelector('.loader').style.display = 'none';
+        })
+        .catch((error) => {
+            console.error('Error initializing WASM:', error);
+            alert('Failed to load the application.');
+        });
 </script>
+</body>
 </html>

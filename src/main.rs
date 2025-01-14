@@ -8,13 +8,12 @@ use crate::game::GamePlugin;
 use constants::{SIZE, TITLE};
 
 use crate::messages::MessagesPlugin;
-use crate::systems::set_window_icon;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 use bevy_egui::EguiPlugin;
 
 fn main() {
-    App::new()
+    let app = App::new()
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest()) // Prevents blurry sprites
@@ -34,7 +33,7 @@ fn main() {
         .add_plugins(GamePlugin);
 
         #[cfg(target_os = "windows")]
-        app.add_systems(Startup, set_window_icon);
+        app.add_systems(Startup, systems::set_window_icon);
 
         app.run();
 }
