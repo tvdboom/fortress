@@ -31,7 +31,10 @@ fn main() {
         )
         .add_plugins(EguiPlugin)
         .add_plugins(MessagesPlugin::default())
-        .add_plugins(GamePlugin)
-        .add_systems(Startup, set_window_icon)
-        .run();
+        .add_plugins(GamePlugin);
+
+        #[cfg(target_os = "windows")]
+        app.add_systems(Startup, set_window_icon);
+
+        app.run();
 }
