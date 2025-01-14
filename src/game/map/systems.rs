@@ -320,8 +320,9 @@ pub fn weapons_panel(
     let weapon_texture = contexts.add_image(assets.get_image("weapon"));
     let lightning_texture = contexts.add_image(assets.get_image("lightning"));
     let fence_texture = contexts.add_image(assets.get_image("fence"));
-    let bomb_texture = contexts.add_image(assets.get_image("bomb"));
     let mine_texture = contexts.add_image(assets.get_image("mine"));
+    let bomb_texture = contexts.add_image(assets.get_image("bomb"));
+    let nuke_texture = contexts.add_image(assets.get_image("nuke"));
     let spotlight_texture = contexts.add_image(assets.get_image("spotlight"));
     let bulb_texture = contexts.add_image(assets.get_image("bulb"));
     let bullets_texture = contexts.add_image(assets.get_image("bullets"));
@@ -486,96 +487,6 @@ pub fn weapons_panel(
                 if player.weapons.bombs > 0 || player.weapons.mines > 0 {
                     ui.separator();
 
-                    ui.add_enabled_ui(player.weapons.bombs > 0, |ui| {
-                        ui.add_space(7.);
-                        ui.horizontal(|ui| {
-                            ui.add_image(bomb_texture, [20., 20.]);
-                            let label = ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs)))
-                                .on_hover_cursor(CursorIcon::PointingHand)
-                                .on_hover_text("Launch!");
-                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Density, FireStrategy::Density.name())
-                                .on_hover_text("Launch at highest enemy density location.");
-                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Strongest, FireStrategy::Strongest.name())
-                                .on_hover_text("Launch at strongest enemy.");
-
-                            if label.clicked() && *game_state.get() == GameState::Running {
-                                let mut bomb = weapons.bomb.clone();
-
-                                if let Impact::Explosion(e) = &bomb.impact {
-                                    let visible_enemies = enemy_q
-                                        .iter()
-                                        .filter(|(_, enemy_t, enemy)| is_visible(fow_q.get_single().unwrap(), enemy_t, enemy))
-                                        .collect::<Vec<_>>();
-
-                                    if let Some((_, enemy_t, enemy)) = match player.weapons.settings.bomb {
-                                        FireStrategy::Strongest => {
-                                            visible_enemies
-                                                .iter()
-                                                .max_by(|(_, _, e1), (_, _, e2)| {
-                                                    e1.max_health.partial_cmp(&e2.max_health).unwrap()
-                                                })
-                                        },
-                                        FireStrategy::Density => {
-                                            visible_enemies
-                                                .iter()
-                                                .max_by(|(_, t1, _), (_, t2, _)| {
-                                                    let density_a = visible_enemies
-                                                        .iter()
-                                                        .filter(|(_, t, _)| {
-                                                            t1.translation.distance(t.translation) <= e.radius
-                                                        })
-                                                        .count();
-
-                                                    let density_b = visible_enemies
-                                                        .iter()
-                                                        .filter(|(_, t, _)| {
-                                                            t2.translation.distance(t.translation) <= e.radius
-                                                        })
-                                                        .count();
-
-                                                    density_a.cmp(&density_b)
-                                                })
-                                        },
-                                        _ => unreachable!(),
-                                    }
-                                    {
-                                        let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
-
-                                        // Calculate the detonation's position
-                                        bomb.movement = Movement::Location(if player.technology.movement_prediction {
-                                            get_future_position(
-                                                enemy_t.translation,
-                                                enemy.speed,
-                                                start,
-                                                bomb.speed,
-                                                fence_q.get_single(),
-                                                wall_q.get_single(),
-                                            )
-                                        } else {
-                                            enemy_t.translation
-                                        });
-
-                                        commands.spawn((
-                                            Sprite {
-                                                image: asset_server.load(bomb.image),
-                                                custom_size: Some(bomb.dim),
-                                                ..default()
-                                            },
-                                            Transform {
-                                                translation: start,
-                                                rotation: Quat::from_rotation_z(-PI * 0.5),
-                                                ..default()
-                                            },
-                                            bomb,
-                                        ));
-
-                                        player.weapons.bombs -= 1;
-                                    }
-                                }
-                            }
-                        });
-                    });
-
                     ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
                         ui.add_space(7.);
                         ui.horizontal(|ui| {
@@ -587,6 +498,133 @@ pub fn weapons_panel(
                                 .on_hover_text("Detonate for medium and large enemies.");
                             ui.selectable_value(&mut player.weapons.settings.mine, Size::Large, Size::Large.name())
                                 .on_hover_text("Detonate only for large enemies.");
+                        });
+                    });
+
+                    ui.add_enabled_ui(player.weapons.bombs > 0, |ui| {
+                        ui.add_space(7.);
+                        ui.horizontal(|ui| {
+                            ui.add_image(bomb_texture, [20., 20.]);
+                            let label = ui.add_enabled_ui(*game_state.get() == GameState::Running, |ui| {
+                                ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs)))
+                                    .on_hover_cursor(CursorIcon::PointingHand)
+                                    .on_hover_text("Launch!");
+                            });
+
+                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Density, FireStrategy::Density.name())
+                                .on_hover_text("Launch at highest enemy density location.");
+                            ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Strongest, FireStrategy::Strongest.name())
+                                .on_hover_text("Launch at strongest enemy.");
+
+                            if label.response.clicked() {
+                                let mut bomb = weapons.bomb.clone();
+
+                                let explosion = match &bomb.impact {
+                                    Impact::Explosion(e) => e,
+                                    _ => unreachable!(),
+                                };
+
+                                let visible_enemies = enemy_q
+                                    .iter()
+                                    .filter(|(_, enemy_t, enemy)| is_visible(fow_q.get_single().unwrap(), enemy_t, enemy))
+                                    .collect::<Vec<_>>();
+
+                                if let Some((_, enemy_t, enemy)) = match player.weapons.settings.bomb {
+                                    FireStrategy::Strongest => {
+                                        visible_enemies
+                                            .iter()
+                                            .max_by(|(_, _, e1), (_, _, e2)| {
+                                                e1.max_health.partial_cmp(&e2.max_health).unwrap()
+                                            })
+                                    },
+                                    FireStrategy::Density => {
+                                        visible_enemies
+                                            .iter()
+                                            .max_by(|(_, t1, _), (_, t2, _)| {
+                                                let density_a = visible_enemies
+                                                    .iter()
+                                                    .filter(|(_, t, _)| {
+                                                        t1.translation.distance(t.translation) <= explosion.radius
+                                                    })
+                                                    .count();
+
+                                                let density_b = visible_enemies
+                                                    .iter()
+                                                    .filter(|(_, t, _)| {
+                                                        t2.translation.distance(t.translation) <= explosion.radius
+                                                    })
+                                                    .count();
+
+                                                density_a.cmp(&density_b)
+                                            })
+                                    },
+                                    _ => unreachable!(),
+                                }
+                                {
+                                    let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
+
+                                    // Calculate the detonation's position
+                                    bomb.movement = Movement::Location(if player.technology.movement_prediction {
+                                        get_future_position(
+                                            enemy_t.translation,
+                                            enemy.speed,
+                                            start,
+                                            bomb.speed,
+                                            fence_q.get_single(),
+                                            wall_q.get_single(),
+                                        )
+                                    } else {
+                                        enemy_t.translation
+                                    });
+
+                                    commands.spawn((
+                                        Sprite {
+                                            image: asset_server.load(bomb.image),
+                                            custom_size: Some(bomb.dim),
+                                            ..default()
+                                        },
+                                        Transform {
+                                            translation: start,
+                                            rotation: Quat::from_rotation_z(-PI * 0.5),
+                                            ..default()
+                                        },
+                                        bomb,
+                                    ));
+
+                                    player.weapons.bombs -= 1;
+                                }
+                            }
+                        });
+                    });
+
+                    ui.add_space(7.);
+
+                    ui.add_enabled_ui(player.weapons.nuke > 0 && *game_state.get() == GameState::Running, |ui| {
+                        ui.add_space(7.);
+                        ui.horizontal(|ui| {
+                            ui.add_image(nuke_texture, [20., 20.]);
+                            ui.add(egui::Label::new(format!("Nuke ({}): ", player.weapons.nuke)));
+                            let button = ui.add_sized([60., 20.], egui::Button::new("Launch!"));
+
+                            if button.clicked() {
+                                let nuke = weapons.nuke.clone();
+
+                                commands.spawn((
+                                    Sprite {
+                                        image: asset_server.load(nuke.image),
+                                        custom_size: Some(nuke.dim),
+                                        ..default()
+                                    },
+                                    Transform {
+                                        translation: Vec3::new(-WEAPONS_PANEL_SIZE.x * 0.5, SIZE.y * 0.5, NUKE_Z),
+                                        rotation: Quat::from_rotation_z(-PI * 0.5),
+                                        ..default()
+                                    },
+                                    nuke,
+                                ));
+
+                                player.weapons.nuke -= 1;
+                            }
                         });
                     });
 
@@ -922,6 +960,7 @@ pub fn run_animations(
                         }
 
                         // Resolve the impact on all enemies in radius
+                        println!("Explosion at {:?}, {}", animation_t.translation, 2. *radius);
                         enemy_q
                             .iter_mut()
                             .filter(|(_, &t2, enemy)| {

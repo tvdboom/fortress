@@ -177,8 +177,9 @@ pub struct WeaponSettings {
 
 pub struct Weapons {
     pub spots: Vec<Option<WeaponName>>,
-    pub bombs: u32,
     pub mines: u32,
+    pub bombs: u32,
+    pub nuke: u32,
     pub settings: WeaponSettings,
 }
 
@@ -258,8 +259,9 @@ impl Player {
                     Some(WeaponName::MachineGun),
                     Some(WeaponName::Artillery),
                 ],
-                bombs: 10,
                 mines: 10,
+                bombs: 10,
+                nuke: 5,
                 settings: WeaponSettings {
                     aaa: AAAFireStrategy::None,
                     artillery: 0,

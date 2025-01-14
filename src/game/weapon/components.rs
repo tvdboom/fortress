@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-use crate::constants::{EnemyQ, EXPLOSION_Z, MAP_SIZE};
+use crate::constants::{EnemyQ, EXPLOSION_Z, MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
@@ -7,6 +6,7 @@ use crate::game::map::utils::is_visible;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
+use std::collections::HashSet;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -291,17 +291,16 @@ impl Weapon {
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
         // Return target if it's already acquired, it still exists and it's still visible
-        if let Some(enemy_e) = self
-            .target
-            .and_then(|enemy_e| {
-                if let Ok((enemy_e, enemy_t, enemy)) = enemy_q.get(enemy_e) {
-                    if is_visible(&fow_q.get_single().unwrap(), enemy_t, enemy) && !exclusions.contains(&enemy_e) {
-                        return Some(enemy_e);
-                    }
+        if let Some(enemy_e) = self.target.and_then(|enemy_e| {
+            if let Ok((enemy_e, enemy_t, enemy)) = enemy_q.get(enemy_e) {
+                if is_visible(&fow_q.get_single().unwrap(), enemy_t, enemy)
+                    && !exclusions.contains(&enemy_e)
+                {
+                    return Some(enemy_e);
                 }
-                None
-            })
-        {
+            }
+            None
+        }) {
             return Some(enemy_e);
         }
 
@@ -518,8 +517,9 @@ pub struct WeaponManager {
     pub missile_launcher: Weapon,
     pub turret: Weapon,
 
-    pub bomb: Bullet,
     pub mine: Bullet,
+    pub bomb: Bullet,
+    pub nuke: Bullet,
 }
 
 impl WeaponManager {
@@ -841,6 +841,29 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
             },
+            mine: Bullet {
+                image: "weapon/mine.png",
+                dim: Vec2::new(30., 20.),
+                price: Resources {
+                    bullets: 25.,
+                    gasoline: 25.,
+                    ..default()
+                },
+                speed: 0.,
+                movement: Movement::Straight,
+                impact: Impact::Explosion(Explosion {
+                    interval: 0.02,
+                    radius: 0.1 * MAP_SIZE.y,
+                    damage: Damage {
+                        ground: 50.,
+                        air: 0.,
+                        penetration: 20.,
+                    },
+                    ..default()
+                }),
+                max_distance: f32::MAX,
+                distance: 0.,
+            },
             bomb: Bullet {
                 image: "weapon/bomb.png",
                 dim: Vec2::new(30., 15.),
@@ -864,23 +887,27 @@ impl Default for WeaponManager {
                 max_distance: f32::MAX,
                 distance: 0.,
             },
-            mine: Bullet {
-                image: "weapon/mine.png",
-                dim: Vec2::new(30., 20.),
+            nuke: Bullet {
+                image: "weapon/nuke.png",
+                dim: Vec2::new(40., 25.),
                 price: Resources {
-                    bullets: 25.,
-                    gasoline: 25.,
-                    ..default()
+                    bullets: 2500.,
+                    gasoline: 2500.,
+                    materials: 2500.,
                 },
-                speed: 0.,
-                movement: Movement::Straight,
+                speed: 0.2 * MAP_SIZE.y,
+                movement: Movement::Location(Vec3::new(
+                    -WEAPONS_PANEL_SIZE.x * 0.5,
+                    SIZE.y * 0.5 - MAP_SIZE.y * 0.5,
+                    EXPLOSION_Z,
+                )),
                 impact: Impact::Explosion(Explosion {
-                    interval: 0.02,
-                    radius: 0.1 * MAP_SIZE.y,
+                    interval: 0.05,
+                    radius: 1.2 * MAP_SIZE.y,
                     damage: Damage {
-                        ground: 50.,
-                        air: 0.,
-                        penetration: 20.,
+                        ground: 20_000.,
+                        air: 20_000.,
+                        penetration: 20_000.,
                     },
                     ..default()
                 }),

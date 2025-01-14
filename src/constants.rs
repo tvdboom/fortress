@@ -42,6 +42,7 @@ pub const ENEMY_Z: f32 = 3.0;
 pub const WEAPON_Z: f32 = 4.0;
 pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
+pub const NUKE_Z: f32 = 7.0;
 
 // Weapon settings
 pub const MAX_SPOTS: u32 = 10;
