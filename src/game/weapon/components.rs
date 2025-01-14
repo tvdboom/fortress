@@ -421,8 +421,8 @@ impl Weapon {
                             air: 20.,
                             penetration: 0.,
                         })
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 };
             }
             WeaponName::Artillery => {
@@ -454,8 +454,8 @@ impl Weapon {
                                 penetration: 0.,
                             };
                         }
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 };
             }
             WeaponName::Flamethrower => match player.weapons.settings.flamethrower {
@@ -479,8 +479,12 @@ impl Weapon {
             },
             WeaponName::MachineGun => {
                 match player.weapons.settings.machine_gun {
-                    0 => self.fire_timer = None,
+                    0 => {
+                        self.fire_timer = None;
+                        self.fire_strategy = FireStrategy::None;
+                    },
                     v => {
+                        self.fire_strategy = FireStrategy::Closest;
                         if let Some(ref mut timer) = self.fire_timer {
                             timer.set_duration(Duration::from_secs_f32(1. / v as f32));
                         } else {
@@ -492,6 +496,11 @@ impl Weapon {
             }
             WeaponName::MissileLauncher => {
                 self.n_bullets = player.weapons.settings.missile_launcher;
+                if self.n_bullets == 0 {
+                    self.fire_strategy = FireStrategy::None;
+                } else {
+                    self.fire_strategy = FireStrategy::Strongest;
+                }
             }
             WeaponName::Mortar => {
                 // Reset the target to recalculate the highest density
@@ -697,7 +706,7 @@ impl Default for WeaponManager {
                 },
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
-                fire_strategy: FireStrategy::Closest,
+                fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/invisible-bullet.png",
                     dim: Vec2::new(20., 7.),
@@ -733,7 +742,7 @@ impl Default for WeaponManager {
                 },
                 n_bullets: 1,
                 fire_timer: None,
-                fire_strategy: FireStrategy::Closest,
+                fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/bullet.png",
                     dim: Vec2::new(25., 7.),
@@ -769,7 +778,7 @@ impl Default for WeaponManager {
                 },
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
-                fire_strategy: FireStrategy::Strongest,
+                fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(20., 6.),

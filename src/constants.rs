@@ -8,9 +8,12 @@ pub type EnemyQ<'a> = (Entity, &'a Transform, &'a Enemy);
 pub type SpriteQ<'a> = (Entity, &'a Transform, &'a Sprite);
 pub type WeaponQ<'a> = (Entity, &'a Transform, &'a Weapon);
 
-// Font sizes
+pub const TITLE: &str = "Fortress";
+
+// General settings
 pub const NORMAL_FONT_SIZE: f32 = 16.;
 pub const LARGE_FONT_SIZE: f32 = 24.;
+pub const MESSAGE_DURATION: u64 = 3; // Seconds that the messages are shown
 
 // Window block sizes (panels and background images)
 pub const SIZE: Vec2 = Vec2::new(1440., 900.); // Fix the window size to avoid issues with resizing

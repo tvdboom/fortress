@@ -7,6 +7,7 @@ use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
 use crate::game::resources::{GameSettings, NightStats, Player};
 use crate::game::weapon::components::*;
 use crate::game::{AppState, GameState};
+use crate::messages::Messages;
 use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
@@ -102,9 +103,11 @@ pub fn menu_panel(
                         if ui.button("Load game").clicked() {
                             todo!();
                         }
-                        if ui.button("Save game").clicked() {
-                            todo!();
-                        }
+                        ui.add_enabled_ui(*app_state.get() == AppState::Day, |ui| {
+                            if ui.button("Save game").clicked() {
+                                todo!();
+                            }
+                        });
                         if ui.button("Quit").clicked() {
                             std::process::exit(0);
                         }
@@ -145,8 +148,8 @@ pub fn resources_panel(
     mut next_state: ResMut<NextState<GameState>>,
     player: Res<Player>,
     mut night_stats: ResMut<NightStats>,
-    time: Res<Time>,
     mut game_settings: ResMut<GameSettings>,
+    time: Res<Time>,
     assets: Local<WorldAssets>,
 ) {
     let day_texture = contexts.add_image(assets.get_image("day"));
@@ -276,7 +279,7 @@ pub fn resources_panel(
                             night_stats.timer.remaining().as_secs()
                         )));
 
-                        ui.add_space(15.);
+                        ui.add_space(10.);
 
                         ui.add_image(clock_texture, [20., 20.])
                             .on_hover_text("Game speed");
@@ -311,6 +314,7 @@ pub fn weapons_panel(
     wall_q: Query<SpriteQ, (With<Wall>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
+    mut messages: ResMut<Messages>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     weapons: Res<WeaponManager>,
@@ -653,6 +657,7 @@ pub fn weapons_panel(
 
                             if button.clicked() {
                                 let nuke = weapons.nuke.clone();
+                                messages.info("A nuke is launched");
 
                                 commands.spawn((
                                     Sprite {
@@ -1037,6 +1042,7 @@ pub fn update_game(
     mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
     mut player: ResMut<Player>,
     mut night_stats: ResMut<NightStats>,
+    mut messages: ResMut<Messages>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
@@ -1074,12 +1080,14 @@ pub fn update_game(
     // Despawn structures
     if let Ok(fence_e) = fence_q.get_single() {
         if player.fence.health == 0. {
+            messages.warning("The fence is broken");
             commands.entity(fence_e).try_despawn();
         }
     }
 
     if let Ok(wall_e) = wall_q.get_single() {
         if player.wall.health == 0. {
+            messages.error("The wall is broken");
             commands.entity(wall_e).try_despawn();
         }
     }

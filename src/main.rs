@@ -1,17 +1,17 @@
 pub mod constants;
 mod game;
+mod messages;
 mod systems;
 mod utils;
 
 use crate::game::GamePlugin;
-use constants::SIZE;
+use constants::{SIZE, TITLE};
 
+use crate::messages::MessagesPlugin;
 use crate::systems::set_window_icon;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
 use bevy_egui::EguiPlugin;
-
-const TITLE: &str = "Fortress";
 
 fn main() {
     App::new()
@@ -30,6 +30,7 @@ fn main() {
                 }),
         )
         .add_plugins(EguiPlugin)
+        .add_plugins(MessagesPlugin::default())
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
         .run();

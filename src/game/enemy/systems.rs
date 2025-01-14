@@ -11,6 +11,7 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
+use crate::messages::Messages;
 
 pub fn spawn_enemies(
     mut commands: Commands,
@@ -18,12 +19,17 @@ pub fn spawn_enemies(
     enemies: Res<EnemyManager>,
     mut night_stats: ResMut<NightStats>,
     mut next_state: ResMut<NextState<AppState>>,
+    mut messages: ResMut<Messages>,
     game_settings: Res<GameSettings>,
     asset_server: Res<AssetServer>,
     time: Res<Time>,
 ) {
     // Stop spawning enemies when the night timer has finished
     if night_stats.timer.finished() {
+        if night_stats.timer.just_finished() {
+            messages.info("It's dawning...");
+        }
+
         if enemy_q.iter().count() == 0 {
             next_state.set(AppState::EndNight);
         }
@@ -96,6 +102,7 @@ pub fn move_enemies(
     wall_q: Query<SpriteQ, (With<Wall>, Without<Enemy>)>,
     mut next_state: ResMut<NextState<AppState>>,
     mut player: ResMut<Player>,
+    mut messages: ResMut<Messages>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
 ) {
@@ -130,6 +137,8 @@ pub fn move_enemies(
 
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
             if player.survivors > enemy.damage as u32 {
+                messages.error("A bug entered the fortress");
+
                 player.survivors -= enemy.damage as u32;
                 enemy.health = 0.; // Is despawned in update_game
             } else {
