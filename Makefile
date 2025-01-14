@@ -8,7 +8,7 @@ build-release:
 	cargo build --release
 
 install-wasm-prereqs:
-	cargo install -f wasm-bindgen-cli
+	cargo install -f wasm-bindgen-cli --version 0.2.99
 	cargo install wasm-server-runner
 
 install-wasm: install-wasm-prereqs

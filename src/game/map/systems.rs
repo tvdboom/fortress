@@ -210,7 +210,7 @@ pub fn resources_panel(
                         .on_hover_text("Fence strength");
                     ui.add(
                         egui::ProgressBar::new(player.fence.health / player.fence.max_health)
-                            .desired_width(160.)
+                            .desired_width(150.)
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
