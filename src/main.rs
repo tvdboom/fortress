@@ -13,8 +13,9 @@ use bevy::window::WindowResolution;
 use bevy_egui::EguiPlugin;
 
 fn main() {
-    let app = App::new()
-        .add_plugins(
+    let mut app = App::new();
+
+    app.add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest()) // Prevents blurry sprites
                 .set(WindowPlugin {
