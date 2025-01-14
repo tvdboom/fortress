@@ -482,7 +482,7 @@ impl Weapon {
                     0 => {
                         self.fire_timer = None;
                         self.fire_strategy = FireStrategy::None;
-                    },
+                    }
                     v => {
                         self.fire_strategy = FireStrategy::Closest;
                         if let Some(ref mut timer) = self.fire_timer {

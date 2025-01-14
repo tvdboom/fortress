@@ -4,6 +4,7 @@ use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
 use crate::game::weapon::components::{Fence, Wall};
 use crate::game::weapon::utils::get_structure_top;
 use crate::game::AppState;
+use crate::messages::Messages;
 use crate::utils::scale_duration;
 use bevy::color::{
     palettes::basic::{BLACK, LIME},
@@ -11,7 +12,6 @@ use bevy::color::{
 };
 use bevy::prelude::*;
 use rand::prelude::*;
-use crate::messages::Messages;
 
 pub fn spawn_enemies(
     mut commands: Commands,
