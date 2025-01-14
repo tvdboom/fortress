@@ -16,7 +16,6 @@ install-wasm: install-wasm-prereqs
 
 
 run-wasm: install-wasm
-	# Run a minimal server with the game compiled into WASM
 	cargo run --release --target wasm32-unknown-unknown
 
 watch-wasm:
@@ -24,4 +23,4 @@ watch-wasm:
 
 build-wasm: install-wasm
 	cargo build --release --target wasm32-unknown-unknown
-	wasm-bindgen --out-dir ./_site/ --target web ./target/wasm32-unknown-unknown/release/star-rust.wasm
+	wasm-bindgen --out-dir ./docs/ --target web ./target/wasm32-unknown-unknown/release/fortress.wasm
