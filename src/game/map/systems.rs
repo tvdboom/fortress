@@ -315,6 +315,7 @@ pub fn weapons_panel(
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     mut messages: ResMut<Messages>,
+    mut night_stats: ResMut<NightStats>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     weapons: Res<WeaponManager>,
@@ -750,6 +751,7 @@ pub fn weapons_panel(
                         if bullet_button_100.clicked() {
                             player.resources.bullets += 100.;
                             player.resources.materials -= 300.;
+                            night_stats.warnings.no_bullets = false;
                         }
                     });
 
@@ -759,6 +761,8 @@ pub fn weapons_panel(
                         if bullet_button_500.clicked() {
                             player.resources.bullets += 500.;
                             player.resources.materials -= 1500.;
+                            night_stats.warnings.no_bullets = false;
+
                         }
                     });
 
@@ -771,6 +775,7 @@ pub fn weapons_panel(
                         if gasoline_button.clicked() {
                             player.resources.gasoline += 100.;
                             player.resources.materials -= 300.;
+                            night_stats.warnings.no_gasoline = false;
                         }
                     });
 
@@ -780,6 +785,7 @@ pub fn weapons_panel(
                         if gasoline_button_500.clicked() {
                             player.resources.gasoline += 500.;
                             player.resources.materials -= 1500.;
+                            night_stats.warnings.no_gasoline = false;
                         }
                     });
                 });
@@ -1075,6 +1081,24 @@ pub fn update_game(
         player.resources -= &spotlight_cost;
     } else {
         player.spotlight.power = 0;
+    }
+
+    // Warn on low resources
+    if player.resources.bullets < 200. * player.day as f32 && !night_stats.warnings.low_bullets {
+        messages.warning("Low bullets");
+        night_stats.warnings.low_bullets = true;
+    }
+    if player.resources.gasoline < 200. * player.day as f32 && !night_stats.warnings.low_gasoline {
+        messages.warning("Low gasoline");
+        night_stats.warnings.low_gasoline = true;
+    }
+    if player.resources.bullets < 5. && !night_stats.warnings.no_bullets {
+        messages.error("No bullets");
+        night_stats.warnings.no_bullets = true;
+    }
+    if player.resources.gasoline < 5. && !night_stats.warnings.no_gasoline {
+        messages.error("No gasoline");
+        night_stats.warnings.no_gasoline = true;
     }
 
     // Despawn structures

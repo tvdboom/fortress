@@ -244,9 +244,9 @@ impl Player {
                 },
             },
             resources: Resources {
-                bullets: 10_000.,
-                gasoline: 10_000.,
-                materials: 10_000.,
+                bullets: 1_000.,
+                gasoline: 1_000.,
+                materials: 1_000.,
             },
             weapons: Weapons {
                 spots: vec![
@@ -290,6 +290,14 @@ pub struct EnemyStatus {
     pub killed: u32,
 }
 
+#[derive(Clone)]
+pub struct ResourcesWarnings {
+    pub low_bullets: bool,
+    pub no_bullets: bool,
+    pub low_gasoline: bool,
+    pub no_gasoline: bool,
+}
+
 #[derive(Resource, Clone)]
 pub struct NightStats {
     pub day: u32,
@@ -297,6 +305,7 @@ pub struct NightStats {
     pub spawn_timer: Timer,
     pub resources: Resources,
     pub enemies: HashMap<&'static str, EnemyStatus>,
+    pub warnings: ResourcesWarnings,
 }
 
 impl Default for NightStats {
@@ -307,6 +316,12 @@ impl Default for NightStats {
             spawn_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
             resources: Resources::default(),
             enemies: HashMap::default(),
+            warnings: ResourcesWarnings {
+                low_bullets: false,
+                no_bullets: false,
+                low_gasoline: false,
+                no_gasoline: false,
+            },
         }
     }
 }
