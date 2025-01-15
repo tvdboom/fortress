@@ -42,57 +42,57 @@ impl CustomUi for Ui {
         self.horizontal(|ui| {
             ui.add_space(120.);
 
-            Grid::new("enemy stats")
-                .num_columns(2)
-                .spacing([40.0, 4.0])
-                .striped(true)
-                .show(ui, |ui| {
-                    ui.label(RichText::new("Enemy").strong());
-                    ui.label(RichText::new("Killed / Spawned").strong());
-                    ui.end_row();
+            ui.columns(2, |columns| {
+                Grid::new("enemy stats")
+                    .num_columns(2)
+                    .spacing([20.0, 4.0])
+                    .striped(true)
+                    .show(&mut columns[0], |ui| {
+                        ui.label(RichText::new("Enemy").strong());
+                        ui.label(RichText::new("Killed / Spawned").strong());
+                        ui.end_row();
 
-                    player
-                        .stats
-                        .get(&player.day)
-                        .unwrap()
-                        .enemies
-                        .iter()
-                        .for_each(|(k, v)| {
-                            ui.label(*k);
-                            ui.label(format!("{} / {}", v.killed, v.spawned));
-                            ui.end_row();
-                        });
-                });
+                        player
+                            .stats
+                            .get(&player.day)
+                            .unwrap()
+                            .enemies
+                            .iter()
+                            .for_each(|(k, v)| {
+                                ui.label(*k);
+                                ui.label(format!("{} / {}", v.killed, v.spawned));
+                                ui.end_row();
+                            });
+                    });
 
-            ui.add_space(30.);
-
-            Grid::new("resources stats")
-                .num_columns(2)
-                .spacing([40.0, 4.0])
-                .striped(true)
-                .show(ui, |ui| {
-                    ui.label(RichText::new("Resources").strong());
-                    ui.label(RichText::new("Consumed").strong());
-                    ui.end_row();
-                    ui.label("Bullets");
-                    ui.label(format!(
-                        "{:.0}",
-                        player.stats.get(&player.day).unwrap().resources.bullets
-                    ));
-                    ui.end_row();
-                    ui.label("Gasoline");
-                    ui.label(format!(
-                        "{:.0}",
-                        player.stats.get(&player.day).unwrap().resources.gasoline
-                    ));
-                    ui.end_row();
-                    ui.label("Materials");
-                    ui.label(format!(
-                        "{:.0}",
-                        player.stats.get(&player.day).unwrap().resources.materials
-                    ));
-                });
-        });
+                Grid::new("resources stats")
+                    .num_columns(2)
+                    .spacing([20.0, 4.0])
+                    .striped(true)
+                    .show(&mut columns[1], |ui| {
+                        ui.label(RichText::new("Resources").strong());
+                        ui.label(RichText::new("Consumed").strong());
+                        ui.end_row();
+                        ui.label("Bullets");
+                        ui.label(format!(
+                            "{:.0}",
+                            player.stats.get(&player.day).unwrap().resources.bullets
+                        ));
+                        ui.end_row();
+                        ui.label("Gasoline");
+                        ui.label(format!(
+                            "{:.0}",
+                            player.stats.get(&player.day).unwrap().resources.gasoline
+                        ));
+                        ui.end_row();
+                        ui.label("Materials");
+                        ui.label(format!(
+                            "{:.0}",
+                            player.stats.get(&player.day).unwrap().resources.materials
+                        ));
+                    });
+            });
+            });
 
         self.add_space(30.);
     }

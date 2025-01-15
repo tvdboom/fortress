@@ -16,7 +16,7 @@ pub const LARGE_FONT_SIZE: f32 = 24.;
 pub const MESSAGE_DURATION: u64 = 3; // Seconds that the messages are shown
 
 // Window block sizes (panels and background images)
-pub const SIZE: Vec2 = Vec2::new(1500., 937.); // Fix the window size to avoid issues with resizing
+pub const SIZE: Vec2 = Vec2::new(1440., 834.);
 pub const MENU_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.04);
 pub const WEAPONS_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x * 0.21, SIZE.y);
 pub const RESOURCES_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x, SIZE.y * 0.05);

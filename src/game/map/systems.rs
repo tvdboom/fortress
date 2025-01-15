@@ -905,7 +905,7 @@ pub fn info_panel(
                         ui.add_night_stats(&player);
 
                         ui.horizontal(|ui| {
-                            ui.add_space(205.);
+                            ui.add_space(215.);
 
                             if ui.add_button("New game").clicked() {
                                 next_state.set(AppState::StartGame);
