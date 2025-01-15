@@ -17,7 +17,7 @@ pub fn spawn_weapons(
     weapons: Res<WeaponManager>,
     asset_server: Res<AssetServer>,
 ) {
-    if player.fence.max_health > 0. {
+    if player.fence.health > 0. {
         let level = (player.fence.max_health as u32 / 100).min(3);
         commands.spawn((
             Sprite {
@@ -34,19 +34,21 @@ pub fn spawn_weapons(
         ));
     }
 
-    commands.spawn((
-        Sprite {
-            image: asset_server.load("map/wall.png"),
-            custom_size: Some(WALL_SIZE),
-            ..default()
-        },
-        Transform::from_xyz(
-            -WEAPONS_PANEL_SIZE.x * 0.5,
-            -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
-            STRUCTURE_Z,
-        ),
-        Wall,
-    ));
+    if player.wall.health > 0. {
+        commands.spawn((
+            Sprite {
+                image: asset_server.load("map/wall.png"),
+                custom_size: Some(WALL_SIZE),
+                ..default()
+            },
+            Transform::from_xyz(
+                -WEAPONS_PANEL_SIZE.x * 0.5,
+                -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
+                STRUCTURE_Z,
+            ),
+            Wall,
+        ));
+    }
 
     // Spawn spots
     let positions = player
