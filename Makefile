@@ -14,7 +14,6 @@ install-wasm-prereqs:
 install-wasm: install-wasm-prereqs
 	rustup target install wasm32-unknown-unknown
 
-
 run-wasm: install-wasm
 	cargo run --release --target wasm32-unknown-unknown
 
