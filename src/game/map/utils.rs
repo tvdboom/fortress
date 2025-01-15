@@ -40,8 +40,9 @@ impl CustomUi for Ui {
         self.add_space(30.);
 
         self.horizontal(|ui| {
-            ui.add_space(120.);
+            ui.add_space(140.);
 
+            ui.spacing_mut().item_spacing.x = -80.; // Reduce space between columns
             ui.columns(2, |columns| {
                 Grid::new("enemy stats")
                     .num_columns(2)
@@ -49,7 +50,7 @@ impl CustomUi for Ui {
                     .striped(true)
                     .show(&mut columns[0], |ui| {
                         ui.label(RichText::new("Enemy").strong());
-                        ui.label(RichText::new("Killed / Spawned").strong());
+                        ui.label(RichText::new("Killed / Total").strong());
                         ui.end_row();
 
                         player

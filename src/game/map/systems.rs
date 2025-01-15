@@ -951,24 +951,25 @@ pub fn enemy_info_panel(
                 (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
             ))
             .show(contexts.ctx_mut(), |ui| {
-                ui.add_space(15.);
+                ui.add_space(25.);
 
                 egui::ScrollArea::vertical()
-                    .max_width(SIZE.x * 0.4)
+                    .max_width(MAP_SIZE.x * 0.25)
                     .show(ui, |ui| {
                         enemies.list.iter().enumerate().for_each(|(i, e)| {
                             if i > 0 {
-                                ui.add_space(20.);
+                                ui.add_space(25.);
                             }
 
                             ui.horizontal(|ui| {
+                                ui.add_space(30.);
                                 ui.add_image(*textures.get(i).unwrap(), [105., 120.])
                                     .on_hover_text(e.name);
 
                                 ui.add_space(20.);
 
                                 ui.vertical(|ui| {
-                                    ui.label(format!("Name: {}", e.name));
+                                    ui.label(RichText::new(e.name).strong());
                                     ui.label(format!("Size: {:?}", e.size));
                                     ui.label(format!("Health: {}", e.health));
                                     ui.label(format!("Armor: {}", e.armor))
@@ -981,12 +982,14 @@ pub fn enemy_info_panel(
                                     ui.label(format!("Damage: {}", e.damage)).on_hover_text(
                                         "Damage dealt to constructions or survivors.",
                                     );
-                                })
+                                });
+
+                                ui.add_space(25.);
                             });
                         });
                     });
 
-                ui.add_space(15.);
+                ui.add_space(25.);
             });
     }
 }
