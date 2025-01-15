@@ -301,7 +301,7 @@ pub fn move_bullets(
     mut bullet_q: Query<(Entity, &mut Transform, &mut Bullet)>,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy), Without<Bullet>>,
     mut player: ResMut<Player>,
-    settings: Res<GameSettings>,
+    game_settings: Res<GameSettings>,
     time: Res<Time>,
     assets: Local<WorldAssets>,
 ) {
@@ -325,14 +325,14 @@ pub fn move_bullets(
         if let Some(d) = d {
             bullet_t.rotation = bullet_t.rotation.slerp(
                 Quat::from_rotation_z(d.y.atan2(d.x)),
-                8. * settings.speed * time.delta_secs(),
+                8. * game_settings.speed * time.delta_secs(),
             );
         }
 
         // Move the bullet in the direction it's pointing
         let d_pos = (bullet_t.rotation * Vec3::X).normalize()
             * bullet.speed
-            * settings.speed
+            * game_settings.speed
             * time.delta_secs();
 
         bullet_t.translation += d_pos;

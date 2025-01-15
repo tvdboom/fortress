@@ -16,8 +16,8 @@
         }
         canvas {
             display: block;
-            width: 1440px;
-            height: 900px;
+            width: 1500px;
+            height: 937px;
         }
         .loader {
             border: 16px solid #f3f3f3;
@@ -44,8 +44,8 @@
 </head>
 <body>
 <div class="loader"></div>
+<canvas id="fortress"></canvas>
 <script type="module">
-    <canvas id="fortress"></canvas>
     import init from './fortress.js';
     init().then(() => { document.querySelector('.loader').style.display = 'none'; });
 </script>

@@ -16,7 +16,7 @@ pub const LARGE_FONT_SIZE: f32 = 24.;
 pub const MESSAGE_DURATION: u64 = 3; // Seconds that the messages are shown
 
 // Window block sizes (panels and background images)
-pub const SIZE: Vec2 = Vec2::new(1440., 900.); // Fix the window size to avoid issues with resizing
+pub const SIZE: Vec2 = Vec2::new(1500., 937.); // Fix the window size to avoid issues with resizing
 pub const MENU_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x - WEAPONS_PANEL_SIZE.x, SIZE.y * 0.04);
 pub const WEAPONS_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x * 0.21, SIZE.y);
 pub const RESOURCES_PANEL_SIZE: Vec2 = Vec2::new(SIZE.x, SIZE.y * 0.05);
@@ -52,6 +52,8 @@ pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;
 pub const DEFAULT_TURRET_POWER_TIME: f32 = 10.; // Seconds to power-up the turret
 pub const MAX_TURRET_POWER: f32 = 100.;
+pub const TURRET_POWER_COST: f32 = 10.; // Gasoline cost per second
+
 pub const MAX_MISSILE_LAUNCHER_SHELLS: u32 = 10;
 pub const MAX_SPOTLIGHT_POWER: u32 = 100;
 pub const MAX_MINES: u32 = 25;

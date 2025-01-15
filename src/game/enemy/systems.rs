@@ -31,7 +31,7 @@ pub fn spawn_enemies(
         }
 
         if enemy_q.iter().count() == 0 {
-            next_state.set(AppState::EndNight);
+            next_state.set(AppState::Day);
         }
         return;
     }

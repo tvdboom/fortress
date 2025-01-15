@@ -4,7 +4,7 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyHealth, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
-use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::resources::{GameSettings, NightStats, Player, Resources};
 use crate::game::weapon::components::*;
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
@@ -749,8 +749,13 @@ pub fn weapons_panel(
                         let bullet_button_100 = ui.add_sized([30., 30.], egui::Button::new("+100"))
                             .on_hover_text("Buy 100 bullets for 300 materials.");
                         if bullet_button_100.clicked() {
-                            player.resources.bullets += 100.;
-                            player.resources.materials -= 300.;
+                            let cost = Resources {
+                                bullets: 100.,
+                                materials: -300.,
+                                ..default()
+                            };
+                            player.resources += &cost;
+                            night_stats.resources += &cost;
                             night_stats.warnings.no_bullets = false;
                         }
                     });
@@ -759,8 +764,13 @@ pub fn weapons_panel(
                         let bullet_button_500 = ui.add_sized([30., 30.], egui::Button::new("+500"))
                             .on_hover_text("Buy 500 bullets for 1500 materials.");
                         if bullet_button_500.clicked() {
-                            player.resources.bullets += 500.;
-                            player.resources.materials -= 1500.;
+                            let cost = Resources {
+                                bullets: 500.,
+                                materials: -1500.,
+                                ..default()
+                            };
+                            player.resources += &cost;
+                            night_stats.resources += &cost;
                             night_stats.warnings.no_bullets = false;
 
                         }
@@ -773,8 +783,14 @@ pub fn weapons_panel(
                         let gasoline_button = ui.add_sized([30., 30.], egui::Button::new("+100"))
                             .on_hover_text("Buy 100 gasoline for 300 materials.");
                         if gasoline_button.clicked() {
-                            player.resources.gasoline += 100.;
-                            player.resources.materials -= 300.;
+                            let cost = Resources {
+                                gasoline: 100.,
+                                materials: -300.,
+                                ..default()
+                            };
+
+                            player.resources += &cost;
+                            night_stats.resources += &cost;
                             night_stats.warnings.no_gasoline = false;
                         }
                     });
@@ -783,8 +799,14 @@ pub fn weapons_panel(
                         let gasoline_button_500 = ui.add_sized([30., 30.], egui::Button::new("+500"))
                             .on_hover_text("Buy 500 gasoline for 1500 materials.");
                         if gasoline_button_500.clicked() {
-                            player.resources.gasoline += 500.;
-                            player.resources.materials -= 1500.;
+                            let cost = Resources {
+                                gasoline: 500.,
+                                materials: -1500.,
+                                ..default()
+                            };
+
+                            player.resources += &cost;
+                            night_stats.resources += &cost;
                             night_stats.warnings.no_gasoline = false;
                         }
                     });
@@ -832,20 +854,15 @@ pub fn info_panel(
                                         |ui| {
                                             ui.add_space(5.);
                                             ui.label(
-                                                "The world has been conquered by insects. Together \
-                                                with a handful of survivors, you have build a fortress \
-                                                to defend yourself from their ferocious attacks.\n\n\
-                                                Every night, an ever increasing swarm of insects attacks \
-                                                the fortress. Kill them before they reach the wall! \
-                                                When they do, they hit the wall, reducing its resistance. \
-                                                If the wall is destroyed, the monsters can freely enter \
-                                                the fortress and kill everyone inside.\n\n \
-                                                During the day, you can collect resources and upgrade \
-                                                your weapon arsenal to prepare yourself for the following \
-                                                night. During the attack, you can choose how/when to use \
-                                                the weapons you have to your disposal. But be careful, \
-                                                everything has a cost! Manage your resources wisely or \
-                                                you won't be able to stop the insects tomorrow...");
+                                                "The world has been conquered by insects. Together with a handful of survivors, \
+                                                you have built a fortress to defend yourself from their ferocious attacks. \
+                                                Every night, an ever-increasing swarm of attacks the fortress. Kill them before \
+                                                they enter the fortress and kill the remaining survivors!\n\n \
+                                                During the day, you can collect resources and upgrade your weapon arsenal to \
+                                                prepare yourself for the following night. During the attack, you can choose \
+                                                how/when to use the weapons you have at your disposal. But be careful, everything \
+                                                has a cost! Manage your resources wisely or you won't be able to stop the insects \
+                                                tomorrow...");
                                             ui.add_space(5.);
                                         })
                                 })
@@ -857,17 +874,20 @@ pub fn info_panel(
                             next_state.set(AppState::Night);
                         }
                     },
-                    AppState::EndNight => {
+                    AppState::Day => {
                         ui.heading(format!("You survived night {}!", player.day));
 
                         ui.add_space(15.);
 
                         ui.label(
-                            "The night is over. The sun is rising and the bugs are \
-                            retreating. You can now collect resources and upgrade your \
-                            weapons before the next night.");
+                            "The day has finally arrived. The sun is rising and the bugs \
+                            are retreating. Upgrade your weapons and prepare for tonight...");
 
-                        ui.add_night_stats(&player);
+                        egui::ScrollArea::vertical()
+                            .max_width(SIZE.x * 0.4)
+                            .show(ui, |ui| {
+                                ui.add_night_stats(&player);
+                            });
 
                         ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
                             ui.add_space(10.);
@@ -953,8 +973,8 @@ pub fn enemy_info_panel(
                                     ui.label(format!("Health: {}", e.health));
                                     ui.label(format!("Armor: {}", e.armor))
                                         .on_hover_text("Armor reduces incoming damage.");
-                                    ui.label(format!("Speed: {}", e.speed)).on_hover_text(
-                                        "As percentage of the map's size per second.",
+                                    ui.label(format!("Speed: {:.0}", e.speed)).on_hover_text(
+                                        "As percentage of the map's height per second.",
                                     );
                                     ui.label(format!("Can fly: {}", e.can_fly))
                                         .on_hover_text("Flying bugs can pass over constructions.");
@@ -1054,19 +1074,29 @@ pub fn update_game(
 ) {
     // Update turret's power
     if let Some(turret) = weapon_q.iter().find(|w| w.name == WeaponName::Turret) {
-        // The default is to power-up in 10 seconds, but
-        // this decreases with the fire_timer's duration
-        let timer = turret.fire_timer.clone().unwrap().duration().as_secs_f32();
-        player.weapons.settings.turret = (player.weapons.settings.turret
-            + MAX_TURRET_POWER / DEFAULT_TURRET_POWER_TIME * timer.powf(-1.) * time.delta_secs())
-        .min(MAX_TURRET_POWER);
+        if player.weapons.settings.turret < MAX_TURRET_POWER {
+            let cost = TURRET_POWER_COST * game_settings.speed * time.delta_secs();
+            if player.resources.gasoline > cost {
+                player.resources.gasoline -= cost;
+                night_stats.resources.gasoline += cost;
+
+                // The default is to power-up in 10 seconds, but
+                // this decreases with the fire_timer's duration
+                let timer = turret.fire_timer.clone().unwrap().duration().as_secs_f32();
+                player.weapons.settings.turret += MAX_TURRET_POWER / DEFAULT_TURRET_POWER_TIME
+                    * timer.powf(-1.)
+                    * game_settings.speed
+                    * time.delta_secs()
+            }
+        }
     }
 
     // Update resources
     if player.fence.enabled {
-        let cost = player.fence.cost.gasoline * game_settings.speed * time.delta_secs();
-        if player.resources.gasoline >= cost {
-            player.resources.gasoline -= cost;
+        let fence_cost = &player.fence.cost * game_settings.speed * time.delta_secs();
+        if player.resources >= fence_cost {
+            player.resources -= &fence_cost;
+            night_stats.resources += &fence_cost;
         } else {
             player.fence.enabled = false;
         }
@@ -1079,6 +1109,7 @@ pub fn update_game(
 
     if player.resources >= spotlight_cost {
         player.resources -= &spotlight_cost;
+        night_stats.resources += &spotlight_cost;
     } else {
         player.spotlight.power = 0;
     }

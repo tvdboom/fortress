@@ -40,8 +40,9 @@ impl CustomUi for Ui {
         self.add_space(30.);
 
         self.horizontal(|ui| {
-            ui.add_space(220.);
-            Grid::new("night stats")
+            ui.add_space(120.);
+
+            Grid::new("enemy stats")
                 .num_columns(2)
                 .spacing([40.0, 4.0])
                 .striped(true)
@@ -61,6 +62,35 @@ impl CustomUi for Ui {
                             ui.label(format!("{} / {}", v.killed, v.spawned));
                             ui.end_row();
                         });
+                });
+
+            ui.add_space(30.);
+
+            Grid::new("resources stats")
+                .num_columns(2)
+                .spacing([40.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label(RichText::new("Resources").strong());
+                    ui.label(RichText::new("Consumed").strong());
+                    ui.end_row();
+                    ui.label("Bullets");
+                    ui.label(format!(
+                        "{:.0}",
+                        player.stats.get(&player.day).unwrap().resources.bullets
+                    ));
+                    ui.end_row();
+                    ui.label("Gasoline");
+                    ui.label(format!(
+                        "{:.0}",
+                        player.stats.get(&player.day).unwrap().resources.gasoline
+                    ));
+                    ui.end_row();
+                    ui.label("Materials");
+                    ui.label(format!(
+                        "{:.0}",
+                        player.stats.get(&player.day).unwrap().resources.materials
+                    ));
                 });
         });
 

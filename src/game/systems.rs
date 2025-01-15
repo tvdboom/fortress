@@ -71,7 +71,7 @@ pub fn check_keys(
     if keyboard.just_pressed(KeyCode::Enter) {
         match *app_state.get() {
             AppState::StartGame => next_app_state.set(AppState::Night),
-            AppState::EndNight => next_app_state.set(AppState::Day),
+            AppState::Day => next_app_state.set(AppState::Night),
             AppState::GameOver => next_app_state.set(AppState::StartGame),
             _ => (),
         }

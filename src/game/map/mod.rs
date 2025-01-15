@@ -16,14 +16,16 @@ impl Plugin for MapPlugin {
             .add_systems(
                 Update,
                 (
-                    (weapons_panel, menu_panel, resources_panel, enemy_info_panel).chain(),
-                    info_panel.run_if(
-                        in_state(AppState::StartGame)
-                            .or(in_state(AppState::GameOver).or(in_state(AppState::EndNight))),
-                    ),
-                    (run_animations, update_game)
-                        .chain()
-                        .run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
+                    (
+                        weapons_panel,
+                        menu_panel,
+                        resources_panel,
+                        enemy_info_panel,
+                        run_animations,
+                    )
+                        .chain(),
+                    info_panel.run_if(not(in_state(AppState::Night))),
+                    update_game.run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
                 ),
             );
     }
