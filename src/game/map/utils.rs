@@ -25,11 +25,6 @@ pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response;
-    fn add_sized_text(
-        &mut self,
-        text: impl Into<WidgetText>,
-        size: impl Into<Vec2>,
-    ) -> InnerResponse<Response>;
     fn add_scroll<R>(
         &mut self,
         id: impl Hash,
@@ -46,16 +41,6 @@ impl CustomUi for Ui {
 
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         self.add(Image::new(load::SizedTexture::new(id, size)))
-    }
-
-    fn add_sized_text(
-        &mut self,
-        text: impl Into<WidgetText>,
-        size: impl Into<Vec2>,
-    ) -> InnerResponse<Response> {
-        self.with_layout(Layout::left_to_right(Align::LEFT), |ui| {
-            ui.add_sized(size, Label::new(text))
-        })
     }
 
     fn add_scroll<R>(
@@ -81,9 +66,8 @@ impl CustomUi for Ui {
         self.add_space(30.);
 
         self.horizontal(|ui| {
-            ui.add_space(40.);
+            ui.add_space(20.);
 
-            ui.spacing_mut().item_spacing.x = -45.; // Reduce space between columns
             ui.columns(3, |columns| {
                 Grid::new("enemy stats")
                     .num_columns(2)

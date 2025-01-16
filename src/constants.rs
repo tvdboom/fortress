@@ -47,8 +47,8 @@ pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
 
 // Resource settings
-pub const POPULATION_MEAN_INCREASE: u32 = 500;
-pub const POPULATION_STD_INCREASE: u32 = 100;
+pub const POPULATION_MEAN_INCREASE: u32 = 100;
+pub const POPULATION_STD_INCREASE: u32 = 10;
 pub const RESOURCE_FACTOR: u32 = 10; // Factor to multiply population by to get resources
 
 // Weapon settings

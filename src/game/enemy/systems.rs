@@ -143,40 +143,36 @@ pub fn move_enemies(
             let mut damage = enemy.damage as u32;
 
             // First subtract damage from the soldiers
-            let dead_soldiers = ((damage as f32 / 3.) as u32).min(player.population.soldier);
-            player.population.soldier -= dead_soldiers;
-            night_stats.population.soldier += dead_soldiers;
-            damage -= (dead_soldiers * 3).min(damage);
+            while player.population.soldier > 0 && damage > 0 {
+                player.population.soldier -= 1;
+                night_stats.population.soldier += 1;
+                damage -= 3.min(damage);
+            }
 
-            if damage > 0 {
+            while damage > 0 && player.population.total() > 0 {
                 // Then randomly over the rest of the population
-                // Note that only one type of population can be attacked per bug
-                match thread_rng().gen_range(0..4) {
-                    0 => {
-                        let dead = damage.min(player.population.armorer);
-                        player.population.armorer -= dead;
-                        night_stats.population.armorer += dead;
+                match thread_rng().gen_range(0..=3) {
+                    0 if player.population.armorer > 0 => {
+                        player.population.armorer -= 1;
+                        night_stats.population.armorer += 1;
+                        damage -= 1;
                     }
-                    1 => {
-                        let dead = damage.min(player.population.refiner);
-                        player.population.refiner -= dead;
-                        night_stats.population.refiner += dead;
+                    1 if player.population.refiner > 0 => {
+                        player.population.refiner -= 1;
+                        night_stats.population.refiner += 1;
+                        damage -= 1;
                     }
-                    2 => {
-                        let dead = damage.min(player.population.constructor);
-                        player.population.constructor -= dead;
-                        night_stats.population.constructor += dead;
+                    2 if player.population.constructor > 0 => {
+                        player.population.constructor -= 1;
+                        night_stats.population.constructor += 1;
+                        damage -= 1;
                     }
-                    3 => {
-                        let dead = damage.min(player.population.scientist);
-                        player.population.scientist -= dead;
-                        night_stats.population.scientist += dead;
+                    3 if player.population.scientist > 0 => {
+                        player.population.scientist -= 1;
+                        night_stats.population.scientist += 1;
+                        damage -= 1;
                     }
-                    _ => {
-                        let dead = damage.min(player.population.idle);
-                        player.population.idle -= dead;
-                        night_stats.population.idle += dead;
-                    }
+                    _ => (),
                 }
             }
 

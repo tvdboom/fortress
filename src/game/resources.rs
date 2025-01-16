@@ -190,8 +190,8 @@ impl Default for Population {
 pub struct Wall {
     pub health: f32,
     pub max_health: f32,
-    pub upgrade_price: Resources, // Upgrade => +10k max health
-    pub repair_price: Resources,  // Repair => +1k health
+    pub upgrade_price: Resources,
+    pub repair_price: Resources,
 }
 
 pub struct Fence {
@@ -200,8 +200,8 @@ pub struct Fence {
     pub enabled: bool,
     pub damage: f32,
     pub cost: Resources,
-    pub upgrade_price: Resources, // Upgrade => +100 max health
-    pub repair_price: Resources,  // Repair => +20 health
+    pub upgrade_price: Resources,
+    pub repair_price: Resources,
 }
 
 pub struct Spotlight {
@@ -254,11 +254,11 @@ impl Player {
         Self {
             day: 1,
             population: Population {
-                armorer: 50,
-                refiner: 50,
-                constructor: 50,
-                scientist: 10,
-                soldier: 10,
+                soldier: 5,
+                armorer: 20,
+                refiner: 20,
+                constructor: 20,
+                scientist: 5,
                 idle: 0,
             },
             wall: Wall {

@@ -927,122 +927,135 @@ pub fn day_panel(
                         ui.add_space(15.);
                     });
 
-                    ui.add_scroll("res2", MAP_SIZE.x * 0.15, |ui| {
-                        let soldiers = ui.horizontal_centered(|ui| {
-                            ui.add_image(soldier_texture, [40., 40.]);
-                            let label = ui
-                                .label("Soldiers:")
-                                .on_hover_cursor(CursorIcon::PointingHand);
-                            let mut soldiers = player.population.soldier.clone();
-                            ui.add(egui::Slider::new(
-                                &mut soldiers,
-                                0..=player.population.soldier + player.population.idle,
-                            ))
-                            .on_hover_text("Assign the population to produce bullets.");
+                    ui.add_scroll("res2", MAP_SIZE.x * 0.125, |ui| {
+                        let soldiers = ui
+                            .horizontal_centered(|ui| {
+                                ui.add_image(soldier_texture, [40., 40.]);
+                                let label = ui
+                                    .label("Soldiers: ")
+                                    .on_hover_cursor(CursorIcon::PointingHand);
+                                let mut soldiers = player.population.soldier.clone();
+                                ui.add(egui::Slider::new(
+                                    &mut soldiers,
+                                    0..=player.population.soldier + player.population.idle,
+                                ))
+                                .on_hover_text("Assign the population to produce bullets.");
+                                ui.add_image(bullets_texture, [20., 20.]);
+                                ui.label("x3").on_hover_text("Combat strength.");
 
-                            if label.clicked() {
-                                soldiers = player.population.soldier + player.population.idle;
-                            }
+                                if label.clicked() {
+                                    soldiers = player.population.soldier + player.population.idle;
+                                }
 
-                            soldiers
-                        });
-
-                        ui.add_space(15.);
-
-                        let armorers = ui.horizontal_centered(|ui| {
-                            ui.add_image(armorer_texture, [40., 40.]);
-                            let label = ui
-                                .label("Armorers:")
-                                .on_hover_cursor(CursorIcon::PointingHand);
-                            let mut armorers = player.population.armorer.clone();
-                            ui.add(egui::Slider::new(
-                                &mut armorers,
-                                0..=player.population.armorer + player.population.idle,
-                            ))
-                            .on_hover_text("Assign the population to produce bullets.");
-                            ui.add_space(10.);
-                            ui.add_image(bullets_texture, [20., 20.]);
-                            ui.label(format!("+{}", armorers));
-
-                            if label.clicked() {
-                                armorers = player.population.armorer + player.population.idle;
-                            }
-
-                            armorers
-                        });
+                                soldiers
+                            })
+                            .inner;
 
                         ui.add_space(15.);
 
-                        let refiners = ui.horizontal_centered(|ui| {
-                            ui.add_image(refiner_texture, [40., 40.]);
-                            let label = ui
-                                .label("Refiners: ")
-                                .on_hover_cursor(CursorIcon::PointingHand);
-                            let mut refiners = player.population.refiner.clone();
-                            ui.add(egui::Slider::new(
-                                &mut refiners,
-                                0..=player.population.refiner + player.population.idle,
-                            ))
-                            .on_hover_text("Assign the population to produce gasoline.");
-                            ui.add_space(10.);
-                            ui.add_image(gasoline_texture, [20., 20.]);
-                            ui.label(format!("+{}", refiners));
+                        let armorers = ui
+                            .horizontal_centered(|ui| {
+                                ui.add_image(armorer_texture, [40., 40.]);
+                                let label = ui
+                                    .label("Armorers: ")
+                                    .on_hover_cursor(CursorIcon::PointingHand);
+                                let mut armorers = player.population.armorer.clone();
+                                ui.add(egui::Slider::new(
+                                    &mut armorers,
+                                    0..=player.population.armorer + player.population.idle,
+                                ))
+                                .on_hover_text("Assign the population to produce bullets.");
+                                ui.add_space(10.);
+                                ui.add_image(bullets_texture, [20., 20.]);
+                                ui.label(format!("+{}", armorers * RESOURCE_FACTOR));
 
-                            if label.clicked() {
-                                refiners = player.population.refiner + player.population.idle;
-                            }
+                                if label.clicked() {
+                                    armorers = player.population.armorer + player.population.idle;
+                                }
 
-                            refiners
-                        });
-
-                        ui.add_space(15.);
-
-                        let constructors = ui.horizontal_centered(|ui| {
-                            ui.add_image(constructor_texture, [40., 40.]);
-                            let label = ui
-                                .label("Constructor: ")
-                                .on_hover_cursor(CursorIcon::PointingHand);
-                            let mut constructors = player.population.constructor.clone();
-                            ui.add(egui::Slider::new(
-                                &mut constructors,
-                                0..=player.population.constructor + player.population.idle,
-                            ))
-                            .on_hover_text("Assign the population to produce materials.");
-                            ui.add_space(10.);
-                            ui.add_image(materials_texture, [20., 20.]);
-                            ui.label(format!("+{}", constructors));
-
-                            if label.clicked() {
-                                constructors =
-                                    player.population.constructor + player.population.idle;
-                            }
-
-                            constructors
-                        });
+                                armorers
+                            })
+                            .inner;
 
                         ui.add_space(15.);
 
-                        let scientists = ui.horizontal_centered(|ui| {
-                            ui.add_image(scientist_texture, [40., 40.]);
-                            let label = ui
-                                .label("Scientist: ")
-                                .on_hover_cursor(CursorIcon::PointingHand);
-                            let mut scientists = player.population.scientist.clone();
-                            ui.add(egui::Slider::new(
-                                &mut scientists,
-                                0..=player.population.scientist + player.population.idle,
-                            ))
-                            .on_hover_text("Assign the population to research technology.");
-                            ui.add_space(10.);
-                            ui.add_image(technology_texture, [20., 20.]);
-                            ui.label(format!("+{}", scientists));
+                        let refiners = ui
+                            .horizontal_centered(|ui| {
+                                ui.add_image(refiner_texture, [40., 40.]);
+                                let label = ui
+                                    .label("Refiners: ")
+                                    .on_hover_cursor(CursorIcon::PointingHand);
+                                let mut refiners = player.population.refiner.clone();
+                                ui.add(egui::Slider::new(
+                                    &mut refiners,
+                                    0..=player.population.refiner + player.population.idle,
+                                ))
+                                .on_hover_text("Assign the population to produce gasoline.");
+                                ui.add_space(10.);
+                                ui.add_image(gasoline_texture, [20., 20.]);
+                                ui.label(format!("+{}", refiners * RESOURCE_FACTOR));
 
-                            if label.clicked() {
-                                scientists = player.population.scientist + player.population.idle;
-                            }
+                                if label.clicked() {
+                                    refiners = player.population.refiner + player.population.idle;
+                                }
 
-                            scientists
-                        });
+                                refiners
+                            })
+                            .inner;
+
+                        ui.add_space(15.);
+
+                        let constructors = ui
+                            .horizontal_centered(|ui| {
+                                ui.add_image(constructor_texture, [40., 40.]);
+                                let label = ui
+                                    .label("Constructors: ")
+                                    .on_hover_cursor(CursorIcon::PointingHand);
+                                let mut constructors = player.population.constructor.clone();
+                                ui.add(egui::Slider::new(
+                                    &mut constructors,
+                                    0..=player.population.constructor + player.population.idle,
+                                ))
+                                .on_hover_text("Assign the population to produce materials.");
+                                ui.add_space(10.);
+                                ui.add_image(materials_texture, [20., 20.]);
+                                ui.label(format!("+{}", constructors * RESOURCE_FACTOR));
+
+                                if label.clicked() {
+                                    constructors =
+                                        player.population.constructor + player.population.idle;
+                                }
+
+                                constructors
+                            })
+                            .inner;
+
+                        ui.add_space(15.);
+
+                        let scientists = ui
+                            .horizontal_centered(|ui| {
+                                ui.add_image(scientist_texture, [40., 40.]);
+                                let label = ui
+                                    .label("Scientists: ")
+                                    .on_hover_cursor(CursorIcon::PointingHand);
+                                let mut scientists = player.population.scientist.clone();
+                                ui.add(egui::Slider::new(
+                                    &mut scientists,
+                                    0..=player.population.scientist + player.population.idle,
+                                ))
+                                .on_hover_text("Assign the population to research technology.");
+                                ui.add_space(10.);
+                                ui.add_image(technology_texture, [20., 20.]);
+                                ui.label(format!("+{}", scientists));
+
+                                if label.clicked() {
+                                    scientists =
+                                        player.population.scientist + player.population.idle;
+                                }
+
+                                scientists
+                            })
+                            .inner;
 
                         ui.add_space(15.);
 
@@ -1053,25 +1066,21 @@ pub fn day_panel(
                         });
 
                         //Resolve population choices
-                        if soldiers.inner
-                            + armorers.inner
-                            + refiners.inner
-                            + constructors.inner
-                            + scientists.inner
+                        if soldiers + armorers + refiners + constructors + scientists
                             <= player.population.total()
                         {
                             player.population = Population {
-                                soldier: soldiers.inner,
-                                armorer: armorers.inner,
-                                refiner: refiners.inner,
-                                constructor: constructors.inner,
-                                scientist: scientists.inner,
+                                soldier: soldiers,
+                                armorer: armorers,
+                                refiner: refiners,
+                                constructor: constructors,
+                                scientist: scientists,
                                 idle: player.population.total()
-                                    - soldiers.inner
-                                    - armorers.inner
-                                    - refiners.inner
-                                    - constructors.inner
-                                    - scientists.inner,
+                                    - soldiers
+                                    - armorers
+                                    - refiners
+                                    - constructors
+                                    - scientists,
                             };
                         }
                     });
