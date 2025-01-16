@@ -10,20 +10,9 @@ use constants::{SIZE, TITLE};
 use crate::messages::MessagesPlugin;
 use bevy::prelude::*;
 use bevy::window::{WindowMode, WindowResolution};
-use bevy_egui::egui::{emath, Context, Pos2, RawInput};
 use bevy_egui::EguiPlugin;
-use emath::{Rect, Vec2};
 
 fn main() {
-    // Force egui to adhere to custom size
-    Context::default().begin_pass(RawInput {
-        screen_rect: Some(Rect::from_center_size(
-            Pos2::ZERO,
-            Vec2::new(SIZE.x, SIZE.y),
-        )),
-        ..default()
-    });
-
     let mut app = App::new();
 
     app.add_plugins(

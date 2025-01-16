@@ -24,7 +24,8 @@ impl Plugin for MapPlugin {
                         run_animations,
                     )
                         .chain(),
-                    info_panel.run_if(not(in_state(AppState::Night))),
+                    day_panel.run_if(in_state(AppState::Day)),
+                    info_panel.run_if(not(in_state(AppState::Day).or(in_state(AppState::Night)))),
                     update_game.run_if(in_state(AppState::Night).and(in_state(GameState::Running))),
                 ),
             );

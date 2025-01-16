@@ -819,6 +819,50 @@ pub fn weapons_panel(
         });
 }
 
+pub fn day_panel(
+    mut contexts: EguiContexts,
+    player: Res<Player>,
+    app_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    assets: Local<WorldAssets>,
+    window: Query<&Window>,
+) {
+    let window_size = window.single().size();
+
+    egui::Window::new("info panel")
+        .title_bar(false)
+        .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
+        .fixed_pos(
+            (
+                (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5  - MAP_SIZE.x * 0.3,
+                (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
+            )
+        )
+        .show(contexts.ctx_mut(), |ui| {
+            ui.heading(format!("You survived night {}!", player.day));
+
+            ui.add_space(15.);
+
+            ui.label(
+                "The day has finally arrived. The sun is rising and the bugs \
+                        are retreating. Upgrade your weapons and prepare for tonight...");
+
+            egui::ScrollArea::vertical()
+                .max_width(SIZE.x * 0.4)
+                .show(ui, |ui| {
+                    ui.add_night_stats(&player);
+                });
+
+            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                ui.add_space(10.);
+
+                if ui.add_button("Continue").clicked() {
+                    next_state.set(AppState::Night);
+                }
+            });
+        });
+}
+
 pub fn info_panel(
     mut contexts: EguiContexts,
     player: Res<Player>,
@@ -877,29 +921,6 @@ pub fn info_panel(
                         if ui.add_button("Start game").clicked() {
                             next_state.set(AppState::Night);
                         }
-                    },
-                    AppState::Day => {
-                        ui.heading(format!("You survived night {}!", player.day));
-
-                        ui.add_space(15.);
-
-                        ui.label(
-                            "The day has finally arrived. The sun is rising and the bugs \
-                            are retreating. Upgrade your weapons and prepare for tonight...");
-
-                        egui::ScrollArea::vertical()
-                            .max_width(SIZE.x * 0.4)
-                            .show(ui, |ui| {
-                                ui.add_night_stats(&player);
-                            });
-
-                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
-                            ui.add_space(10.);
-
-                            if ui.add_button("Continue").clicked() {
-                                next_state.set(AppState::Night);
-                            }
-                        });
                     },
                     AppState::GameOver => {
                         ui.add_image(game_over_texture,[400., 100.]);
