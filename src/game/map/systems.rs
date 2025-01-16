@@ -4,7 +4,7 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyHealth, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
-use crate::game::resources::{GameSettings, NightStats, Player, Resources};
+use crate::game::resources::{DayTabs, GameSettings, NightStats, Player, Population, Resources};
 use crate::game::weapon::components::*;
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
@@ -195,7 +195,7 @@ pub fn resources_panel(
                     .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(player.wall.health / player.wall.max_health)
-                        .desired_width(170.)
+                        .desired_width(180.)
                         .desired_height(20.)
                         .text(
                             RichText::new(format!(
@@ -213,7 +213,7 @@ pub fn resources_panel(
                         .on_hover_text("Fence strength");
                     ui.add(
                         egui::ProgressBar::new(player.fence.health / player.fence.max_health)
-                            .desired_width(100.)
+                            .desired_width(150.)
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
@@ -227,22 +227,19 @@ pub fn resources_panel(
 
                 ui.separator();
 
-                ui.add_image(bullets_texture, [10., 20.])
+                ui.add_image(bullets_texture, [20., 20.])
                     .on_hover_text("Bullets");
-                ui.add(egui::Label::new(format!(
-                    "{:.0} (+{})",
-                    player.resources.bullets,
-                    player.population.armorer * RESOURCE_FACTOR
-                )));
+                ui.add(egui::Label::new(
+                    format!("{:.0}", player.resources.bullets,),
+                ));
 
                 ui.add_space(10.);
 
                 ui.add_image(gasoline_texture, [20., 20.])
                     .on_hover_text("Gasoline");
                 ui.add(egui::Label::new(format!(
-                    "{:.0} (+{})",
+                    "{:.0}",
                     player.resources.gasoline,
-                    player.population.refiner * RESOURCE_FACTOR
                 )));
 
                 ui.add_space(10.);
@@ -250,9 +247,8 @@ pub fn resources_panel(
                 ui.add_image(materials_texture, [20., 20.])
                     .on_hover_text("Materials");
                 ui.add(egui::Label::new(format!(
-                    "{:.0} (+{})",
+                    "{:.0}",
                     player.resources.materials,
-                    player.population.harvester * RESOURCE_FACTOR
                 )));
 
                 ui.add_space(10.);
@@ -260,9 +256,8 @@ pub fn resources_panel(
                 ui.add_image(technology_texture, [20., 20.])
                     .on_hover_text("Technology");
                 ui.add(egui::Label::new(format!(
-                    "{:.0} (+{})",
+                    "{:.0}",
                     player.resources.technology,
-                    player.population.scientist * RESOURCE_FACTOR
                 )));
 
                 ui.scope_builder(
@@ -821,45 +816,270 @@ pub fn weapons_panel(
 
 pub fn day_panel(
     mut contexts: EguiContexts,
-    player: Res<Player>,
-    app_state: Res<State<AppState>>,
+    mut player: ResMut<Player>,
+    mut messages: ResMut<Messages>,
+    mut game_settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     assets: Local<WorldAssets>,
     window: Query<&Window>,
 ) {
     let window_size = window.single().size();
 
+    let soldier_texture = contexts.add_image(assets.get_image("soldier"));
+    let armorer_texture = contexts.add_image(assets.get_image("armorer"));
+    let bullets_texture = contexts.add_image(assets.get_image("bullets"));
+    let refiner_texture = contexts.add_image(assets.get_image("refiner"));
+    let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
+    let constructor_texture = contexts.add_image(assets.get_image("constructor"));
+    let materials_texture = contexts.add_image(assets.get_image("materials"));
+    let scientist_texture = contexts.add_image(assets.get_image("scientist"));
+    let technology_texture = contexts.add_image(assets.get_image("technology"));
+
     egui::Window::new("info panel")
         .title_bar(false)
-        .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.8))
-        .fixed_pos(
-            (
-                (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5  - MAP_SIZE.x * 0.3,
-                (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
-            )
-        )
+        .fixed_size((MAP_SIZE.x * 0.6, MAP_SIZE.y * 0.7))
+        .fixed_pos((
+            (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5 - MAP_SIZE.x * 0.3,
+            (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.4,
+        ))
         .show(contexts.ctx_mut(), |ui| {
-            ui.heading(format!("You survived night {}!", player.day));
-
-            ui.add_space(15.);
-
-            ui.label(
-                "The day has finally arrived. The sun is rising and the bugs \
-                        are retreating. Upgrade your weapons and prepare for tonight...");
-
-            egui::ScrollArea::vertical()
-                .max_width(SIZE.x * 0.4)
-                .show(ui, |ui| {
-                    ui.add_night_stats(&player);
-                });
-
-            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
-                ui.add_space(10.);
-
-                if ui.add_button("Continue").clicked() {
-                    next_state.set(AppState::Night);
-                }
+            ui.horizontal(|ui| {
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Overview,
+                    DayTabs::Overview.name(),
+                );
+                ui.add_space(5.);
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Population,
+                    DayTabs::Population.name(),
+                );
+                ui.add_space(5.);
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Constructions,
+                    DayTabs::Constructions.name(),
+                );
+                ui.add_space(5.);
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Armory,
+                    DayTabs::Armory.name(),
+                );
+                ui.add_space(5.);
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Technology,
+                    DayTabs::Technology.name(),
+                );
+                ui.add_space(5.);
+                ui.selectable_value(
+                    &mut game_settings.day_tab,
+                    DayTabs::Expeditions,
+                    DayTabs::Expeditions.name(),
+                );
             });
+
+            ui.separator();
+            ui.add_space(10.);
+
+            match game_settings.day_tab {
+                DayTabs::Overview => {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(20.);
+                        ui.heading(format!("You survived night {}!", player.day - 1));
+                        ui.add_space(20.);
+                    });
+
+                    ui.add_scroll("overview", MAP_SIZE.x * 0.1, |ui| {
+                        ui.label(
+                            "The day has finally arrived. The sun is rising and the bugs \
+                            are retreating. Upgrade your weapons and prepare for tonight...",
+                        );
+                    });
+
+                    ui.add_night_stats(&player, player.day - 1);
+
+                    ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                        ui.add_space(20.);
+
+                        if ui
+                            .add_button(format!("   Continue to night {}   ", player.day))
+                            .clicked()
+                        {
+                            if player.population.idle == 0 {
+                                next_state.set(AppState::Night);
+                            } else {
+                                messages.error("You have idle population!");
+                            }
+                        }
+                    });
+                }
+                DayTabs::Population => {
+                    ui.add_scroll("res1", MAP_SIZE.x * 0.1, |ui| {
+                        ui.add_space(15.);
+                        ui.label(
+                            "Distribute the population over the resources. The number of \
+                            workers on a specific trait determines the amount of that resource \
+                            you will get tomorrow. Make sure to not let anyone idle!",
+                        );
+                        ui.add_space(15.);
+                    });
+
+                    ui.add_scroll("res2", MAP_SIZE.x * 0.15, |ui| {
+                        let soldiers = ui.horizontal_centered(|ui| {
+                            ui.add_image(soldier_texture, [40., 40.]);
+                            let label = ui
+                                .label("Soldiers:")
+                                .on_hover_cursor(CursorIcon::PointingHand);
+                            let mut soldiers = player.population.soldier.clone();
+                            ui.add(egui::Slider::new(
+                                &mut soldiers,
+                                0..=player.population.soldier + player.population.idle,
+                            ))
+                            .on_hover_text("Assign the population to produce bullets.");
+
+                            if label.clicked() {
+                                soldiers = player.population.soldier + player.population.idle;
+                            }
+
+                            soldiers
+                        });
+
+                        ui.add_space(15.);
+
+                        let armorers = ui.horizontal_centered(|ui| {
+                            ui.add_image(armorer_texture, [40., 40.]);
+                            let label = ui
+                                .label("Armorers:")
+                                .on_hover_cursor(CursorIcon::PointingHand);
+                            let mut armorers = player.population.armorer.clone();
+                            ui.add(egui::Slider::new(
+                                &mut armorers,
+                                0..=player.population.armorer + player.population.idle,
+                            ))
+                            .on_hover_text("Assign the population to produce bullets.");
+                            ui.add_space(10.);
+                            ui.add_image(bullets_texture, [20., 20.]);
+                            ui.label(format!("+{}", armorers));
+
+                            if label.clicked() {
+                                armorers = player.population.armorer + player.population.idle;
+                            }
+
+                            armorers
+                        });
+
+                        ui.add_space(15.);
+
+                        let refiners = ui.horizontal_centered(|ui| {
+                            ui.add_image(refiner_texture, [40., 40.]);
+                            let label = ui
+                                .label("Refiners: ")
+                                .on_hover_cursor(CursorIcon::PointingHand);
+                            let mut refiners = player.population.refiner.clone();
+                            ui.add(egui::Slider::new(
+                                &mut refiners,
+                                0..=player.population.refiner + player.population.idle,
+                            ))
+                            .on_hover_text("Assign the population to produce gasoline.");
+                            ui.add_space(10.);
+                            ui.add_image(gasoline_texture, [20., 20.]);
+                            ui.label(format!("+{}", refiners));
+
+                            if label.clicked() {
+                                refiners = player.population.refiner + player.population.idle;
+                            }
+
+                            refiners
+                        });
+
+                        ui.add_space(15.);
+
+                        let constructors = ui.horizontal_centered(|ui| {
+                            ui.add_image(constructor_texture, [40., 40.]);
+                            let label = ui
+                                .label("Constructor: ")
+                                .on_hover_cursor(CursorIcon::PointingHand);
+                            let mut constructors = player.population.constructor.clone();
+                            ui.add(egui::Slider::new(
+                                &mut constructors,
+                                0..=player.population.constructor + player.population.idle,
+                            ))
+                            .on_hover_text("Assign the population to produce materials.");
+                            ui.add_space(10.);
+                            ui.add_image(materials_texture, [20., 20.]);
+                            ui.label(format!("+{}", constructors));
+
+                            if label.clicked() {
+                                constructors =
+                                    player.population.constructor + player.population.idle;
+                            }
+
+                            constructors
+                        });
+
+                        ui.add_space(15.);
+
+                        let scientists = ui.horizontal_centered(|ui| {
+                            ui.add_image(scientist_texture, [40., 40.]);
+                            let label = ui
+                                .label("Scientist: ")
+                                .on_hover_cursor(CursorIcon::PointingHand);
+                            let mut scientists = player.population.scientist.clone();
+                            ui.add(egui::Slider::new(
+                                &mut scientists,
+                                0..=player.population.scientist + player.population.idle,
+                            ))
+                            .on_hover_text("Assign the population to research technology.");
+                            ui.add_space(10.);
+                            ui.add_image(technology_texture, [20., 20.]);
+                            ui.label(format!("+{}", scientists));
+
+                            if label.clicked() {
+                                scientists = player.population.scientist + player.population.idle;
+                            }
+
+                            scientists
+                        });
+
+                        ui.add_space(15.);
+
+                        ui.horizontal_centered(|ui| {
+                            ui.add_image(scientist_texture, [40., 40.]);
+                            ui.label("Idle: ");
+                            ui.label(RichText::new(format!("{}", player.population.idle)).strong());
+                        });
+
+                        //Resolve population choices
+                        if soldiers.inner
+                            + armorers.inner
+                            + refiners.inner
+                            + constructors.inner
+                            + scientists.inner
+                            <= player.population.total()
+                        {
+                            player.population = Population {
+                                soldier: soldiers.inner,
+                                armorer: armorers.inner,
+                                refiner: refiners.inner,
+                                constructor: constructors.inner,
+                                scientist: scientists.inner,
+                                idle: player.population.total()
+                                    - soldiers.inner
+                                    - armorers.inner
+                                    - refiners.inner
+                                    - constructors.inner
+                                    - scientists.inner,
+                            };
+                        }
+                    });
+                }
+                _ => (),
+            }
+
+            ui.add_space(20.);
         });
 }
 
@@ -890,33 +1110,20 @@ pub fn info_panel(
                     AppState::StartGame => {
                         ui.heading("Welcome to Fortress!");
 
-                        ui.add_space(15.);
-
-                        egui::ScrollArea::vertical()
-                            .max_width(SIZE.x * 0.4)
-                            .show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.add_space(85.);
-                                    ui.with_layout(
-                                        Layout::top_down(Align::LEFT),
-                                        |ui| {
-                                            ui.add_space(5.);
-                                            ui.label(
-                                                "The world has been conquered by insects. Together with a handful of survivors, \
-                                                you have built a fortress to defend yourself from their ferocious attacks. \
-                                                Every night, an ever-increasing swarm of attacks the fortress. Kill them before \
-                                                they enter the fortress and kill the remaining population!\n\n \
-                                                During the day, you can collect resources and upgrade your weapon arsenal to \
-                                                prepare yourself for the following night. During the attack, you can choose \
-                                                how/when to use the weapons you have at your disposal. But be careful, everything \
-                                                has a cost! Manage your resources wisely or you won't be able to stop the insects \
-                                                tomorrow...");
-                                            ui.add_space(5.);
-                                        })
-                                })
-                            });
-
-                        ui.add_space(15.);
+                        ui.add_scroll("start", MAP_SIZE.x * 0.1, |ui| {
+                            ui.add_space(15.);
+                            ui.label(
+                                "The world has been conquered by insects. Together with a handful of survivors, \
+                                you have built a fortress to defend yourself from their ferocious attacks. \
+                                Every night, an ever-increasing swarm of attacks the fortress. Kill them before \
+                                they enter the fortress and kill the remaining population!\n\n \
+                                During the day, you can collect resources and upgrade your weapon arsenal to \
+                                prepare yourself for the following night. During the attack, you can choose \
+                                how/when to use the weapons you have at your disposal. But be careful, everything \
+                                has a cost! Manage your resources wisely or you won't be able to stop the insects \
+                                tomorrow...");
+                            ui.add_space(15.);
+                        });
 
                         if ui.add_button("Start game").clicked() {
                             next_state.set(AppState::Night);
@@ -927,7 +1134,7 @@ pub fn info_panel(
 
                         ui.heading(format!("You survived {} nights!", player.day - 1));
 
-                        ui.add_night_stats(&player);
+                        ui.add_night_stats(&player, player.day);
 
                         ui.horizontal(|ui| {
                             ui.add_space(215.);

@@ -13,7 +13,7 @@ pub const TITLE: &str = "Fortress";
 // General settings
 pub const NORMAL_FONT_SIZE: f32 = 16.;
 pub const LARGE_FONT_SIZE: f32 = 24.;
-pub const MESSAGE_DURATION: u64 = 3; // Seconds that the messages are shown
+pub const MESSAGE_DURATION: u64 = 4; // Seconds that the messages are shown
 
 // Window block sizes (panels and background images)
 pub const SIZE: Vec2 = Vec2::new(1440., 834.);
@@ -46,7 +46,9 @@ pub const WEAPON_Z: f32 = 4.0;
 pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
 
-// RESOURCE SETTINGS
+// Resource settings
+pub const POPULATION_MEAN_INCREASE: u32 = 500;
+pub const POPULATION_STD_INCREASE: u32 = 100;
 pub const RESOURCE_FACTOR: u32 = 10; // Factor to multiply population by to get resources
 
 // Weapon settings

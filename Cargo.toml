@@ -9,6 +9,7 @@ bevy_egui = { version = "0.32.0", features = ["immutable_ctx"] }
 egui-notify = "0.18.0"
 image = "0.25.5"
 rand = "0.8.5"
+rand_distr = "0.4"
 winit = "0.30.8"
 
 # Enable a small amount of optimization in the dev profile.

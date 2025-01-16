@@ -102,6 +102,7 @@ pub fn move_enemies(
     wall_q: Query<SpriteQ, (With<Wall>, Without<Enemy>)>,
     mut next_state: ResMut<NextState<AppState>>,
     mut player: ResMut<Player>,
+    mut night_stats: ResMut<NightStats>,
     mut messages: ResMut<Messages>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
@@ -142,19 +143,40 @@ pub fn move_enemies(
             let mut damage = enemy.damage as u32;
 
             // First subtract damage from the soldiers
-            player.population.soldier -=
-                ((damage as f32 / 2.) as u32).min(player.population.soldier);
-            damage -= (player.population.soldier * 2).min(damage);
+            let dead_soldiers = ((damage as f32 / 3.) as u32).min(player.population.soldier);
+            player.population.soldier -= dead_soldiers;
+            night_stats.population.soldier += dead_soldiers;
+            damage -= (dead_soldiers * 3).min(damage);
 
             if damage > 0 {
                 // Then randomly over the rest of the population
                 // Note that only one type of population can be attacked per bug
                 match thread_rng().gen_range(0..4) {
-                    0 => player.population.armorer -= damage.min(player.population.armorer),
-                    1 => player.population.refiner -= damage.min(player.population.refiner),
-                    2 => player.population.harvester -= damage.min(player.population.harvester),
-                    3 => player.population.scientist -= damage.min(player.population.scientist),
-                    _ => unreachable!(),
+                    0 => {
+                        let dead = damage.min(player.population.armorer);
+                        player.population.armorer -= dead;
+                        night_stats.population.armorer += dead;
+                    }
+                    1 => {
+                        let dead = damage.min(player.population.refiner);
+                        player.population.refiner -= dead;
+                        night_stats.population.refiner += dead;
+                    }
+                    2 => {
+                        let dead = damage.min(player.population.constructor);
+                        player.population.constructor -= dead;
+                        night_stats.population.constructor += dead;
+                    }
+                    3 => {
+                        let dead = damage.min(player.population.scientist);
+                        player.population.scientist -= dead;
+                        night_stats.population.scientist += dead;
+                    }
+                    _ => {
+                        let dead = damage.min(player.population.idle);
+                        player.population.idle -= dead;
+                        night_stats.population.idle += dead;
+                    }
                 }
             }
 

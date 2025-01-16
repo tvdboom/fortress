@@ -1,8 +1,9 @@
-use crate::constants::FOW_SIZE;
+use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::Player;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy_egui::egui::*;
+use std::hash::Hash;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
@@ -24,7 +25,18 @@ pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response;
-    fn add_night_stats(&mut self, player: &Player);
+    fn add_sized_text(
+        &mut self,
+        text: impl Into<WidgetText>,
+        size: impl Into<Vec2>,
+    ) -> InnerResponse<Response>;
+    fn add_scroll<R>(
+        &mut self,
+        id: impl Hash,
+        indent: f32,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    );
+    fn add_night_stats(&mut self, player: &Player, day: u32);
 }
 
 impl CustomUi for Ui {
@@ -36,14 +48,43 @@ impl CustomUi for Ui {
         self.add(Image::new(load::SizedTexture::new(id, size)))
     }
 
-    fn add_night_stats(&mut self, player: &Player) {
+    fn add_sized_text(
+        &mut self,
+        text: impl Into<WidgetText>,
+        size: impl Into<Vec2>,
+    ) -> InnerResponse<Response> {
+        self.with_layout(Layout::left_to_right(Align::LEFT), |ui| {
+            ui.add_sized(size, Label::new(text))
+        })
+    }
+
+    fn add_scroll<R>(
+        &mut self,
+        id: impl Hash,
+        indent: f32,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) {
+        ScrollArea::vertical()
+            .id_salt(id)
+            .max_width(MAP_SIZE.x * 0.5)
+            .show(self, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(indent);
+                    ui.with_layout(Layout::top_down(Align::LEFT), add_contents);
+                })
+            });
+    }
+
+    fn add_night_stats(&mut self, player: &Player, day: u32) {
+        let stats = player.stats.get(&day).unwrap();
+
         self.add_space(30.);
 
         self.horizontal(|ui| {
-            ui.add_space(140.);
+            ui.add_space(40.);
 
-            ui.spacing_mut().item_spacing.x = -85.; // Reduce space between columns
-            ui.columns(2, |columns| {
+            ui.spacing_mut().item_spacing.x = -45.; // Reduce space between columns
+            ui.columns(3, |columns| {
                 Grid::new("enemy stats")
                     .num_columns(2)
                     .spacing([20.0, 4.0])
@@ -53,17 +94,11 @@ impl CustomUi for Ui {
                         ui.label(RichText::new("Killed / Total").strong());
                         ui.end_row();
 
-                        player
-                            .stats
-                            .get(&player.day)
-                            .unwrap()
-                            .enemies
-                            .iter()
-                            .for_each(|(k, v)| {
-                                ui.label(*k);
-                                ui.label(format!("{} / {}", v.killed, v.spawned));
-                                ui.end_row();
-                            });
+                        stats.enemies.iter().for_each(|(k, v)| {
+                            ui.label(*k);
+                            ui.label(format!("{} / {}", v.killed, v.spawned));
+                            ui.end_row();
+                        });
                     });
 
                 Grid::new("resources stats")
@@ -75,21 +110,56 @@ impl CustomUi for Ui {
                         ui.label(RichText::new("Consumed").strong());
                         ui.end_row();
                         ui.label("Bullets");
-                        ui.label(format!(
-                            "{:.0}",
-                            player.stats.get(&player.day).unwrap().resources.bullets
-                        ));
+                        ui.label(format!("{:.0}", stats.resources.bullets));
                         ui.end_row();
                         ui.label("Gasoline");
-                        ui.label(format!(
-                            "{:.0}",
-                            player.stats.get(&player.day).unwrap().resources.gasoline
-                        ));
+                        ui.label(format!("{:.0}", stats.resources.gasoline));
                         ui.end_row();
                         ui.label("Materials");
+                        ui.label(format!("{:.0}", stats.resources.materials));
+                    });
+
+                Grid::new("population stats")
+                    .num_columns(2)
+                    .spacing([20.0, 4.0])
+                    .striped(true)
+                    .show(&mut columns[2], |ui| {
+                        ui.label(RichText::new("Population").strong());
+                        ui.label(RichText::new("Died / Total").strong());
+                        ui.end_row();
+                        ui.label("Soldiers");
                         ui.label(format!(
-                            "{:.0}",
-                            player.stats.get(&player.day).unwrap().resources.materials
+                            "{} / {}",
+                            stats.population.soldier,
+                            player.population.soldier + stats.population.soldier
+                        ));
+                        ui.end_row();
+                        ui.label("Armorers");
+                        ui.label(format!(
+                            "{} / {}",
+                            stats.population.armorer,
+                            player.population.armorer + stats.population.armorer
+                        ));
+                        ui.end_row();
+                        ui.label("Refiners");
+                        ui.label(format!(
+                            "{} / {}",
+                            stats.population.refiner,
+                            player.population.refiner + stats.population.refiner
+                        ));
+                        ui.end_row();
+                        ui.label("Constructor");
+                        ui.label(format!(
+                            "{} / {}",
+                            stats.population.constructor,
+                            player.population.constructor + stats.population.constructor
+                        ));
+                        ui.end_row();
+                        ui.label("Scientists");
+                        ui.label(format!(
+                            "{} / {}",
+                            stats.population.scientist,
+                            player.population.scientist + stats.population.scientist
                         ));
                     });
             });

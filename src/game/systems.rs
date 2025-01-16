@@ -1,10 +1,15 @@
-use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED, RESOURCE_FACTOR};
+use crate::constants::{
+    GAME_SPEED_STEP, MAX_GAME_SPEED, POPULATION_MEAN_INCREASE, POPULATION_STD_INCREASE,
+    RESOURCE_FACTOR,
+};
 use crate::game::map::components::PauseWrapper;
-use crate::game::resources::{GameSettings, NightStats, Player, Resources};
+use crate::game::resources::{DayTabs, GameSettings, NightStats, Player, Resources};
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
+use crate::messages::Messages;
 use bevy::prelude::*;
 use rand::prelude::*;
+use rand_distr::Normal;
 
 pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
     commands.insert_resource(Player::init());
@@ -17,7 +22,7 @@ pub fn start_night(mut commands: Commands, player: Res<Player>) {
     commands.insert_resource(NightStats {
         day: player.day,
         ..default()
-    })
+    });
 }
 
 pub fn end_night(mut player: ResMut<Player>, night_stats: Res<NightStats>) {
@@ -27,17 +32,34 @@ pub fn end_night(mut player: ResMut<Player>, night_stats: Res<NightStats>) {
         .or_insert(night_stats.clone());
 }
 
-pub fn start_day(mut player: ResMut<Player>) {
+pub fn start_day(
+    mut player: ResMut<Player>,
+    mut messages: ResMut<Messages>,
+    mut game_settings: ResMut<GameSettings>,
+) {
     player.day += 1;
 
+    // Increase population
+    let dist = Normal::new(
+        (POPULATION_MEAN_INCREASE * player.day) as f32,
+        (POPULATION_STD_INCREASE * player.day) as f32,
+    )
+    .unwrap();
+
+    let new_population = dist.sample(&mut thread_rng()) as u32;
+    player.population.idle += new_population;
+    messages.info(format!("Population increased by {}.", new_population));
+
+    // Increase resources
     let population = player.population.clone();
-    player.population.idle += thread_rng().gen_range(0..=500 * player.day);
     player.resources += &Resources {
         bullets: (population.armorer * RESOURCE_FACTOR) as f32,
         gasoline: (population.refiner * RESOURCE_FACTOR) as f32,
-        materials: (population.harvester * RESOURCE_FACTOR) as f32,
+        materials: (population.constructor * RESOURCE_FACTOR) as f32,
         technology: (population.scientist * RESOURCE_FACTOR) as f32,
-    }
+    };
+
+    game_settings.day_tab = DayTabs::Overview;
 }
 
 pub fn pause_game(
@@ -98,6 +120,9 @@ pub fn check_keys(
             }
             if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
                 player.day -= 1;
+            }
+            if keyboard.just_pressed(KeyCode::ArrowRight) {
+                next_app_state.set(AppState::Day);
             }
         }
     }

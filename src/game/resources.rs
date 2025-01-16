@@ -7,9 +7,20 @@ use bevy::utils::hashbrown::HashMap;
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
+#[derive(Debug, PartialEq)]
+pub enum DayTabs {
+    Overview,
+    Population,
+    Constructions,
+    Armory,
+    Technology,
+    Expeditions,
+}
+
 #[derive(Resource)]
 pub struct GameSettings {
     pub speed: f32,
+    pub day_tab: DayTabs,
     pub enemy_info: bool,
 }
 
@@ -17,6 +28,7 @@ impl Default for GameSettings {
     fn default() -> Self {
         Self {
             speed: 1.,
+            day_tab: DayTabs::Overview,
             enemy_info: false,
         }
     }
@@ -148,17 +160,30 @@ resources_assignment_ops!(
 
 #[derive(Clone)]
 pub struct Population {
+    pub soldier: u32,
     pub armorer: u32,
     pub refiner: u32,
-    pub harvester: u32,
+    pub constructor: u32,
     pub scientist: u32,
-    pub soldier: u32,
     pub idle: u32,
 }
 
 impl Population {
     pub fn total(&self) -> u32 {
-        self.armorer + self.refiner + self.harvester + self.scientist + self.soldier + self.idle
+        self.soldier + self.armorer + self.refiner + self.constructor + self.scientist + self.idle
+    }
+}
+
+impl Default for Population {
+    fn default() -> Self {
+        Self {
+            soldier: 0,
+            armorer: 0,
+            refiner: 0,
+            constructor: 0,
+            scientist: 0,
+            idle: 0,
+        }
     }
 }
 
@@ -231,7 +256,7 @@ impl Player {
             population: Population {
                 armorer: 50,
                 refiner: 50,
-                harvester: 50,
+                constructor: 50,
                 scientist: 10,
                 soldier: 10,
                 idle: 0,
@@ -334,6 +359,7 @@ pub struct NightStats {
     pub day: u32,
     pub timer: Timer,
     pub spawn_timer: Timer,
+    pub population: Population,
     pub resources: Resources,
     pub enemies: HashMap<&'static str, EnemyStatus>,
     pub warnings: ResourcesWarnings,
@@ -345,6 +371,7 @@ impl Default for NightStats {
             day: 1,
             timer: Timer::from_seconds(NIGHT_DURATION, TimerMode::Once),
             spawn_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+            population: Population::default(),
             resources: Resources::default(),
             enemies: HashMap::default(),
             warnings: ResourcesWarnings {
