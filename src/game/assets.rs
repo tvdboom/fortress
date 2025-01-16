@@ -32,7 +32,8 @@ impl FromWorld for WorldAssets {
             // Icons
             ("day", assets.load("icons/day.png")),
             ("night", assets.load("icons/night.png")),
-            ("person", assets.load("icons/user.png")),
+            ("soldier", assets.load("icons/soldier.png")),
+            ("population", assets.load("icons/population.png")),
             ("wall", assets.load("icons/wall.png")),
             ("fence", assets.load("icons/fence.png")),
             ("lightning", assets.load("icons/lightning.png")),
@@ -45,6 +46,7 @@ impl FromWorld for WorldAssets {
             ("bullets", assets.load("icons/bullet.png")),
             ("gasoline", assets.load("icons/gasoline.png")),
             ("materials", assets.load("icons/brick.png")),
+            ("technology", assets.load("icons/technology.png")),
             ("spot", assets.load("icons/spot.png")),
             ("hourglass", assets.load("icons/hourglass.png")),
             ("clock", assets.load("icons/clock.png")),

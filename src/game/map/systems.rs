@@ -154,13 +154,14 @@ pub fn resources_panel(
 ) {
     let day_texture = contexts.add_image(assets.get_image("day"));
     let night_texture = contexts.add_image(assets.get_image("night"));
-    let person_texture = contexts.add_image(assets.get_image("person"));
+    let soldier_texture = contexts.add_image(assets.get_image("soldier"));
+    let population_texture = contexts.add_image(assets.get_image("population"));
     let wall_texture = contexts.add_image(assets.get_image("wall"));
     let fence_texture = contexts.add_image(assets.get_image("fence"));
     let bullets_texture = contexts.add_image(assets.get_image("bullets"));
     let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
     let materials_texture = contexts.add_image(assets.get_image("materials"));
-    let spot_texture = contexts.add_image(assets.get_image("spot"));
+    let technology_texture = contexts.add_image(assets.get_image("technology"));
     let hourglass_texture = contexts.add_image(assets.get_image("hourglass"));
     let clock_texture = contexts.add_image(assets.get_image("clock"));
 
@@ -168,8 +169,6 @@ pub fn resources_panel(
         .exact_height(RESOURCES_PANEL_SIZE.y)
         .show(contexts.ctx_mut(), |ui| {
             ui.horizontal_centered(|ui| {
-                ui.add_space(5.);
-
                 match *app_state.get() {
                     AppState::Day => ui.add_image(day_texture, [20., 20.]).on_hover_text("Day"),
                     _ => ui
@@ -178,21 +177,25 @@ pub fn resources_panel(
                 };
                 ui.add(egui::Label::new(player.day.to_string()));
 
-                ui.add_space(5.);
                 ui.separator();
-                ui.add_space(5.);
 
-                ui.add_image(person_texture, [20., 20.])
-                    .on_hover_text("Survivors");
-                ui.add(egui::Label::new(player.survivors.to_string()));
+                if player.population.soldier > 0 {
+                    ui.add_image(soldier_texture, [20., 20.])
+                        .on_hover_text("Soldiers");
+                    ui.add(egui::Label::new(player.population.soldier.to_string()));
+                } else {
+                    ui.add_image(population_texture, [20., 20.])
+                        .on_hover_text("Population");
+                    ui.add(egui::Label::new(player.population.total().to_string()));
+                }
 
-                ui.add_space(15.);
+                ui.add_space(10.);
 
                 ui.add_image(wall_texture, [20., 20.])
                     .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(player.wall.health / player.wall.max_health)
-                        .desired_width(200.)
+                        .desired_width(170.)
                         .desired_height(20.)
                         .text(
                             RichText::new(format!(
@@ -204,13 +207,13 @@ pub fn resources_panel(
                 );
 
                 if player.fence.max_health > 0. {
-                    ui.add_space(5.);
+                    ui.add_space(10.);
 
                     ui.add_image(fence_texture, [20., 20.])
                         .on_hover_text("Fence strength");
                     ui.add(
                         egui::ProgressBar::new(player.fence.health / player.fence.max_health)
-                            .desired_width(150.)
+                            .desired_width(100.)
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
@@ -222,42 +225,44 @@ pub fn resources_panel(
                     );
                 }
 
-                ui.add_space(5.);
                 ui.separator();
-                ui.add_space(5.);
 
-                ui.add_image(bullets_texture, [20., 20.])
+                ui.add_image(bullets_texture, [10., 20.])
                     .on_hover_text("Bullets");
-                ui.add(egui::Label::new(format!("{:.0}", player.resources.bullets)));
+                ui.add(egui::Label::new(format!(
+                    "{:.0} (+{})",
+                    player.resources.bullets,
+                    player.population.armorer * RESOURCE_FACTOR
+                )));
 
-                ui.add_space(15.);
+                ui.add_space(10.);
 
                 ui.add_image(gasoline_texture, [20., 20.])
                     .on_hover_text("Gasoline");
                 ui.add(egui::Label::new(format!(
-                    "{:.0}",
-                    player.resources.gasoline
+                    "{:.0} (+{})",
+                    player.resources.gasoline,
+                    player.population.refiner * RESOURCE_FACTOR
                 )));
 
-                ui.add_space(15.);
+                ui.add_space(10.);
 
                 ui.add_image(materials_texture, [20., 20.])
                     .on_hover_text("Materials");
                 ui.add(egui::Label::new(format!(
-                    "{:.0}",
-                    player.resources.materials
+                    "{:.0} (+{})",
+                    player.resources.materials,
+                    player.population.harvester * RESOURCE_FACTOR
                 )));
 
-                ui.add_space(5.);
-                ui.separator();
-                ui.add_space(5.);
+                ui.add_space(10.);
 
-                ui.add_image(spot_texture, [20., 20.])
-                    .on_hover_text("Occupied / Total spots on wall");
+                ui.add_image(technology_texture, [20., 20.])
+                    .on_hover_text("Technology");
                 ui.add(egui::Label::new(format!(
-                    "{} / {}",
-                    player.weapons.spots.iter().filter(|&x| x.is_some()).count(),
-                    player.weapons.spots.len()
+                    "{:.0} (+{})",
+                    player.resources.technology,
+                    player.population.scientist * RESOURCE_FACTOR
                 )));
 
                 ui.scope_builder(
@@ -266,7 +271,6 @@ pub fn resources_panel(
                         ..default()
                     },
                     |ui| {
-                        ui.add_space(5.);
                         ui.separator();
 
                         ui.add_image(hourglass_texture, [20., 20.])
@@ -857,7 +861,7 @@ pub fn info_panel(
                                                 "The world has been conquered by insects. Together with a handful of survivors, \
                                                 you have built a fortress to defend yourself from their ferocious attacks. \
                                                 Every night, an ever-increasing swarm of attacks the fortress. Kill them before \
-                                                they enter the fortress and kill the remaining survivors!\n\n \
+                                                they enter the fortress and kill the remaining population!\n\n \
                                                 During the day, you can collect resources and upgrade your weapon arsenal to \
                                                 prepare yourself for the following night. During the attack, you can choose \
                                                 how/when to use the weapons you have at your disposal. But be careful, everything \
@@ -980,7 +984,7 @@ pub fn enemy_info_panel(
                                     ui.label(format!("Can fly: {}", e.can_fly))
                                         .on_hover_text("Flying bugs can pass over constructions.");
                                     ui.label(format!("Damage: {}", e.damage)).on_hover_text(
-                                        "Damage dealt to constructions or survivors.",
+                                        "Damage dealt to constructions or population.",
                                     );
                                 });
 

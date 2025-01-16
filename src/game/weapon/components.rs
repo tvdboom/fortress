@@ -930,6 +930,7 @@ impl Default for WeaponManager {
                     bullets: 2500.,
                     gasoline: 2500.,
                     materials: 2500.,
+                    ..default()
                 },
                 speed: 0.2 * MAP_SIZE.y,
                 movement: Movement::Location(Vec3::new(

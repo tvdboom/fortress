@@ -136,13 +136,29 @@ pub fn move_enemies(
         }
 
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
-            if player.survivors > enemy.damage as u32 {
-                messages.error("A bug entered the fortress");
+            messages.error("A bug entered the fortress");
 
-                player.survivors -= enemy.damage as u32;
-                enemy.health = 0.; // Is despawned in update_game
-            } else {
-                player.survivors = 0;
+            enemy.health = 0.; // Is despawned in update_game
+            let mut damage = enemy.damage as u32;
+
+            // First subtract damage from the soldiers
+            player.population.soldier -=
+                ((damage as f32 / 2.) as u32).min(player.population.soldier);
+            damage -= (player.population.soldier * 2).min(damage);
+
+            if damage > 0 {
+                // Then randomly over the rest of the population
+                // Note that only one type of population can be attacked per bug
+                match thread_rng().gen_range(0..4) {
+                    0 => player.population.armorer -= damage.min(player.population.armorer),
+                    1 => player.population.refiner -= damage.min(player.population.refiner),
+                    2 => player.population.harvester -= damage.min(player.population.harvester),
+                    3 => player.population.scientist -= damage.min(player.population.scientist),
+                    _ => unreachable!(),
+                }
+            }
+
+            if player.population.total() == 0 {
                 next_state.set(AppState::GameOver);
             }
         } else {

@@ -27,6 +27,7 @@ pub struct Resources {
     pub bullets: f32,
     pub gasoline: f32,
     pub materials: f32,
+    pub technology: f32,
 }
 
 impl Default for Resources {
@@ -35,6 +36,7 @@ impl Default for Resources {
             bullets: 0.,
             gasoline: 0.,
             materials: 0.,
+            technology: 0.,
         }
     }
 }
@@ -65,6 +67,7 @@ macro_rules! resources_binary_ops {
                         bullets: self.bullets $op rhs.bullets,
                         gasoline: self.gasoline $op rhs.gasoline,
                         materials: self.materials $op rhs.materials,
+                        technology: self.technology $op rhs.technology,
                     }
                 }
             }
@@ -79,6 +82,7 @@ macro_rules! resources_binary_ops {
                         bullets: self.bullets $op float,
                         gasoline: self.gasoline $op float,
                         materials: self.materials $op float,
+                        technology: self.technology $op float,
                     }
                 }
             }
@@ -93,6 +97,7 @@ macro_rules! resources_binary_ops {
                         bullets: self.bullets $op float,
                         gasoline: self.gasoline $op float,
                         materials: self.materials $op float,
+                        technology: self.technology $op float,
                     }
                 }
             }
@@ -116,6 +121,7 @@ macro_rules! resources_assignment_ops {
                     self.bullets $op rhs.bullets;
                     self.gasoline $op rhs.gasoline;
                     self.materials $op rhs.materials;
+                    self.technology $op rhs.technology;
                 }
             }
 
@@ -126,6 +132,7 @@ macro_rules! resources_assignment_ops {
                     self.bullets $op float;
                     self.gasoline $op float;
                     self.materials $op float;
+                    self.technology $op float;
                 }
             }
         )*
@@ -138,6 +145,22 @@ resources_assignment_ops!(
     MulAssign, mul_assign, *=;
     DivAssign, div_assign, /=;
 );
+
+#[derive(Clone)]
+pub struct Population {
+    pub armorer: u32,
+    pub refiner: u32,
+    pub harvester: u32,
+    pub scientist: u32,
+    pub soldier: u32,
+    pub idle: u32,
+}
+
+impl Population {
+    pub fn total(&self) -> u32 {
+        self.armorer + self.refiner + self.harvester + self.scientist + self.soldier + self.idle
+    }
+}
 
 pub struct Wall {
     pub health: f32,
@@ -191,7 +214,7 @@ pub struct Technology {
 #[derive(Resource)]
 pub struct Player {
     pub day: u32,
-    pub survivors: u32,
+    pub population: Population,
     pub wall: Wall,
     pub fence: Fence,
     pub spotlight: Spotlight,
@@ -205,7 +228,14 @@ impl Player {
     pub fn init() -> Self {
         Self {
             day: 1,
-            survivors: 100,
+            population: Population {
+                armorer: 50,
+                refiner: 50,
+                harvester: 50,
+                scientist: 10,
+                soldier: 10,
+                idle: 0,
+            },
             wall: Wall {
                 health: 1_000.,
                 max_health: 1_000.,
@@ -247,6 +277,7 @@ impl Player {
                 bullets: 1_000.,
                 gasoline: 1_000.,
                 materials: 1_000.,
+                technology: 0.,
             },
             weapons: Weapons {
                 spots: vec![

@@ -196,84 +196,85 @@ pub fn spawn_bullets(
                         ));
 
                         for i in 0..weapon.n_bullets {
-                            // Always passes for the first bullet, else go to the next weapon
-                            if player.resources < weapon.bullet.price {
-                                break;
-                            }
+                            if player.resources >= weapon.bullet.price {
+                                let mut bullet = weapon.bullet.clone();
 
-                            let mut bullet = weapon.bullet.clone();
+                                night_stats.resources += &bullet.price;
+                                player.resources -= &bullet.price;
 
-                            night_stats.resources += &bullet.price;
-                            player.resources -= &bullet.price;
-
-                            // Special case => turret only fires with ui button
-                            if weapon.name == WeaponName::Turret {
-                                // The damage increases exponentially with the firepower
-                                bullet.impact = Impact::SingleTarget(Damage {
-                                    ground: 1.05f32.powf(player.weapons.settings.turret),
-                                    air: 1.05f32.powf(player.weapons.settings.turret),
-                                    penetration: 1.04f32.powf(player.weapons.settings.turret),
-                                });
-                                player.weapons.settings.turret = 0.;
-                                weapon.fire_strategy = FireStrategy::None;
-                            }
-
-                            // From the 2nd bullet onwards, update the target
-                            let (enemy_e, enemy_t, enemy) = match i {
-                                i if i > 0 => {
-                                    let enemy_e = weapon
-                                        .acquire_target(&weapon_t, &enemy_q, &fow_q, &targets)
-                                        .unwrap_or(enemy_e);
-                                    enemy_q.get(enemy_e).unwrap()
+                                // Special case => turret only fires with ui button
+                                if weapon.name == WeaponName::Turret {
+                                    // The damage increases exponentially with the firepower
+                                    bullet.impact = Impact::SingleTarget(Damage {
+                                        ground: 1.05f32.powf(player.weapons.settings.turret),
+                                        air: 1.05f32.powf(player.weapons.settings.turret),
+                                        penetration: 1.04f32.powf(player.weapons.settings.turret),
+                                    });
+                                    player.weapons.settings.turret = 0.;
+                                    weapon.fire_strategy = FireStrategy::None;
                                 }
-                                _ => (enemy_e, enemy_t, enemy),
-                            };
 
-                            targets.insert(enemy_e);
+                                // From the 2nd bullet onwards, update the target
+                                let (enemy_e, enemy_t, enemy) = match i {
+                                    i if i > 0 => {
+                                        let enemy_e = weapon
+                                            .acquire_target(&weapon_t, &enemy_q, &fow_q, &targets)
+                                            .unwrap_or(enemy_e);
+                                        enemy_q.get(enemy_e).unwrap()
+                                    }
+                                    _ => (enemy_e, enemy_t, enemy),
+                                };
 
-                            // Determine the bullet's movement
-                            match bullet.movement {
-                                Movement::Location(_) => {
-                                    bullet.movement = Movement::Location(
-                                        if player.technology.movement_prediction {
-                                            get_future_position(
-                                                enemy_t.translation,
-                                                enemy.speed,
-                                                weapon_t.translation,
-                                                weapon.bullet.speed,
-                                                fence_q.get_single(),
-                                                wall_q.get_single(),
-                                            )
-                                        } else {
-                                            enemy_t.translation
-                                        },
-                                    );
+                                targets.insert(enemy_e);
+
+                                // Determine the bullet's movement
+                                match bullet.movement {
+                                    Movement::Location(_) => {
+                                        bullet.movement = Movement::Location(
+                                            if player.technology.movement_prediction {
+                                                get_future_position(
+                                                    enemy_t.translation,
+                                                    enemy.speed,
+                                                    weapon_t.translation,
+                                                    weapon.bullet.speed,
+                                                    fence_q.get_single(),
+                                                    wall_q.get_single(),
+                                                )
+                                            } else {
+                                                enemy_t.translation
+                                            },
+                                        );
+                                    }
+                                    Movement::Homing(_) => {
+                                        bullet.movement = Movement::Homing(enemy_e)
+                                    }
+                                    _ => (),
                                 }
-                                Movement::Homing(_) => bullet.movement = Movement::Homing(enemy_e),
-                                _ => (),
+
+                                commands.spawn((
+                                    Sprite {
+                                        image: asset_server.load(bullet.image),
+                                        custom_size: Some(bullet.dim),
+                                        ..default()
+                                    },
+                                    Transform {
+                                        translation: Vec3::new(
+                                            weapon_t.translation.x
+                                                + weapon.dim.x * 0.5 * angle.cos(),
+                                            weapon_t.translation.y
+                                                + weapon.dim.y * 0.5 * angle.sin(),
+                                            3.0,
+                                        ),
+                                        rotation: Quat::from_rotation_z(angle),
+                                        ..default()
+                                    },
+                                    bullet,
+                                ));
                             }
 
-                            commands.spawn((
-                                Sprite {
-                                    image: asset_server.load(bullet.image),
-                                    custom_size: Some(bullet.dim),
-                                    ..default()
-                                },
-                                Transform {
-                                    translation: Vec3::new(
-                                        weapon_t.translation.x + weapon.dim.x * 0.5 * angle.cos(),
-                                        weapon_t.translation.y + weapon.dim.y * 0.5 * angle.sin(),
-                                        3.0,
-                                    ),
-                                    rotation: Quat::from_rotation_z(angle),
-                                    ..default()
-                                },
-                                bullet,
-                            ));
+                            // Reset target lock
+                            weapon.target = None;
                         }
-
-                        // Reset target lock
-                        weapon.target = None;
                     }
                 } else {
                     // Not pointing at target -> rotate towards it

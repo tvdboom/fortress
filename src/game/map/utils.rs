@@ -42,7 +42,7 @@ impl CustomUi for Ui {
         self.horizontal(|ui| {
             ui.add_space(140.);
 
-            ui.spacing_mut().item_spacing.x = -80.; // Reduce space between columns
+            ui.spacing_mut().item_spacing.x = -85.; // Reduce space between columns
             ui.columns(2, |columns| {
                 Grid::new("enemy stats")
                     .num_columns(2)
@@ -93,7 +93,7 @@ impl CustomUi for Ui {
                         ));
                     });
             });
-            });
+        });
 
         self.add_space(30.);
     }

@@ -14,7 +14,7 @@
 The world has been conquered by insects. Together with a handful of survivors, 
 you have built a fortress to defend yourself from their ferocious attacks.
 Every night, an ever-increasing swarm of attacks the fortress. Kill them before
-they enter the fortress and kill the remaining survivors!
+they enter the fortress and kill the remaining population!
 
 During the day, you can collect resources and upgrade your weapon arsenal to
 prepare yourself for the following night. During the attack, you can choose

@@ -1,6 +1,6 @@
-use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED};
+use crate::constants::{GAME_SPEED_STEP, MAX_GAME_SPEED, RESOURCE_FACTOR};
 use crate::game::map::components::PauseWrapper;
-use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::resources::{GameSettings, NightStats, Player, Resources};
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
 use bevy::prelude::*;
@@ -29,7 +29,15 @@ pub fn end_night(mut player: ResMut<Player>, night_stats: Res<NightStats>) {
 
 pub fn start_day(mut player: ResMut<Player>) {
     player.day += 1;
-    player.survivors += rand::thread_rng().gen_range(0..=200 * player.day);
+
+    let population = player.population.clone();
+    player.population.idle += thread_rng().gen_range(0..=500 * player.day);
+    player.resources += &Resources {
+        bullets: (population.armorer * RESOURCE_FACTOR) as f32,
+        gasoline: (population.refiner * RESOURCE_FACTOR) as f32,
+        materials: (population.harvester * RESOURCE_FACTOR) as f32,
+        technology: (population.scientist * RESOURCE_FACTOR) as f32,
+    }
 }
 
 pub fn pause_game(
