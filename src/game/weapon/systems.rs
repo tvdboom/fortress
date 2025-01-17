@@ -141,7 +141,7 @@ pub fn spawn_bullets(
 
             // Determine the bullet's angle towards the target
             let d = -weapon_t.translation
-                + (if player.has_tech(TechnologyName::AimBot)
+                + (if player.has_tech(TechnologyName::Aimbot)
                     && !matches!(weapon.bullet.movement, Movement::Homing(_))
                 {
                     get_future_position(
@@ -233,7 +233,7 @@ pub fn spawn_bullets(
                                 match bullet.movement {
                                     Movement::Location(_) => {
                                         bullet.movement = Movement::Location(
-                                            if player.has_tech(TechnologyName::AimBot) {
+                                            if player.has_tech(TechnologyName::Aimbot) {
                                                 get_future_position(
                                                     enemy_t.translation,
                                                     enemy.speed,

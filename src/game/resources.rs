@@ -235,8 +235,15 @@ pub struct Weapons {
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum TechnologyName {
+    Aimbot,
+    Bombing,
+    Charts,
+    Electricity,
+    Homing,
+    Marines,
+    Physics,
+    Productivity,
     Spotlight,
-    AimBot,
 }
 
 #[derive(EnumIter, Clone, Copy, Debug, Hash, Eq, PartialEq)]
@@ -272,13 +279,59 @@ impl Default for TechnologyManager {
                         shoot earlier. Using it costs gasoline.",
                 },
                 Technology {
-                    name: TechnologyName::AimBot,
+                    name: TechnologyName::Physics,
+                    price: 1000.,
+                    category: TechnologyCategory::Science,
+                    description: "Unlocks the nuke.",
+                },
+                Technology {
+                    name: TechnologyName::Marines,
+                    price: 100.,
+                    category: TechnologyCategory::Military,
+                    description: "Doubles the strength of your soldiers.",
+                },
+                Technology {
+                    name: TechnologyName::Aimbot,
                     price: 200.,
                     category: TechnologyCategory::Military,
                     description: "\
                         Predict the movement of enemies, shooting at the position where \
                         an enemy is going to be when the bullet arrives. Not relevant for \
                         homing bullets.",
+                },
+                Technology {
+                    name: TechnologyName::Bombing,
+                    price: 400.,
+                    category: TechnologyCategory::Military,
+                    description: "Unlocks the mines and bombs weapons.",
+                },
+                Technology {
+                    name: TechnologyName::Homing,
+                    price: 500.,
+                    category: TechnologyCategory::Military,
+                    description: "\
+                        Unlocks weapons that use homing bullets (turret and missile launcher).",
+                },
+                Technology {
+                    name: TechnologyName::Electricity,
+                    price: 500.,
+                    category: TechnologyCategory::Science,
+                    description: "\
+                        Enables the option to electrify the fence, doing damage to adjacent enemies.",
+                },
+                Technology {
+                    name: TechnologyName::Charts,
+                    price: 100.,
+                    category: TechnologyCategory::Economy,
+                    description: "\
+                        Enables sending expeditions. Expeditions cost gasoline, materials and \
+                        population, but can yield interesting rewards after some days.",
+                },
+                Technology {
+                    name: TechnologyName::Productivity,
+                    price: 1000.,
+                    category: TechnologyCategory::Economy,
+                    description: "Armorers, refiners and constructors produce 50% more resources.",
                 },
             ],
         }
@@ -348,10 +401,10 @@ impl Player {
                 },
             },
             resources: Resources {
-                bullets: 1_000.,
-                gasoline: 1_000.,
-                materials: 1_000.,
-                technology: 0.,
+                bullets: 10_000.,
+                gasoline: 10_000.,
+                materials: 10_000.,
+                technology: 10_000.,
             },
             weapons: Weapons {
                 spots: vec![

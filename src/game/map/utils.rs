@@ -34,7 +34,13 @@ pub trait CustomUi {
         add_contents: impl FnOnce(&mut Ui) -> R,
     );
     fn add_night_stats(&mut self, player: &Player, day: u32);
-    fn add_technology(&mut self, technology: &Technology, texture: TextureId) -> Response;
+    fn add_technology(
+        &mut self,
+        technology: &Technology,
+        player: &Player,
+        tick_texture: TextureId,
+        tech_texture: TextureId,
+    ) -> Response;
 }
 
 impl CustomUi for Ui {
@@ -159,7 +165,13 @@ impl CustomUi for Ui {
         self.add_space(30.);
     }
 
-    fn add_technology(&mut self, technology: &Technology, texture: TextureId) -> Response {
+    fn add_technology(
+        &mut self,
+        technology: &Technology,
+        player: &Player,
+        tech_texture: TextureId,
+        tick_texture: TextureId,
+    ) -> Response {
         self.scope_builder(
             UiBuilder::new()
                 .id_salt(technology.name.name())
@@ -173,23 +185,38 @@ impl CustomUi for Ui {
                     .stroke(visuals.bg_stroke)
                     .inner_margin(ui.spacing().menu_margin)
                     .show(ui, |ui| {
-                        ui.set_width(100.);
+                        ui.set_width(140.);
 
-                        ui.add_space(20.);
+                        if player.has_tech(technology.name) {
+                            // Draw tick when technology is researched
+                            let pos = ui.max_rect().min;
+                            ui.painter().image(
+                                tick_texture,
+                                Rect::from_min_size(
+                                    pos2(pos.x - 20., pos.y - 20.),
+                                    [50., 50.].into(),
+                                ),
+                                Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                                Color32::WHITE,
+                            );
+                        }
 
                         ui.vertical_centered(|ui| {
+                            ui.add_space(5.);
                             Label::new(RichText::new(technology.name.name()).strong())
                                 .selectable(false)
                                 .ui(ui);
 
-                            ui.add_space(20.);
+                            ui.add_space(25.);
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(50.);
-                                ui.add_image(texture, [15., 15.]);
-                                Label::new(technology.price.to_string())
-                                    .selectable(false)
-                                    .ui(ui);
+                            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(5.);
+                                    ui.add_image(tech_texture, [15., 15.]);
+                                    Label::new(technology.price.to_string())
+                                        .selectable(false)
+                                        .ui(ui);
+                                });
                             });
                         });
                     });
@@ -197,6 +224,7 @@ impl CustomUi for Ui {
         )
         .response
         .on_hover_text(technology.description)
+        .on_hover_cursor(CursorIcon::PointingHand)
     }
 }
 

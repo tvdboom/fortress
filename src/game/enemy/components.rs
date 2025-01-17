@@ -226,8 +226,8 @@ impl Default for EnemyManager {
                 strength: 6.0,
             },
             Enemy {
-                name: "Carapacebreaker",
-                image: "enemy/carapacebreaker.png",
+                name: "Breaker",
+                image: "enemy/breaker.png",
                 max_health: 30.,
                 health: 30.,
                 dim: Vec2::new(30., 45.),
@@ -291,8 +291,8 @@ impl Default for EnemyManager {
                 strength: 9.0,
             },
             Enemy {
-                name: "Ironcarapace",
-                image: "enemy/ironcarapace.png",
+                name: "Reaper",
+                image: "enemy/reaper.png",
                 max_health: 500.,
                 health: 500.,
                 dim: Vec2::new(200., 200.),

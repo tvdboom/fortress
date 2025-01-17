@@ -617,7 +617,7 @@ pub fn weapons_panel(
                                     let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
 
                                     // Calculate the detonation's position
-                                    bomb.movement = Movement::Location(if player.has_tech(TechnologyName::AimBot) {
+                                    bomb.movement = Movement::Location(if player.has_tech(TechnologyName::Aimbot) {
                                         get_future_position(
                                             enemy_t.translation,
                                             enemy.speed,
@@ -685,10 +685,10 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                 }
 
-                if player.fence.max_health > 0. || player.has_tech(TechnologyName::Spotlight) {
+                if (player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity)) || player.has_tech(TechnologyName::Spotlight) {
                     ui.separator();
 
-                    if player.fence.max_health > 0. {
+                    if player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity) {
                         ui.add_space(7.);
                         ui.add_enabled_ui(player.fence.health > 0. && player.resources >= player.fence.cost, |ui| {
                             ui.horizontal(|ui| {
@@ -840,6 +840,7 @@ pub fn day_panel(
     let materials_texture = contexts.add_image(assets.get_image("materials"));
     let scientist_texture = contexts.add_image(assets.get_image("scientist"));
     let technology_texture = contexts.add_image(assets.get_image("technology"));
+    let tick_texture = contexts.add_image(assets.get_image("tick"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
 
     egui::Window::new("info panel")
@@ -880,12 +881,14 @@ pub fn day_panel(
                     DayTabs::Technology,
                     DayTabs::Technology.name(),
                 );
-                ui.add_space(5.);
-                ui.selectable_value(
-                    &mut game_settings.day_tab,
-                    DayTabs::Expeditions,
-                    DayTabs::Expeditions.name(),
-                );
+                if player.has_tech(TechnologyName::Charts) {
+                    ui.add_space(5.);
+                    ui.selectable_value(
+                        &mut game_settings.day_tab,
+                        DayTabs::Expeditions,
+                        DayTabs::Expeditions.name(),
+                    );
+                }
             });
 
             ui.separator();
@@ -1104,14 +1107,26 @@ pub fn day_panel(
 
                         ui.horizontal(|ui| {
                             for t in technologies.list.iter().filter(|t| t.category == category) {
-                                ui.add_space(20.);
+                                ui.add_space(10.);
 
                                 ui.add_enabled_ui(!player.has_tech(t.name), |ui| {
-                                    let response = ui.add_technology(&t, technology_texture);
-                                    ui.add_space(20.);
-
+                                    let response = ui.add_technology(
+                                        &t,
+                                        &player,
+                                        technology_texture,
+                                        tick_texture,
+                                    );
                                     if response.clicked() {
-                                        messages.info("sii");
+                                        if player.resources.technology >= t.price {
+                                            player.resources.technology -= t.price;
+                                            player.technology.insert(t.name);
+                                            messages.info(format!(
+                                                "Technology {} researched.",
+                                                t.name.name()
+                                            ));
+                                        } else {
+                                            messages.error("Not enough resources!");
+                                        }
                                     }
                                 });
                             }
@@ -1122,6 +1137,8 @@ pub fn day_panel(
                 }
                 _ => (),
             }
+
+            ui.add_space(15.);
         });
 }
 

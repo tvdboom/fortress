@@ -32,11 +32,7 @@ pub const FOW_SIZE: Vec2 = Vec2::new(MAP_SIZE.x, MAP_SIZE.y * 0.3);
 pub const MAX_GAME_SPEED: f32 = 5.;
 pub const GAME_SPEED_STEP: f32 = 0.5;
 
-// Night settings
-pub const NIGHT_DURATION: f32 = 60.; // In seconds
-pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
-pub const NO_SPAWN_STEP: f32 = 0.1; // Probability spawning decrease per night
-pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
+// Map settings
 pub const STRUCTURE_OFFSET: f32 = 5.; // Distance of structure to stop enemy movement
 pub const MAP_Z: f32 = 0.0;
 pub const STRUCTURE_Z: f32 = 1.0;
@@ -46,9 +42,16 @@ pub const WEAPON_Z: f32 = 4.0;
 pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
 
+// Night settings
+pub const NIGHT_DURATION: f32 = 60.; // In seconds
+pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
+pub const NO_SPAWN_STEP: f32 = 0.1; // Probability spawning decrease per night
+pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
+
 // Resource settings
 pub const POPULATION_MEAN_INCREASE: u32 = 100;
 pub const POPULATION_STD_INCREASE: u32 = 10;
+pub const SOLDIER_BASE_DAMAGE: u32 = 3;
 pub const RESOURCE_FACTOR: u32 = 10; // Factor to multiply population by to get resources
 
 // Weapon settings

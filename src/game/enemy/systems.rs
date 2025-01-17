@@ -1,6 +1,8 @@
 use super::components::*;
-use crate::constants::{SpriteQ, ENEMY_Z, RESOURCES_PANEL_SIZE, SIZE, WEAPONS_PANEL_SIZE};
-use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player};
+use crate::constants::{
+    SpriteQ, ENEMY_Z, RESOURCES_PANEL_SIZE, SIZE, SOLDIER_BASE_DAMAGE, WEAPONS_PANEL_SIZE,
+};
+use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player, TechnologyName};
 use crate::game::weapon::components::{Fence, Wall};
 use crate::game::weapon::utils::get_structure_top;
 use crate::game::AppState;
@@ -135,7 +137,6 @@ pub fn move_enemies(
                 }
             }
         }
-
         if new_pos < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y - enemy.dim.y * 0.5 {
             messages.error("A bug entered the fortress");
 
@@ -146,7 +147,13 @@ pub fn move_enemies(
             while player.population.soldier > 0 && damage > 0 {
                 player.population.soldier -= 1;
                 night_stats.population.soldier += 1;
-                damage -= 3.min(damage);
+
+                let soldier_damage = if player.has_tech(TechnologyName::Marines) {
+                    SOLDIER_BASE_DAMAGE * 2
+                } else {
+                    SOLDIER_BASE_DAMAGE
+                };
+                damage -= soldier_damage.min(damage);
             }
 
             while damage > 0 && player.population.total() > 0 {
