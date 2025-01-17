@@ -1,6 +1,7 @@
 use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::Player;
+use crate::game::resources::{Player, Technology};
+use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy_egui::egui::*;
 use std::hash::Hash;
@@ -25,6 +26,7 @@ pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response;
+    fn add_text(&mut self, text: impl Into<WidgetText>, width: f32) -> Response;
     fn add_scroll<R>(
         &mut self,
         id: impl Hash,
@@ -32,6 +34,7 @@ pub trait CustomUi {
         add_contents: impl FnOnce(&mut Ui) -> R,
     );
     fn add_night_stats(&mut self, player: &Player, day: u32);
+    fn add_technology(&mut self, technology: &Technology, texture: TextureId) -> Response;
 }
 
 impl CustomUi for Ui {
@@ -41,6 +44,10 @@ impl CustomUi for Ui {
 
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         self.add(Image::new(load::SizedTexture::new(id, size)))
+    }
+
+    fn add_text(&mut self, text: impl Into<WidgetText>, width: f32) -> Response {
+        self.add_sized([width, self.available_height()], Label::new(text))
     }
 
     fn add_scroll<R>(
@@ -68,14 +75,14 @@ impl CustomUi for Ui {
         self.horizontal(|ui| {
             ui.add_space(20.);
 
-            ui.columns(3, |columns| {
+            ui.columns(3, |cols| {
                 Grid::new("enemy stats")
                     .num_columns(2)
                     .spacing([20.0, 4.0])
                     .striped(true)
-                    .show(&mut columns[0], |ui| {
-                        ui.label(RichText::new("Enemy").strong());
-                        ui.label(RichText::new("Killed / Total").strong());
+                    .show(&mut cols[0], |ui| {
+                        ui.strong("Enemy");
+                        ui.strong("Killed / Total");
                         ui.end_row();
 
                         stats.enemies.iter().for_each(|(k, v)| {
@@ -89,9 +96,9 @@ impl CustomUi for Ui {
                     .num_columns(2)
                     .spacing([20.0, 4.0])
                     .striped(true)
-                    .show(&mut columns[1], |ui| {
-                        ui.label(RichText::new("Resources").strong());
-                        ui.label(RichText::new("Consumed").strong());
+                    .show(&mut cols[1], |ui| {
+                        ui.strong("Resources");
+                        ui.strong("Consumed");
                         ui.end_row();
                         ui.label("Bullets");
                         ui.label(format!("{:.0}", stats.resources.bullets));
@@ -107,9 +114,9 @@ impl CustomUi for Ui {
                     .num_columns(2)
                     .spacing([20.0, 4.0])
                     .striped(true)
-                    .show(&mut columns[2], |ui| {
-                        ui.label(RichText::new("Population").strong());
-                        ui.label(RichText::new("Died / Total").strong());
+                    .show(&mut cols[2], |ui| {
+                        ui.strong("Population");
+                        ui.strong("Died / Total");
                         ui.end_row();
                         ui.label("Soldiers");
                         ui.label(format!(
@@ -150,6 +157,46 @@ impl CustomUi for Ui {
         });
 
         self.add_space(30.);
+    }
+
+    fn add_technology(&mut self, technology: &Technology, texture: TextureId) -> Response {
+        self.scope_builder(
+            UiBuilder::new()
+                .id_salt(technology.name.name())
+                .sense(Sense::click()),
+            |ui| {
+                let response = ui.response();
+                let visuals = ui.style().interact(&response);
+
+                Frame::canvas(ui.style())
+                    .fill(visuals.bg_fill.gamma_multiply(0.3))
+                    .stroke(visuals.bg_stroke)
+                    .inner_margin(ui.spacing().menu_margin)
+                    .show(ui, |ui| {
+                        ui.set_width(100.);
+
+                        ui.add_space(20.);
+
+                        ui.vertical_centered(|ui| {
+                            Label::new(RichText::new(technology.name.name()).strong())
+                                .selectable(false)
+                                .ui(ui);
+
+                            ui.add_space(20.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(50.);
+                                ui.add_image(texture, [15., 15.]);
+                                Label::new(technology.price.to_string())
+                                    .selectable(false)
+                                    .ui(ui);
+                            });
+                        });
+                    });
+            },
+        )
+        .response
+        .on_hover_text(technology.description)
     }
 }
 

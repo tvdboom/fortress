@@ -4,7 +4,7 @@ use crate::game::enemy::components::Enemy;
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
 use crate::game::map::utils::collision;
-use crate::game::resources::{GameSettings, NightStats, Player};
+use crate::game::resources::{GameSettings, NightStats, Player, TechnologyName};
 use crate::game::weapon::components::*;
 use bevy::prelude::*;
 use rand::prelude::*;
@@ -13,11 +13,13 @@ use std::f32::consts::PI;
 
 pub fn spawn_weapons(
     mut commands: Commands,
+    fence_q: Query<SpriteQ, With<Fence>>,
+    wall_q: Query<SpriteQ, With<Wall>>,
     player: Res<Player>,
     weapons: Res<WeaponManager>,
     asset_server: Res<AssetServer>,
 ) {
-    if player.fence.health > 0. {
+    if player.fence.health > 0. && fence_q.get_single().is_err() {
         let level = (player.fence.max_health as u32 / 100).min(3);
         commands.spawn((
             Sprite {
@@ -34,7 +36,7 @@ pub fn spawn_weapons(
         ));
     }
 
-    if player.wall.health > 0. {
+    if player.wall.health > 0. && wall_q.get_single().is_err() {
         commands.spawn((
             Sprite {
                 image: asset_server.load("map/wall.png"),
@@ -139,7 +141,7 @@ pub fn spawn_bullets(
 
             // Determine the bullet's angle towards the target
             let d = -weapon_t.translation
-                + (if player.technology.movement_prediction
+                + (if player.has_tech(TechnologyName::AimBot)
                     && !matches!(weapon.bullet.movement, Movement::Homing(_))
                 {
                     get_future_position(
@@ -231,7 +233,7 @@ pub fn spawn_bullets(
                                 match bullet.movement {
                                     Movement::Location(_) => {
                                         bullet.movement = Movement::Location(
-                                            if player.technology.movement_prediction {
+                                            if player.has_tech(TechnologyName::AimBot) {
                                                 get_future_position(
                                                     enemy_t.translation,
                                                     enemy.speed,

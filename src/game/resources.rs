@@ -5,7 +5,9 @@ use bevy::prelude::{Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use strum_macros::EnumIter;
 
 #[derive(Debug, PartialEq)]
 pub enum DayTabs {
@@ -32,6 +34,57 @@ impl Default for GameSettings {
             enemy_info: false,
         }
     }
+}
+
+#[derive(Clone)]
+pub struct Population {
+    pub soldier: u32,
+    pub armorer: u32,
+    pub refiner: u32,
+    pub constructor: u32,
+    pub scientist: u32,
+    pub idle: u32,
+}
+
+impl Population {
+    pub fn total(&self) -> u32 {
+        self.soldier + self.armorer + self.refiner + self.constructor + self.scientist + self.idle
+    }
+}
+
+impl Default for Population {
+    fn default() -> Self {
+        Self {
+            soldier: 0,
+            armorer: 0,
+            refiner: 0,
+            constructor: 0,
+            scientist: 0,
+            idle: 0,
+        }
+    }
+}
+
+pub struct Wall {
+    pub health: f32,
+    pub max_health: f32,
+    pub upgrade_price: Resources,
+    pub repair_price: Resources,
+}
+
+pub struct Fence {
+    pub health: f32,
+    pub max_health: f32,
+    pub enabled: bool,
+    pub damage: f32,
+    pub cost: Resources,
+    pub upgrade_price: Resources,
+    pub repair_price: Resources,
+}
+
+pub struct Spotlight {
+    pub power: u32,
+    pub cost: Resources,
 }
 
 #[derive(Clone, PartialEq)]
@@ -159,57 +212,6 @@ resources_assignment_ops!(
 );
 
 #[derive(Clone)]
-pub struct Population {
-    pub soldier: u32,
-    pub armorer: u32,
-    pub refiner: u32,
-    pub constructor: u32,
-    pub scientist: u32,
-    pub idle: u32,
-}
-
-impl Population {
-    pub fn total(&self) -> u32 {
-        self.soldier + self.armorer + self.refiner + self.constructor + self.scientist + self.idle
-    }
-}
-
-impl Default for Population {
-    fn default() -> Self {
-        Self {
-            soldier: 0,
-            armorer: 0,
-            refiner: 0,
-            constructor: 0,
-            scientist: 0,
-            idle: 0,
-        }
-    }
-}
-
-pub struct Wall {
-    pub health: f32,
-    pub max_health: f32,
-    pub upgrade_price: Resources,
-    pub repair_price: Resources,
-}
-
-pub struct Fence {
-    pub health: f32,
-    pub max_health: f32,
-    pub enabled: bool,
-    pub damage: f32,
-    pub cost: Resources,
-    pub upgrade_price: Resources,
-    pub repair_price: Resources,
-}
-
-pub struct Spotlight {
-    pub power: u32,
-    pub cost: Resources,
-}
-
-#[derive(Clone)]
 pub struct WeaponSettings {
     pub aaa: AirFireStrategy,
     pub artillery: FireStrategy,
@@ -231,9 +233,56 @@ pub struct Weapons {
     pub settings: WeaponSettings,
 }
 
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub enum TechnologyName {
+    Spotlight,
+    AimBot,
+}
+
+#[derive(EnumIter, Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub enum TechnologyCategory {
+    Science,
+    Military,
+    Economy,
+}
+
 pub struct Technology {
-    pub spotlight: bool,
-    pub movement_prediction: bool,
+    pub name: TechnologyName,
+    pub price: f32,
+    pub category: TechnologyCategory,
+    pub description: &'static str,
+}
+
+#[derive(Resource)]
+pub struct TechnologyManager {
+    pub list: Vec<Technology>,
+}
+
+impl Default for TechnologyManager {
+    fn default() -> Self {
+        Self {
+            list: vec![
+                Technology {
+                    name: TechnologyName::Spotlight,
+                    price: 100.,
+                    category: TechnologyCategory::Science,
+                    description: "\
+                        Enables the spotlight during the night. The spotlight \
+                        increases the vision of the player, allowing weapons to \
+                        shoot earlier. Using it costs gasoline.",
+                },
+                Technology {
+                    name: TechnologyName::AimBot,
+                    price: 200.,
+                    category: TechnologyCategory::Military,
+                    description: "\
+                        Predict the movement of enemies, shooting at the position where \
+                        an enemy is going to be when the bullet arrives. Not relevant for \
+                        homing bullets.",
+                },
+            ],
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -245,7 +294,7 @@ pub struct Player {
     pub spotlight: Spotlight,
     pub resources: Resources,
     pub weapons: Weapons,
-    pub technology: Technology,
+    pub technology: HashSet<TechnologyName>,
     pub stats: HashMap<u32, NightStats>,
 }
 
@@ -331,12 +380,13 @@ impl Player {
                     mine: Size::Medium,
                 },
             },
-            technology: Technology {
-                spotlight: true,
-                movement_prediction: true,
-            },
+            technology: HashSet::default(),
             stats: HashMap::default(),
         }
+    }
+
+    pub fn has_tech(&self, tech: TechnologyName) -> bool {
+        self.technology.contains(&tech)
     }
 }
 

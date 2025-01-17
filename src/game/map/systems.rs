@@ -4,7 +4,10 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyHealth, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
-use crate::game::resources::{DayTabs, GameSettings, NightStats, Player, Population, Resources};
+use crate::game::resources::{
+    DayTabs, GameSettings, NightStats, Player, Population, Resources, TechnologyCategory,
+    TechnologyManager, TechnologyName,
+};
 use crate::game::weapon::components::*;
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
@@ -14,6 +17,7 @@ use bevy::prelude::*;
 use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use std::f32::consts::PI;
+use strum::IntoEnumIterator;
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -195,7 +199,7 @@ pub fn resources_panel(
                     .on_hover_text("Fortress strength");
                 ui.add(
                     egui::ProgressBar::new(player.wall.health / player.wall.max_health)
-                        .desired_width(180.)
+                        .desired_width(220.)
                         .desired_height(20.)
                         .text(
                             RichText::new(format!(
@@ -213,7 +217,7 @@ pub fn resources_panel(
                         .on_hover_text("Fence strength");
                     ui.add(
                         egui::ProgressBar::new(player.fence.health / player.fence.max_health)
-                            .desired_width(150.)
+                            .desired_width(170.)
                             .desired_height(20.)
                             .text(
                                 RichText::new(format!(
@@ -613,7 +617,7 @@ pub fn weapons_panel(
                                     let start = Vec3::new(enemy_t.translation.x, SIZE.y * 0.5, WEAPON_Z);
 
                                     // Calculate the detonation's position
-                                    bomb.movement = Movement::Location(if player.technology.movement_prediction {
+                                    bomb.movement = Movement::Location(if player.has_tech(TechnologyName::AimBot) {
                                         get_future_position(
                                             enemy_t.translation,
                                             enemy.speed,
@@ -681,7 +685,7 @@ pub fn weapons_panel(
                     ui.add_space(7.);
                 }
 
-                if player.fence.max_health > 0. || player.technology.spotlight {
+                if player.fence.max_health > 0. || player.has_tech(TechnologyName::Spotlight) {
                     ui.separator();
 
                     if player.fence.max_health > 0. {
@@ -705,7 +709,7 @@ pub fn weapons_panel(
                         });
                     }
 
-                    if player.technology.spotlight {
+                    if player.has_tech(TechnologyName::Spotlight) {
                         ui.add_space(7.);
                         ui.add_enabled_ui(*game_state.get() == GameState::Running && player.resources >= player.spotlight.cost, |ui| {
                             ui.horizontal(|ui| {
@@ -817,6 +821,7 @@ pub fn weapons_panel(
 pub fn day_panel(
     mut contexts: EguiContexts,
     mut player: ResMut<Player>,
+    technologies: Res<TechnologyManager>,
     mut messages: ResMut<Messages>,
     mut game_settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
@@ -826,6 +831,7 @@ pub fn day_panel(
     let window_size = window.single().size();
 
     let soldier_texture = contexts.add_image(assets.get_image("soldier"));
+    let combat_texture = contexts.add_image(assets.get_image("combat"));
     let armorer_texture = contexts.add_image(assets.get_image("armorer"));
     let bullets_texture = contexts.add_image(assets.get_image("bullets"));
     let refiner_texture = contexts.add_image(assets.get_image("refiner"));
@@ -834,6 +840,7 @@ pub fn day_panel(
     let materials_texture = contexts.add_image(assets.get_image("materials"));
     let scientist_texture = contexts.add_image(assets.get_image("scientist"));
     let technology_texture = contexts.add_image(assets.get_image("technology"));
+    let idle_texture = contexts.add_image(assets.get_image("idle"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -932,7 +939,7 @@ pub fn day_panel(
                             .horizontal_centered(|ui| {
                                 ui.add_image(soldier_texture, [40., 40.]);
                                 let label = ui
-                                    .label("Soldiers: ")
+                                    .add_text("Soldiers", 100.)
                                     .on_hover_cursor(CursorIcon::PointingHand);
                                 let mut soldiers = player.population.soldier.clone();
                                 ui.add(egui::Slider::new(
@@ -940,7 +947,8 @@ pub fn day_panel(
                                     0..=player.population.soldier + player.population.idle,
                                 ))
                                 .on_hover_text("Assign the population to produce bullets.");
-                                ui.add_image(bullets_texture, [20., 20.]);
+                                ui.add_space(10.);
+                                ui.add_image(combat_texture, [20., 20.]);
                                 ui.label("x3").on_hover_text("Combat strength.");
 
                                 if label.clicked() {
@@ -957,7 +965,7 @@ pub fn day_panel(
                             .horizontal_centered(|ui| {
                                 ui.add_image(armorer_texture, [40., 40.]);
                                 let label = ui
-                                    .label("Armorers: ")
+                                    .add_text("Armorers", 100.)
                                     .on_hover_cursor(CursorIcon::PointingHand);
                                 let mut armorers = player.population.armorer.clone();
                                 ui.add(egui::Slider::new(
@@ -983,7 +991,7 @@ pub fn day_panel(
                             .horizontal_centered(|ui| {
                                 ui.add_image(refiner_texture, [40., 40.]);
                                 let label = ui
-                                    .label("Refiners: ")
+                                    .add_text("Refiners", 100.)
                                     .on_hover_cursor(CursorIcon::PointingHand);
                                 let mut refiners = player.population.refiner.clone();
                                 ui.add(egui::Slider::new(
@@ -1009,7 +1017,7 @@ pub fn day_panel(
                             .horizontal_centered(|ui| {
                                 ui.add_image(constructor_texture, [40., 40.]);
                                 let label = ui
-                                    .label("Constructors: ")
+                                    .add_text("Constructors", 100.)
                                     .on_hover_cursor(CursorIcon::PointingHand);
                                 let mut constructors = player.population.constructor.clone();
                                 ui.add(egui::Slider::new(
@@ -1036,7 +1044,7 @@ pub fn day_panel(
                             .horizontal_centered(|ui| {
                                 ui.add_image(scientist_texture, [40., 40.]);
                                 let label = ui
-                                    .label("Scientists: ")
+                                    .add_text("Scientists", 100.)
                                     .on_hover_cursor(CursorIcon::PointingHand);
                                 let mut scientists = player.population.scientist.clone();
                                 ui.add(egui::Slider::new(
@@ -1060,9 +1068,9 @@ pub fn day_panel(
                         ui.add_space(15.);
 
                         ui.horizontal_centered(|ui| {
-                            ui.add_image(scientist_texture, [40., 40.]);
-                            ui.label("Idle: ");
-                            ui.label(RichText::new(format!("{}", player.population.idle)).strong());
+                            ui.add_image(idle_texture, [40., 40.]);
+                            ui.add_text("Idle", 100.);
+                            ui.strong(format!("{}", player.population.idle));
                         });
 
                         //Resolve population choices
@@ -1085,10 +1093,35 @@ pub fn day_panel(
                         }
                     });
                 }
+                DayTabs::Technology => {
+                    for category in TechnologyCategory::iter() {
+                        ui.add_space(5.);
+                        ui.horizontal(|ui| {
+                            ui.add_space(20.);
+                            ui.heading(category.name());
+                        });
+                        ui.add_space(15.);
+
+                        ui.horizontal(|ui| {
+                            for t in technologies.list.iter().filter(|t| t.category == category) {
+                                ui.add_space(20.);
+
+                                ui.add_enabled_ui(!player.has_tech(t.name), |ui| {
+                                    let response = ui.add_technology(&t, technology_texture);
+                                    ui.add_space(20.);
+
+                                    if response.clicked() {
+                                        messages.info("sii");
+                                    }
+                                });
+                            }
+                        });
+
+                        ui.add_space(15.);
+                    }
+                }
                 _ => (),
             }
-
-            ui.add_space(20.);
         });
 }
 
@@ -1210,7 +1243,7 @@ pub fn enemy_info_panel(
                                 ui.add_space(20.);
 
                                 ui.vertical(|ui| {
-                                    ui.label(RichText::new(e.name).strong());
+                                    ui.strong(e.name);
                                     ui.label(format!("Size: {:?}", e.size));
                                     ui.label(format!("Health: {}", e.health));
                                     ui.label(format!("Armor: {}", e.armor))

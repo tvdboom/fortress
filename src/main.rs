@@ -7,6 +7,8 @@ mod utils;
 use crate::game::GamePlugin;
 use constants::{SIZE, TITLE};
 
+use crate::game::enemy::components::EnemyManager;
+use crate::game::resources::TechnologyManager;
 use crate::messages::MessagesPlugin;
 use bevy::prelude::*;
 use bevy::window::{WindowMode, WindowResolution};
@@ -42,7 +44,9 @@ fn main() {
     )
     .add_plugins(EguiPlugin)
     .add_plugins(MessagesPlugin::default())
-    .add_plugins(GamePlugin);
+    .add_plugins(GamePlugin)
+    .init_resource::<TechnologyManager>()
+    .init_resource::<EnemyManager>();
 
     #[cfg(target_os = "windows")]
     app.add_systems(Startup, systems::set_window_icon);
