@@ -12,7 +12,9 @@ use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
-use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
+use bevy_egui::egui::{
+    Align, CursorIcon, Id, Layout, Modal, RichText, Style, TextStyle, UiBuilder,
+};
 use bevy_egui::{egui, EguiContexts};
 use std::f32::consts::PI;
 use strum::IntoEnumIterator;
@@ -1179,7 +1181,7 @@ pub fn day_panel(
                                             player.expedition = Some(expedition.clone());
 
                                             messages.info(format!(
-                                                "{} expedition launched.",
+                                                "{} expedition send.",
                                                 expedition.name.name()
                                             ));
                                         } else {
@@ -1340,6 +1342,59 @@ pub fn enemy_info_panel(
 
                 ui.add_space(25.);
             });
+    }
+}
+
+pub fn expedition_modals(
+    mut contexts: EguiContexts,
+    mut player: ResMut<Player>,
+) {
+    if let Some(expedition) = &game_settings.expedition {
+        let modal = Modal::new(Id::new("lost")).show(contexts.ctx_mut(), |ui| {
+            ui.set_width(250.);
+
+            match expedition.status {
+                ExpeditionStatus::Ongoing => (),
+                ExpeditionStatus::Lost => {
+                    game_settings.expedition = Some(expedition.clone());
+                    player.expedition = None;
+                }
+                ExpeditionStatus::Returned(reward) => {
+                    game_settings.expedition = Some(expedition.clone());
+                    player.expedition = None;
+
+                    player.population.idle += reward.population;
+                    player.resources += &reward.resources;
+                    player.weapons.mines += reward.mines;
+                    player.weapons.bombs += reward.bombs;
+                }
+            }
+
+            match &expedition.status {
+                ExpeditionStatus::Lost => {
+                    ui.heading("An expedition has been lost!");
+                    ui.add_space(20.);
+                    ui.add_scroll("exp", 50., |ui| {
+                        ui.label(format!(
+                            "A {} expedition was send out {} days ago. \
+                            There is no longer any hope of them returning...",
+                            expedition.name.name().to_lowercase(),
+                            expedition.day
+                        ));
+                    });
+                }
+                ExpeditionStatus::Returned(reward) => {
+                    ui.heading("An expedition has returned!");
+                    ui.add_space(20.);
+                    // ui.label(format!("The expedition brought back: {}", reward));
+                }
+                _ => unreachable!(),
+            }
+        });
+
+        if modal.should_close() {
+            game_settings.expedition = None;
+        }
     }
 }
 

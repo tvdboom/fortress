@@ -295,9 +295,7 @@ impl CustomUi for Ui {
                             ui.horizontal(|ui| {
                                 ui.add_space(50.);
                                 ui.add_image(textures["clock"], [25., 25.]);
-                                Label::new(expedition.duration)
-                                    .selectable(false)
-                                    .ui(ui);
+                                Label::new(expedition.duration).selectable(false).ui(ui);
                             });
 
                             ui.add_space(100.);

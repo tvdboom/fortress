@@ -4,6 +4,7 @@ use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell
 use bevy::prelude::{default, Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
+use rand::random;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
@@ -88,7 +89,7 @@ pub struct Spotlight {
     pub cost: Resources,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Copy)]
 pub struct Resources {
     pub bullets: f32,
     pub gasoline: f32,
@@ -342,13 +343,36 @@ pub enum ExpeditionName {
     Large,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
+pub struct ExpeditionReward {
+    pub population: u32,
+    pub resources: Resources,
+    pub mines: u32,
+    pub bombs: u32,
+}
+
+#[derive(Clone, Copy)]
+pub enum ExpeditionStatus {
+    /// The expedition is still ongoing
+    Ongoing,
+
+    /// The expedition did not return
+    Lost,
+
+    /// The expedition returns with reward
+    Returned(ExpeditionReward),
+}
+
+#[derive(Clone, Copy)]
 pub struct Expedition {
     pub name: ExpeditionName,
     pub duration: &'static str,
     pub day: u32,
+    pub max_day: u32,
+    pub return_prob: f32,
     pub population: u32,
     pub price: Resources,
+    pub status: ExpeditionStatus,
 }
 
 impl Expedition {
@@ -356,36 +380,45 @@ impl Expedition {
         match name {
             ExpeditionName::Small => Self {
                 name,
-                duration: "1-3 days",
+                duration: "1-2 days",
                 day: 0,
+                max_day: 3,
+                return_prob: 0.7,
                 population: 25,
                 price: Resources {
                     gasoline: 150.,
                     materials: 75.,
                     ..default()
                 },
+                status: ExpeditionStatus::Ongoing,
             },
             ExpeditionName::Medium => Self {
                 name,
-                duration: "1-4 days",
+                duration: "1-3 days",
                 day: 0,
+                max_day: 4,
+                return_prob: 0.5,
                 population: 75,
                 price: Resources {
                     gasoline: 300.,
                     materials: 150.,
                     ..default()
                 },
+                status: ExpeditionStatus::Ongoing,
             },
             ExpeditionName::Large => Self {
                 name,
-                duration: "2-5 days",
+                duration: "2-4 days",
                 day: 0,
+                max_day: 5,
+                return_prob: 0.3,
                 population: 125,
                 price: Resources {
                     gasoline: 450.,
                     materials: 225.,
                     ..default()
                 },
+                status: ExpeditionStatus::Ongoing,
             },
         }
     }
@@ -394,32 +427,26 @@ impl Expedition {
         ExpeditionName::iter().map(Self::get)
     }
 
-    fn is_finished(&self) -> bool {
-        let lambda = match Self.name {
-            ExpeditionName::Small => 1.5,
-            ExpeditionName::Medium => 1.0,
-            ExpeditionName::Large => 0.8,
-        };
-
-        let probability = E.powf(-lambda * self.day as f64.powi(2));
-        let normalized_probability = probability;
-
-        // Decide if finished based on a random threshold
-        let threshold = rand::random::<f64>();
-        threshold < normalized_probability
-    }
-
-    pub fn check(&mut self, player: &mut Player) -> Option<Self>{
+    pub fn update(&mut self) -> &ExpeditionStatus {
         self.day += 1;
 
-        if self.is_finished() {
-            // Reward player
-            // player.resources += &self.price;
-            // player.population.idle += self.population;
-            None
-        } else {
-            Some(*self)
+        if self.day == self.max_day {
+            self.status = ExpeditionStatus::Lost;
+        } else if random::<f32>() < self.return_prob {
+            self.status = ExpeditionStatus::Returned(ExpeditionReward {
+                population: ((self.population * self.day) as f32 * random::<f32>()) as u32,
+                resources: Resources {
+                    bullets: (self.population * self.day) as f32 * random::<f32>(),
+                    gasoline: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
+                    materials: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
+                    technology: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
+                },
+                mines: (self.day.pow(2) as f32 * random::<f32>()) as u32,
+                bombs: (self.day as f32 * random::<f32>()) as u32,
+            });
         }
+
+        &self.status
     }
 }
 

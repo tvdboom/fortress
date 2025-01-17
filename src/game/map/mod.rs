@@ -21,6 +21,7 @@ impl Plugin for MapPlugin {
                         menu_panel,
                         resources_panel,
                         enemy_info_panel,
+                        expedition_modals,
                         run_animations,
                     )
                         .chain(),

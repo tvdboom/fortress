@@ -4,7 +4,7 @@ use crate::constants::{
 };
 use crate::game::map::components::PauseWrapper;
 use crate::game::resources::{
-    DayTabs, GameSettings, NightStats, Player, Resources, TechnologyName,
+    DayTabs, ExpeditionStatus, GameSettings, NightStats, Player, Resources, TechnologyName,
 };
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
@@ -68,8 +68,8 @@ pub fn start_day(
     };
 
     // Resolve expeditions
-    if let Some(ref mut expedition) = &mut player.expedition {
-        player.expedition = expedition.check(&mut player);
+    if let Some(mut expedition) = &player.expedition {
+        expedition.update();
     }
 
     game_settings.day_tab = DayTabs::Overview;
