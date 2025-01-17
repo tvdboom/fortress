@@ -827,6 +827,7 @@ pub fn day_panel(
 ) {
     let window_size = window.single().size();
 
+    let population_texture = contexts.add_image(assets.get_image("population"));
     let soldier_texture = contexts.add_image(assets.get_image("soldier"));
     let combat_texture = contexts.add_image(assets.get_image("combat"));
     let armorer_texture = contexts.add_image(assets.get_image("armorer"));
@@ -1142,13 +1143,14 @@ pub fn day_panel(
                             "\
                             Send expeditions to explore the surroundings. The larger the \
                             expedition, the more resources it costs and the longer it takes \
-                            for them to return, but the larger the possible rewards. But be \
-                            aware, some expeditions never return...",
+                            to return, but the larger the possible rewards. But be aware, \
+                            some expeditions never return...",
                         );
                         ui.add_space(25.);
                     });
 
                     let textures = HashMap::from([
+                        ("population", population_texture),
                         ("gasoline", gasoline_texture),
                         ("materials", materials_texture),
                         ("clock", clock_texture),
@@ -1170,16 +1172,21 @@ pub fn day_panel(
                                 ui.add_space(20.);
                                 let response = ui.add_expedition(&expedition, &textures);
                                 if response.clicked() {
-                                    if player.resources >= expedition.price {
-                                        player.resources -= &expedition.price;
-                                        player.expedition = Some(expedition.clone());
+                                    if player.population.idle >= expedition.population {
+                                        if player.resources >= expedition.price {
+                                            player.population.idle -= expedition.population;
+                                            player.resources -= &expedition.price;
+                                            player.expedition = Some(expedition.clone());
 
-                                        messages.info(format!(
-                                            "{} expedition launched.",
-                                            expedition.name.name()
-                                        ));
+                                            messages.info(format!(
+                                                "{} expedition launched.",
+                                                expedition.name.name()
+                                            ));
+                                        } else {
+                                            messages.error("Not enough resources!");
+                                        }
                                     } else {
-                                        messages.error("Not enough resources!");
+                                        messages.error("Not enough idle population!");
                                     }
                                 }
                             }

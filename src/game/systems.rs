@@ -67,6 +67,11 @@ pub fn start_day(
         technology: (population.scientist * RESOURCE_FACTOR) as f32 * productivity,
     };
 
+    // Resolve expeditions
+    if let Some(ref mut expedition) = &mut player.expedition {
+        player.expedition = expedition.check(&mut player);
+    }
+
     game_settings.day_tab = DayTabs::Overview;
 }
 

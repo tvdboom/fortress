@@ -347,6 +347,7 @@ pub struct Expedition {
     pub name: ExpeditionName,
     pub duration: &'static str,
     pub day: u32,
+    pub population: u32,
     pub price: Resources,
 }
 
@@ -357,6 +358,7 @@ impl Expedition {
                 name,
                 duration: "1-3 days",
                 day: 0,
+                population: 25,
                 price: Resources {
                     gasoline: 150.,
                     materials: 75.,
@@ -367,6 +369,7 @@ impl Expedition {
                 name,
                 duration: "1-4 days",
                 day: 0,
+                population: 75,
                 price: Resources {
                     gasoline: 300.,
                     materials: 150.,
@@ -377,6 +380,7 @@ impl Expedition {
                 name,
                 duration: "2-5 days",
                 day: 0,
+                population: 125,
                 price: Resources {
                     gasoline: 450.,
                     materials: 225.,
@@ -388,6 +392,34 @@ impl Expedition {
 
     pub fn iter() -> impl Iterator<Item = Self> {
         ExpeditionName::iter().map(Self::get)
+    }
+
+    fn is_finished(&self) -> bool {
+        let lambda = match Self.name {
+            ExpeditionName::Small => 1.5,
+            ExpeditionName::Medium => 1.0,
+            ExpeditionName::Large => 0.8,
+        };
+
+        let probability = E.powf(-lambda * self.day as f64.powi(2));
+        let normalized_probability = probability;
+
+        // Decide if finished based on a random threshold
+        let threshold = rand::random::<f64>();
+        threshold < normalized_probability
+    }
+
+    pub fn check(&mut self, player: &mut Player) -> Option<Self>{
+        self.day += 1;
+
+        if self.is_finished() {
+            // Reward player
+            // player.resources += &self.price;
+            // player.population.idle += self.population;
+            None
+        } else {
+            Some(*self)
+        }
     }
 }
 

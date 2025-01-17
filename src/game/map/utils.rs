@@ -263,7 +263,17 @@ impl CustomUi for Ui {
                             ui.add_space(100.);
 
                             ui.horizontal(|ui| {
-                                ui.add_space(60.);
+                                ui.add_space(50.);
+                                ui.add_image(textures["population"], [25., 25.]);
+                                Label::new(expedition.population.to_string())
+                                    .selectable(false)
+                                    .ui(ui);
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(50.);
                                 ui.add_image(textures["gasoline"], [25., 25.]);
                                 Label::new(expedition.price.gasoline.to_string())
                                     .selectable(false)
@@ -273,7 +283,7 @@ impl CustomUi for Ui {
                             ui.add_space(10.);
 
                             ui.horizontal(|ui| {
-                                ui.add_space(60.);
+                                ui.add_space(50.);
                                 ui.add_image(textures["materials"], [25., 25.]);
                                 Label::new(expedition.price.materials.to_string())
                                     .selectable(false)
@@ -283,7 +293,7 @@ impl CustomUi for Ui {
                             ui.add_space(10.);
 
                             ui.horizontal(|ui| {
-                                ui.add_space(60.);
+                                ui.add_space(50.);
                                 ui.add_image(textures["clock"], [25., 25.]);
                                 Label::new(expedition.duration)
                                     .selectable(false)
