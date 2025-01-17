@@ -13,8 +13,8 @@ use std::f32::consts::PI;
 
 pub fn spawn_weapons(
     mut commands: Commands,
-    fence_q: Query<SpriteQ, With<Fence>>,
-    wall_q: Query<SpriteQ, With<Wall>>,
+    fence_q: Query<SpriteQ, With<FenceComponent>>,
+    wall_q: Query<SpriteQ, With<WallComponent>>,
     player: Res<Player>,
     weapons: Res<WeaponManager>,
     asset_server: Res<AssetServer>,
@@ -32,7 +32,7 @@ pub fn spawn_weapons(
                 -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 1.4,
                 STRUCTURE_Z,
             ),
-            Fence,
+            FenceComponent,
         ));
     }
 
@@ -48,7 +48,7 @@ pub fn spawn_weapons(
                 -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
                 STRUCTURE_Z,
             ),
-            Wall,
+            WallComponent,
         ));
     }
 
@@ -122,8 +122,8 @@ pub fn spawn_bullets(
     mut commands: Commands,
     mut weapon_q: Query<(&mut Transform, &mut Weapon)>,
     enemy_q: Query<EnemyQ, (With<Enemy>, Without<Weapon>)>,
-    fence_q: Query<SpriteQ, (With<Fence>, Without<Weapon>)>,
-    wall_q: Query<SpriteQ, (With<Wall>, Without<Weapon>)>,
+    fence_q: Query<SpriteQ, (With<FenceComponent>, Without<Weapon>)>,
+    wall_q: Query<SpriteQ, (With<WallComponent>, Without<Weapon>)>,
     fow_q: Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
     mut night_stats: ResMut<NightStats>,
     mut player: ResMut<Player>,

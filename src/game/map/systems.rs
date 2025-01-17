@@ -4,16 +4,14 @@ use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::{Enemy, EnemyHealth, EnemyManager, Size};
 use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
-use crate::game::resources::{
-    DayTabs, GameSettings, NightStats, Player, Population, Resources, TechnologyCategory,
-    TechnologyManager, TechnologyName,
-};
+use crate::game::resources::*;
 use crate::game::weapon::components::*;
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
 use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
+use bevy::utils::hashbrown::HashMap;
 use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use std::f32::consts::PI;
@@ -313,8 +311,8 @@ pub fn weapons_panel(
     mut contexts: EguiContexts,
     mut weapon_q: Query<&mut Weapon>,
     enemy_q: Query<EnemyQ, (With<Enemy>, Without<FogOfWar>)>,
-    fence_q: Query<SpriteQ, (With<Fence>, Without<FogOfWar>)>,
-    wall_q: Query<SpriteQ, (With<Wall>, Without<FogOfWar>)>,
+    fence_q: Query<SpriteQ, (With<FenceComponent>, Without<FogOfWar>)>,
+    wall_q: Query<SpriteQ, (With<WallComponent>, Without<FogOfWar>)>,
     mut fow_q: Query<&mut Transform, With<FogOfWar>>,
     mut player: ResMut<Player>,
     mut messages: ResMut<Messages>,
@@ -821,7 +819,6 @@ pub fn weapons_panel(
 pub fn day_panel(
     mut contexts: EguiContexts,
     mut player: ResMut<Player>,
-    technologies: Res<TechnologyManager>,
     mut messages: ResMut<Messages>,
     mut game_settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
@@ -842,6 +839,7 @@ pub fn day_panel(
     let technology_texture = contexts.add_image(assets.get_image("technology"));
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
+    let clock_texture = contexts.add_image(assets.get_image("clock"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -1106,7 +1104,7 @@ pub fn day_panel(
                         ui.add_space(15.);
 
                         ui.horizontal(|ui| {
-                            for t in technologies.list.iter().filter(|t| t.category == category) {
+                            for t in Technology::iter().filter(|t| t.category == category) {
                                 ui.add_space(10.);
 
                                 ui.add_enabled_ui(!player.has_tech(t.name), |ui| {
@@ -1133,6 +1131,59 @@ pub fn day_panel(
                         });
 
                         ui.add_space(15.);
+                    }
+                }
+                DayTabs::Expeditions => {
+                    ui.add_space(10.);
+
+                    ui.add_scroll("exp", MAP_SIZE.x * 0.1, |ui| {
+                        ui.add_space(15.);
+                        ui.label(
+                            "\
+                            Send expeditions to explore the surroundings. The larger the \
+                            expedition, the more resources it costs and the longer it takes \
+                            for them to return, but the larger the possible rewards. But be \
+                            aware, some expeditions never return...",
+                        );
+                        ui.add_space(25.);
+                    });
+
+                    let textures = HashMap::from([
+                        ("gasoline", gasoline_texture),
+                        ("materials", materials_texture),
+                        ("clock", clock_texture),
+                    ]);
+
+                    if let Some(expedition) = &player.expedition {
+                        ui.add_scroll("exp2", MAP_SIZE.x * 0.1, |ui| {
+                            ui.add_space(15.);
+                            ui.strong(format!(
+                                "A {} expedition was send {} days ago. We haven't heard from them since...",
+                                expedition.name.name().to_lowercase(),
+                                expedition.day)
+                            );
+                            ui.add_space(15.);
+                        });
+                    } else {
+                        ui.horizontal(|ui| {
+                            for expedition in Expedition::iter() {
+                                ui.add_space(20.);
+                                let response = ui.add_expedition(&expedition, &textures);
+                                if response.clicked() {
+                                    if player.resources >= expedition.price {
+                                        player.resources -= &expedition.price;
+                                        player.expedition = Some(expedition.clone());
+
+                                        messages.info(format!(
+                                            "{} expedition launched.",
+                                            expedition.name.name()
+                                        ));
+                                    } else {
+                                        messages.error("Not enough resources!");
+                                    }
+                                }
+                            }
+                        });
                     }
                 }
                 _ => (),
@@ -1289,8 +1340,8 @@ pub fn run_animations(
     mut commands: Commands,
     mut animation_q: Query<(Entity, &Transform, &mut AnimationComponent, &mut Sprite)>,
     mut enemy_q: Query<(Entity, &Transform, &mut Enemy)>,
-    fence_q: Query<&Transform, With<Fence>>,
-    wall_q: Query<&Transform, With<Wall>>,
+    fence_q: Query<&Transform, With<FenceComponent>>,
+    wall_q: Query<&Transform, With<WallComponent>>,
     mut player: ResMut<Player>,
     game_settings: Res<GameSettings>,
     time: Res<Time>,
@@ -1357,8 +1408,8 @@ pub fn update_game(
     weapon_q: Query<&Weapon>,
     enemy_q: Query<EnemyQ, (With<Enemy>, Without<EnemyHealth>)>,
     children_q: Query<&Children>,
-    fence_q: Query<Entity, With<Fence>>,
-    wall_q: Query<Entity, With<Wall>>,
+    fence_q: Query<Entity, With<FenceComponent>>,
+    wall_q: Query<Entity, With<WallComponent>>,
     mut health_q: Query<(&mut Transform, &mut Sprite), With<EnemyHealth>>,
     mut player: ResMut<Player>,
     mut night_stats: ResMut<NightStats>,

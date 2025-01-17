@@ -10,10 +10,10 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 #[derive(Component)]
-pub struct Fence;
+pub struct FenceComponent;
 
 #[derive(Component)]
-pub struct Wall;
+pub struct WallComponent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WeaponName {

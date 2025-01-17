@@ -1,12 +1,13 @@
 use crate::constants::NIGHT_DURATION;
 use crate::game::enemy::components::Size;
 use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell, WeaponName};
-use bevy::prelude::{Resource, Timer};
+use bevy::prelude::{default, Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[derive(Debug, PartialEq)]
@@ -233,7 +234,7 @@ pub struct Weapons {
     pub settings: WeaponSettings,
 }
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
 pub enum TechnologyName {
     Aimbot,
     Bombing,
@@ -246,7 +247,7 @@ pub enum TechnologyName {
     Spotlight,
 }
 
-#[derive(EnumIter, Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
 pub enum TechnologyCategory {
     Science,
     Military,
@@ -260,81 +261,133 @@ pub struct Technology {
     pub description: &'static str,
 }
 
-#[derive(Resource)]
-pub struct TechnologyManager {
-    pub list: Vec<Technology>,
-}
-
-impl Default for TechnologyManager {
-    fn default() -> Self {
-        Self {
-            list: vec![
-                Technology {
-                    name: TechnologyName::Spotlight,
-                    price: 100.,
-                    category: TechnologyCategory::Science,
-                    description: "\
-                        Enables the spotlight during the night. The spotlight \
-                        increases the vision of the player, allowing weapons to \
-                        shoot earlier. Using it costs gasoline.",
-                },
-                Technology {
-                    name: TechnologyName::Physics,
-                    price: 1000.,
-                    category: TechnologyCategory::Science,
-                    description: "Unlocks the nuke.",
-                },
-                Technology {
-                    name: TechnologyName::Marines,
-                    price: 100.,
-                    category: TechnologyCategory::Military,
-                    description: "Doubles the strength of your soldiers.",
-                },
-                Technology {
-                    name: TechnologyName::Aimbot,
-                    price: 200.,
-                    category: TechnologyCategory::Military,
-                    description: "\
-                        Predict the movement of enemies, shooting at the position where \
-                        an enemy is going to be when the bullet arrives. Not relevant for \
-                        homing bullets.",
-                },
-                Technology {
-                    name: TechnologyName::Bombing,
-                    price: 400.,
-                    category: TechnologyCategory::Military,
-                    description: "Unlocks the mines and bombs weapons.",
-                },
-                Technology {
-                    name: TechnologyName::Homing,
-                    price: 500.,
-                    category: TechnologyCategory::Military,
-                    description: "\
-                        Unlocks weapons that use homing bullets (turret and missile launcher).",
-                },
-                Technology {
-                    name: TechnologyName::Electricity,
-                    price: 500.,
-                    category: TechnologyCategory::Science,
-                    description: "\
+impl Technology {
+    pub fn get(name: TechnologyName) -> Self {
+        match name {
+            TechnologyName::Spotlight => Self {
+                name,
+                price: 100.,
+                category: TechnologyCategory::Science,
+                description: "\
+                    Enables the spotlight during the night. The spotlight \
+                    increases the vision of the player, allowing weapons to \
+                    shoot earlier. Using it costs gasoline.",
+            },
+            TechnologyName::Electricity => Self {
+                name: TechnologyName::Electricity,
+                price: 500.,
+                category: TechnologyCategory::Science,
+                description: "\
                         Enables the option to electrify the fence, doing damage to adjacent enemies.",
-                },
-                Technology {
-                    name: TechnologyName::Charts,
-                    price: 100.,
-                    category: TechnologyCategory::Economy,
-                    description: "\
+            },
+            TechnologyName::Physics => Self {
+                name,
+                price: 1000.,
+                category: TechnologyCategory::Science,
+                description: "Unlocks the nuke.",
+            },
+            TechnologyName::Marines => Self {
+                name,
+                price: 100.,
+                category: TechnologyCategory::Military,
+                description: "Doubles the strength of your soldiers.",
+            },
+            TechnologyName::Aimbot => Self {
+                name,
+                price: 200.,
+                category: TechnologyCategory::Military,
+                description: "\
+                    Predict the movement of enemies, shooting at the position where \
+                    an enemy is going to be when the bullet arrives. Not relevant for \
+                    homing bullets.",
+            },
+            TechnologyName::Bombing => Self {
+                name: TechnologyName::Bombing,
+                price: 400.,
+                category: TechnologyCategory::Military,
+                description: "Unlocks the mines and bombs weapons.",
+            },
+            TechnologyName::Homing => Self {
+                name: TechnologyName::Homing,
+                price: 500.,
+                category: TechnologyCategory::Military,
+                description: "Unlocks the homing weapon.",
+            },
+            TechnologyName::Charts => Self {
+                name: TechnologyName::Charts,
+                price: 100.,
+                category: TechnologyCategory::Economy,
+                description: "\
                         Enables sending expeditions. Expeditions cost gasoline, materials and \
                         population, but can yield interesting rewards after some days.",
-                },
-                Technology {
-                    name: TechnologyName::Productivity,
-                    price: 1000.,
-                    category: TechnologyCategory::Economy,
-                    description: "Armorers, refiners and constructors produce 50% more resources.",
-                },
-            ],
+            },
+            TechnologyName::Productivity => Self {
+                name,
+                price: 1000.,
+                category: TechnologyCategory::Economy,
+                description: "Armorers, refiners and constructors produce 50% more resources.",
+            },
         }
+    }
+
+    pub fn iter() -> impl Iterator<Item = Self> {
+        TechnologyName::iter().map(Self::get)
+    }
+}
+
+#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
+pub enum ExpeditionName {
+    Small,
+    Medium,
+    Large,
+}
+
+#[derive(Clone)]
+pub struct Expedition {
+    pub name: ExpeditionName,
+    pub duration: &'static str,
+    pub day: u32,
+    pub price: Resources,
+}
+
+impl Expedition {
+    pub fn get(name: ExpeditionName) -> Self {
+        match name {
+            ExpeditionName::Small => Self {
+                name,
+                duration: "1-3 days",
+                day: 0,
+                price: Resources {
+                    gasoline: 150.,
+                    materials: 75.,
+                    ..default()
+                },
+            },
+            ExpeditionName::Medium => Self {
+                name,
+                duration: "1-4 days",
+                day: 0,
+                price: Resources {
+                    gasoline: 300.,
+                    materials: 150.,
+                    ..default()
+                },
+            },
+            ExpeditionName::Large => Self {
+                name,
+                duration: "2-5 days",
+                day: 0,
+                price: Resources {
+                    gasoline: 450.,
+                    materials: 225.,
+                    ..default()
+                },
+            },
+        }
+    }
+
+    pub fn iter() -> impl Iterator<Item = Self> {
+        ExpeditionName::iter().map(Self::get)
     }
 }
 
@@ -348,6 +401,7 @@ pub struct Player {
     pub resources: Resources,
     pub weapons: Weapons,
     pub technology: HashSet<TechnologyName>,
+    pub expedition: Option<Expedition>,
     pub stats: HashMap<u32, NightStats>,
 }
 
@@ -434,6 +488,7 @@ impl Player {
                 },
             },
             technology: HashSet::default(),
+            expedition: None,
             stats: HashMap::default(),
         }
     }

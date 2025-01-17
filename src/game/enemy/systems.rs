@@ -3,7 +3,7 @@ use crate::constants::{
     SpriteQ, ENEMY_Z, RESOURCES_PANEL_SIZE, SIZE, SOLDIER_BASE_DAMAGE, WEAPONS_PANEL_SIZE,
 };
 use crate::game::resources::{EnemyStatus, GameSettings, NightStats, Player, TechnologyName};
-use crate::game::weapon::components::{Fence, Wall};
+use crate::game::weapon::components::{FenceComponent, WallComponent};
 use crate::game::weapon::utils::get_structure_top;
 use crate::game::AppState;
 use crate::messages::Messages;
@@ -100,8 +100,8 @@ pub fn spawn_enemies(
 
 pub fn move_enemies(
     mut enemy_q: Query<(&mut Transform, &mut Enemy)>,
-    fence_q: Query<SpriteQ, (With<Fence>, Without<Enemy>)>,
-    wall_q: Query<SpriteQ, (With<Wall>, Without<Enemy>)>,
+    fence_q: Query<SpriteQ, (With<FenceComponent>, Without<Enemy>)>,
+    wall_q: Query<SpriteQ, (With<WallComponent>, Without<Enemy>)>,
     mut next_state: ResMut<NextState<AppState>>,
     mut player: ResMut<Player>,
     mut night_stats: ResMut<NightStats>,

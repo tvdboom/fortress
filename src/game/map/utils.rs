@@ -1,8 +1,9 @@
 use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{Player, Technology};
+use crate::game::resources::{Expedition, Player, Technology};
 use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
+use bevy::utils::HashMap;
 use bevy_egui::egui::*;
 use std::hash::Hash;
 
@@ -40,6 +41,12 @@ pub trait CustomUi {
         player: &Player,
         tick_texture: TextureId,
         tech_texture: TextureId,
+    ) -> Response;
+
+    fn add_expedition(
+        &mut self,
+        expedition: &Expedition,
+        textures: &HashMap<&str, TextureId>,
     ) -> Response;
 }
 
@@ -224,6 +231,71 @@ impl CustomUi for Ui {
         )
         .response
         .on_hover_text(technology.description)
+        .on_hover_cursor(CursorIcon::PointingHand)
+    }
+
+    fn add_expedition(
+        &mut self,
+        expedition: &Expedition,
+        textures: &HashMap<&str, TextureId>,
+    ) -> Response {
+        self.scope_builder(
+            UiBuilder::new()
+                .id_salt(expedition.name.name())
+                .sense(Sense::click()),
+            |ui| {
+                let response = ui.response();
+                let visuals = ui.style().interact(&response);
+
+                Frame::canvas(ui.style())
+                    .fill(visuals.bg_fill.gamma_multiply(0.3))
+                    .stroke(visuals.bg_stroke)
+                    .inner_margin(ui.spacing().menu_margin)
+                    .show(ui, |ui| {
+                        ui.set_width(180.);
+
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(5.);
+                            Label::new(RichText::new(expedition.name.name()).strong())
+                                .selectable(false)
+                                .ui(ui);
+
+                            ui.add_space(100.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(60.);
+                                ui.add_image(textures["gasoline"], [25., 25.]);
+                                Label::new(expedition.price.gasoline.to_string())
+                                    .selectable(false)
+                                    .ui(ui);
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(60.);
+                                ui.add_image(textures["materials"], [25., 25.]);
+                                Label::new(expedition.price.materials.to_string())
+                                    .selectable(false)
+                                    .ui(ui);
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(60.);
+                                ui.add_image(textures["clock"], [25., 25.]);
+                                Label::new(expedition.duration)
+                                    .selectable(false)
+                                    .ui(ui);
+                            });
+
+                            ui.add_space(100.);
+                        });
+                    });
+            },
+        )
+        .response
         .on_hover_cursor(CursorIcon::PointingHand)
     }
 }
