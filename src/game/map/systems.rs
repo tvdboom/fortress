@@ -918,6 +918,7 @@ pub fn day_panel(
                             .clicked()
                         {
                             if player.population.idle == 0 {
+                                player.resolve_expedition();
                                 next_state.set(AppState::Night);
                             } else {
                                 messages.error("You have idle population!");
@@ -1354,6 +1355,10 @@ pub fn expedition_panel(
 ) {
     let population_texture = contexts.add_image(assets.get_image("population"));
     let bullets_texture = contexts.add_image(assets.get_image("bullets"));
+    let gasoline_texture = contexts.add_image(assets.get_image("gasoline"));
+    let materials_texture = contexts.add_image(assets.get_image("materials"));
+    let mine_texture = contexts.add_image(assets.get_image("mine"));
+    let bomb_texture = contexts.add_image(assets.get_image("bomb"));
 
     if let Some(expedition) = player.expedition {
         if matches!(expedition.status, ExpeditionStatus::Ongoing) {
@@ -1387,42 +1392,69 @@ pub fn expedition_panel(
                             });
                         }
                         ExpeditionStatus::Returned(reward) => {
-                            ui.heading(format!(
-                                "A {} expedition has returned after {} days!",
-                                expedition.name.name().to_lowercase(),
-                                expedition.day
-                            ));
+                            ui.heading(format!("The expedition returned after {} days!", expedition.day));
                             ui.add_space(20.);
                             ui.label("The expedition brought back the following:");
 
                             ui.add_space(10.);
                             ui.horizontal(|ui| {
+                                ui.add_space(160.);
                                 ui.add_image(population_texture, [20., 20.]);
-                                ui.label(format!("Population: {}", reward.population));
+                                ui.label(format!("Population: {:.0}", reward.population));
                             });
+
+                            ui.add_space(10.);
 
                             ui.horizontal(|ui| {
+                                ui.add_space(160.);
                                 ui.add_image(bullets_texture, [20., 20.]);
-                                ui.label(format!("Bullets: {}", reward.resources.bullets));
+                                ui.label(format!("Bullets: {:.0}", reward.resources.bullets));
                             });
 
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(160.);
+                                ui.add_image(gasoline_texture, [20., 20.]);
+                                ui.label(format!("Gasoline: {:.0}", reward.resources.gasoline));
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(160.);
+                                ui.add_image(materials_texture, [20., 20.]);
+                                ui.label(format!("Materials: {:.0}", reward.resources.materials));
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(160.);
+                                ui.add_image(mine_texture, [20., 20.]);
+                                ui.label(format!("Mines: {:.0}", reward.mines));
+                            });
+
+                            ui.add_space(10.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(160.);
+                                ui.add_image(bomb_texture, [20., 20.]);
+                                ui.label(format!("Bombs: {:.0}", reward.bombs));
+                            });
                         }
                         _ => unreachable!(),
                     }
                 });
 
                 ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                    ui.add_space(10.);
                     if ui.add_button("Ok").clicked() {
-                        if let ExpeditionStatus::Returned(reward) = expedition.status {
-                            player.population.idle += reward.population;
-                            player.resources += &reward.resources;
-                            player.weapons.mines += reward.mines;
-                            player.weapons.bombs += reward.bombs;
-
-                            player.expedition = None;
-                        }
+                        player.resolve_expedition();
                     }
                 });
+
+                ui.add_space(10.);
             });
     }
 }

@@ -430,18 +430,16 @@ impl Expedition {
     pub fn update(&mut self) {
         self.day += 1;
 
-        println!("Expedition day: {}", self.day);
         if self.day == self.max_day {
             self.status = ExpeditionStatus::Lost;
         } else if random::<f32>() < self.return_prob {
-            println!("Expedition returned!");
             self.status = ExpeditionStatus::Returned(ExpeditionReward {
-                population: ((self.population * self.day) as f32 * random::<f32>()) as u32,
+                population: ((self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5) as u32,
                 resources: Resources {
-                    bullets: (self.population * self.day) as f32 * random::<f32>(),
-                    gasoline: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
-                    materials: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
-                    technology: (self.population * self.day.pow(2)) as f32 * random::<f32>(),
+                    bullets: (self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5,
+                    gasoline: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
+                    materials: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
+                    technology: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
                 },
                 mines: (self.day.pow(2) as f32 * random::<f32>()) as u32,
                 bombs: (self.day as f32 * random::<f32>()) as u32,
@@ -569,6 +567,23 @@ impl Player {
 
     pub fn has_tech(&self, tech: TechnologyName) -> bool {
         self.technology.contains(&tech)
+    }
+
+    pub fn resolve_expedition(&mut self) {
+        if let Some(ref mut expedition) = self.expedition {
+            match expedition.status {
+                ExpeditionStatus::Returned(reward) => {
+                    self.population.idle += reward.population;
+                    self.resources += &reward.resources;
+                    self.weapons.mines += reward.mines;
+                    self.weapons.bombs += reward.bombs;
+
+                    self.expedition = None;
+                }
+                ExpeditionStatus::Lost => self.expedition = None,
+                ExpeditionStatus::Ongoing => (),
+            }
+        }
     }
 }
 

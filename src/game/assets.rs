@@ -17,7 +17,10 @@ pub struct WorldAssets {
 
 impl WorldAssets {
     pub fn get_image(&self, name: &str) -> Handle<Image> {
-        self.images.get(name).expect(&format!("No entry for {}", name)).clone_weak()
+        self.images
+            .get(name)
+            .expect(&format!("No entry for {}", name))
+            .clone_weak()
     }
 
     pub fn get_atlas(&self, name: &str) -> AtlasInfo {

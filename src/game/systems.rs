@@ -47,7 +47,8 @@ pub fn start_day(
     player.population.idle += new_population;
     messages.info(format!("Population increased by {}.", new_population));
 
-    player.resources += &player.new_resources();
+    let new_resources = player.new_resources();
+    player.resources += &new_resources;
 
     if let Some(ref mut expedition) = &mut player.expedition {
         expedition.update();
@@ -95,7 +96,15 @@ pub fn check_keys(
     if keyboard.just_pressed(KeyCode::Enter) {
         match *app_state.get() {
             AppState::StartGame => next_app_state.set(AppState::Night),
-            AppState::Day => next_app_state.set(AppState::Night),
+            AppState::Day => {
+                if player.expedition.is_some()
+                    && !matches!(player.expedition.unwrap().status, ExpeditionStatus::Ongoing)
+                {
+                    player.resolve_expedition();
+                } else {
+                    next_app_state.set(AppState::Night);
+                }
+            }
             AppState::GameOver => next_app_state.set(AppState::StartGame),
             _ => (),
         }
