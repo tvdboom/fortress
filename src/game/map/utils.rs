@@ -260,7 +260,7 @@ impl CustomUi for Ui {
                                 .selectable(false)
                                 .ui(ui);
 
-                            ui.add_space(100.);
+                            ui.add_space(50.);
 
                             ui.horizontal(|ui| {
                                 ui.add_space(50.);
@@ -298,7 +298,7 @@ impl CustomUi for Ui {
                                 Label::new(expedition.duration).selectable(false).ui(ui);
                             });
 
-                            ui.add_space(100.);
+                            ui.add_space(50.);
                         });
                     });
             },

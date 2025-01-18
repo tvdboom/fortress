@@ -17,7 +17,7 @@ pub struct WorldAssets {
 
 impl WorldAssets {
     pub fn get_image(&self, name: &str) -> Handle<Image> {
-        self.images[name].clone_weak()
+        self.images.get(name).expect(&format!("No entry for {}", name)).clone_weak()
     }
 
     pub fn get_atlas(&self, name: &str) -> AtlasInfo {
@@ -70,12 +70,12 @@ impl FromWorld for WorldAssets {
             ("Shellwarden", assets.load("enemy/shellwarden.png")),
             ("Hiveborn", assets.load("enemy/hiveborn.png")),
             ("Crawler", assets.load("enemy/crawler.png")),
-            ("breaker", assets.load("enemy/breaker.png")),
+            ("Breaker", assets.load("enemy/breaker.png")),
             ("Dartmite", assets.load("enemy/dartmite.png")),
             ("Nestling", assets.load("enemy/nestling.png")),
             ("Gargantula", assets.load("enemy/gargantula.png")),
             ("Ironclaw", assets.load("enemy/ironclaw.png")),
-            ("reaper", assets.load("enemy/reaper.png")),
+            ("Reaper", assets.load("enemy/reaper.png")),
             // Sprite sheets
             ("flashes", assets.load("weapon/flashes.png")),
             ("flame", assets.load("weapon/flame.png")),

@@ -1,4 +1,4 @@
-use crate::constants::NIGHT_DURATION;
+use crate::constants::{NIGHT_DURATION, RESOURCE_FACTOR};
 use crate::game::enemy::components::Size;
 use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell, WeaponName};
 use bevy::prelude::{default, Resource, Timer};
@@ -89,7 +89,7 @@ pub struct Spotlight {
     pub cost: Resources,
 }
 
-#[derive(Clone, PartialEq, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Resources {
     pub bullets: f32,
     pub gasoline: f32,
@@ -343,7 +343,7 @@ pub enum ExpeditionName {
     Large,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ExpeditionReward {
     pub population: u32,
     pub resources: Resources,
@@ -351,7 +351,7 @@ pub struct ExpeditionReward {
     pub bombs: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ExpeditionStatus {
     /// The expedition is still ongoing
     Ongoing,
@@ -427,12 +427,14 @@ impl Expedition {
         ExpeditionName::iter().map(Self::get)
     }
 
-    pub fn update(&mut self) -> &ExpeditionStatus {
+    pub fn update(&mut self) {
         self.day += 1;
 
+        println!("Expedition day: {}", self.day);
         if self.day == self.max_day {
             self.status = ExpeditionStatus::Lost;
         } else if random::<f32>() < self.return_prob {
+            println!("Expedition returned!");
             self.status = ExpeditionStatus::Returned(ExpeditionReward {
                 population: ((self.population * self.day) as f32 * random::<f32>()) as u32,
                 resources: Resources {
@@ -445,8 +447,6 @@ impl Expedition {
                 bombs: (self.day as f32 * random::<f32>()) as u32,
             });
         }
-
-        &self.status
     }
 }
 
@@ -549,6 +549,21 @@ impl Player {
             technology: HashSet::default(),
             expedition: None,
             stats: HashMap::default(),
+        }
+    }
+
+    pub fn new_resources(&self) -> Resources {
+        let productivity = if self.has_tech(TechnologyName::Productivity) {
+            1.5
+        } else {
+            1.
+        };
+
+        Resources {
+            bullets: (self.population.armorer * RESOURCE_FACTOR) as f32 * productivity,
+            gasoline: (self.population.refiner * RESOURCE_FACTOR) as f32 * productivity,
+            materials: (self.population.constructor * RESOURCE_FACTOR) as f32 * productivity,
+            technology: (self.population.scientist * RESOURCE_FACTOR) as f32 * productivity,
         }
     }
 

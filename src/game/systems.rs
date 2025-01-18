@@ -1,11 +1,6 @@
-use crate::constants::{
-    GAME_SPEED_STEP, MAX_GAME_SPEED, POPULATION_MEAN_INCREASE, POPULATION_STD_INCREASE,
-    RESOURCE_FACTOR,
-};
+use crate::constants::*;
 use crate::game::map::components::PauseWrapper;
-use crate::game::resources::{
-    DayTabs, ExpeditionStatus, GameSettings, NightStats, Player, Resources, TechnologyName,
-};
+use crate::game::resources::*;
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
@@ -52,23 +47,9 @@ pub fn start_day(
     player.population.idle += new_population;
     messages.info(format!("Population increased by {}.", new_population));
 
-    // Increase resources
-    let population = player.population.clone();
-    let productivity = if player.has_tech(TechnologyName::Productivity) {
-        1.5
-    } else {
-        1.
-    };
+    player.resources += &player.new_resources();
 
-    player.resources += &Resources {
-        bullets: (population.armorer * RESOURCE_FACTOR) as f32 * productivity,
-        gasoline: (population.refiner * RESOURCE_FACTOR) as f32 * productivity,
-        materials: (population.constructor * RESOURCE_FACTOR) as f32 * productivity,
-        technology: (population.scientist * RESOURCE_FACTOR) as f32 * productivity,
-    };
-
-    // Resolve expeditions
-    if let Some(mut expedition) = &player.expedition {
+    if let Some(ref mut expedition) = &mut player.expedition {
         expedition.update();
     }
 

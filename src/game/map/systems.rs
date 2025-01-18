@@ -12,9 +12,7 @@ use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
-use bevy_egui::egui::{
-    Align, CursorIcon, Id, Layout, Modal, RichText, Style, TextStyle, UiBuilder,
-};
+use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use std::f32::consts::PI;
 use strum::IntoEnumIterator;
@@ -938,6 +936,8 @@ pub fn day_panel(
                         ui.add_space(15.);
                     });
 
+                    let new_resources = player.new_resources();
+
                     ui.add_scroll("res2", MAP_SIZE.x * 0.125, |ui| {
                         let soldiers = ui
                             .horizontal_centered(|ui| {
@@ -979,7 +979,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce bullets.");
                                 ui.add_space(10.);
                                 ui.add_image(bullets_texture, [20., 20.]);
-                                ui.label(format!("+{}", armorers * RESOURCE_FACTOR));
+                                ui.label(format!("+{}", new_resources.bullets));
 
                                 if label.clicked() {
                                     armorers = player.population.armorer + player.population.idle;
@@ -1005,7 +1005,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce gasoline.");
                                 ui.add_space(10.);
                                 ui.add_image(gasoline_texture, [20., 20.]);
-                                ui.label(format!("+{}", refiners * RESOURCE_FACTOR));
+                                ui.label(format!("+{}", new_resources.gasoline));
 
                                 if label.clicked() {
                                     refiners = player.population.refiner + player.population.idle;
@@ -1031,7 +1031,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce materials.");
                                 ui.add_space(10.);
                                 ui.add_image(materials_texture, [20., 20.]);
-                                ui.label(format!("+{}", constructors * RESOURCE_FACTOR));
+                                ui.label(format!("+{}", new_resources.materials));
 
                                 if label.clicked() {
                                     constructors =
@@ -1232,15 +1232,18 @@ pub fn info_panel(
                         ui.add_scroll("start", MAP_SIZE.x * 0.1, |ui| {
                             ui.add_space(15.);
                             ui.label(
-                                "The world has been conquered by insects. Together with a handful of survivors, \
-                                you have built a fortress to defend yourself from their ferocious attacks. \
-                                Every night, an ever-increasing swarm of attacks the fortress. Kill them before \
-                                they enter the fortress and kill the remaining population!\n\n \
-                                During the day, you can collect resources and upgrade your weapon arsenal to \
-                                prepare yourself for the following night. During the attack, you can choose \
-                                how/when to use the weapons you have at your disposal. But be careful, everything \
-                                has a cost! Manage your resources wisely or you won't be able to stop the insects \
-                                tomorrow...");
+                                "The world has been conquered by insects. Together with a \
+                                handful of survivors, you have built a fortress to defend yourself \
+                                from their ferocious attacks. Every night, an ever-increasing swarm \
+                                attacks the fortress. Kill them before they enter the fortress and \
+                                finish the remaining population!
+
+                                During the day, you can collect resources, research technologies, \
+                                send expeditions, and most importantly, upgrade your weapon arsenal \
+                                to prepare yourself for the following night. During the attack, you \
+                                can choose how/when to use the weapons you have at your disposal. \
+                                But be careful, everything has a cost! Manage your resources wisely \
+                                or you won't be able to stop the bugs tomorrow...");
                             ui.add_space(15.);
                         });
 
@@ -1255,9 +1258,7 @@ pub fn info_panel(
 
                         ui.add_night_stats(&player, player.day);
 
-                        ui.horizontal(|ui| {
-                            ui.add_space(215.);
-
+                        ui.horizontal_centered(|ui| {
                             if ui.add_button("New game").clicked() {
                                 next_state.set(AppState::StartGame);
                             }
@@ -1345,56 +1346,84 @@ pub fn enemy_info_panel(
     }
 }
 
-pub fn expedition_modals(
+pub fn expedition_panel(
     mut contexts: EguiContexts,
     mut player: ResMut<Player>,
+    assets: Local<WorldAssets>,
+    window: Query<&Window>,
 ) {
-    if let Some(expedition) = &game_settings.expedition {
-        let modal = Modal::new(Id::new("lost")).show(contexts.ctx_mut(), |ui| {
-            ui.set_width(250.);
+    let population_texture = contexts.add_image(assets.get_image("population"));
+    let bullets_texture = contexts.add_image(assets.get_image("bullets"));
 
-            match expedition.status {
-                ExpeditionStatus::Ongoing => (),
-                ExpeditionStatus::Lost => {
-                    game_settings.expedition = Some(expedition.clone());
-                    player.expedition = None;
-                }
-                ExpeditionStatus::Returned(reward) => {
-                    game_settings.expedition = Some(expedition.clone());
-                    player.expedition = None;
-
-                    player.population.idle += reward.population;
-                    player.resources += &reward.resources;
-                    player.weapons.mines += reward.mines;
-                    player.weapons.bombs += reward.bombs;
-                }
-            }
-
-            match &expedition.status {
-                ExpeditionStatus::Lost => {
-                    ui.heading("An expedition has been lost!");
-                    ui.add_space(20.);
-                    ui.add_scroll("exp", 50., |ui| {
-                        ui.label(format!(
-                            "A {} expedition was send out {} days ago. \
-                            There is no longer any hope of them returning...",
-                            expedition.name.name().to_lowercase(),
-                            expedition.day
-                        ));
-                    });
-                }
-                ExpeditionStatus::Returned(reward) => {
-                    ui.heading("An expedition has returned!");
-                    ui.add_space(20.);
-                    // ui.label(format!("The expedition brought back: {}", reward));
-                }
-                _ => unreachable!(),
-            }
-        });
-
-        if modal.should_close() {
-            game_settings.expedition = None;
+    if let Some(expedition) = player.expedition {
+        if matches!(expedition.status, ExpeditionStatus::Ongoing) {
+            return;
         }
+
+        let window_size = window.single().size();
+
+        egui::Window::new("expedition panel")
+            .title_bar(false)
+            .fixed_size((MAP_SIZE.x * 0.4, MAP_SIZE.y * 0.4))
+            .fixed_pos((
+                (window_size.x - WEAPONS_PANEL_SIZE.x) * 0.5 - MAP_SIZE.x * 0.2,
+                (window_size.y - RESOURCES_PANEL_SIZE.y) * 0.5 - MAP_SIZE.y * 0.2,
+            ))
+            .show(contexts.ctx_mut(), |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(10.);
+
+                    match &expedition.status {
+                        ExpeditionStatus::Lost => {
+                            ui.heading("An expedition has been lost!");
+                            ui.add_space(20.);
+                            ui.add_scroll("exp", 50., |ui| {
+                                ui.label(format!(
+                                    "A {} expedition was send out {} days ago. \
+                                    There is no longer any hope of them returning...",
+                                    expedition.name.name().to_lowercase(),
+                                    expedition.day
+                                ));
+                            });
+                        }
+                        ExpeditionStatus::Returned(reward) => {
+                            ui.heading(format!(
+                                "A {} expedition has returned after {} days!",
+                                expedition.name.name().to_lowercase(),
+                                expedition.day
+                            ));
+                            ui.add_space(20.);
+                            ui.label("The expedition brought back the following:");
+
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                ui.add_image(population_texture, [20., 20.]);
+                                ui.label(format!("Population: {}", reward.population));
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.add_image(bullets_texture, [20., 20.]);
+                                ui.label(format!("Bullets: {}", reward.resources.bullets));
+                            });
+
+                        }
+                        _ => unreachable!(),
+                    }
+                });
+
+                ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                    if ui.add_button("Ok").clicked() {
+                        if let ExpeditionStatus::Returned(reward) = expedition.status {
+                            player.population.idle += reward.population;
+                            player.resources += &reward.resources;
+                            player.weapons.mines += reward.mines;
+                            player.weapons.bombs += reward.bombs;
+
+                            player.expedition = None;
+                        }
+                    }
+                });
+            });
     }
 }
 
