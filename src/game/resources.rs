@@ -213,6 +213,13 @@ resources_assignment_ops!(
     DivAssign, div_assign, /=;
 );
 
+pub struct Constructions {
+    pub armory: u32,
+    pub refinery: u32,
+    pub factory: u32,
+    pub laboratory: u32,
+}
+
 #[derive(Clone)]
 pub struct WeaponSettings {
     pub aaa: AirFireStrategy,
@@ -462,6 +469,7 @@ pub struct Player {
     pub fence: Fence,
     pub spotlight: Spotlight,
     pub resources: Resources,
+    pub constructions: Constructions,
     pub weapons: Weapons,
     pub technology: HashSet<TechnologyName>,
     pub expedition: Option<Expedition>,
@@ -523,6 +531,12 @@ impl Player {
                 materials: 10_000.,
                 technology: 10_000.,
             },
+            constructions: Constructions {
+                armory: 1,
+                refinery: 1,
+                factory: 1,
+                laboratory: 1,
+            },
             weapons: Weapons {
                 spots: vec![
                     Some(WeaponName::Canon),
@@ -564,10 +578,18 @@ impl Player {
         };
 
         Resources {
-            bullets: (self.population.armorer * RESOURCE_FACTOR) as f32 * productivity,
-            gasoline: (self.population.refiner * RESOURCE_FACTOR) as f32 * productivity,
-            materials: (self.population.constructor * RESOURCE_FACTOR) as f32 * productivity,
-            technology: (self.population.scientist * RESOURCE_FACTOR) as f32 * productivity,
+            bullets: (self.population.armorer * self.constructions.armory * RESOURCE_FACTOR) as f32
+                * productivity,
+            gasoline: (self.population.refiner * self.constructions.refinery * RESOURCE_FACTOR)
+                as f32
+                * productivity,
+            materials: (self.population.constructor * self.constructions.factory * RESOURCE_FACTOR)
+                as f32
+                * productivity,
+            technology: (self.population.scientist
+                * self.constructions.laboratory
+                * RESOURCE_FACTOR) as f32
+                * productivity,
         }
     }
 

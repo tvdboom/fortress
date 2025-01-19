@@ -84,7 +84,10 @@ impl FromWorld for WorldAssets {
             ("explosion1", assets.load("weapon/explosion1.png")),
             ("explosion2", assets.load("weapon/explosion2.png")),
             // Others
+            ("armory", assets.load("map/armory.png")),
+            ("refinery", assets.load("map/refinery.png")),
             ("factory", assets.load("map/factory.png")),
+            ("laboratory", assets.load("map/laboratory.png")),
             ("game_over", assets.load("map/game-over.png")),
         ]);
 

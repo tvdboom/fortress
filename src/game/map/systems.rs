@@ -546,7 +546,7 @@ pub fn weapons_panel(
 
                 ui.add_space(7.);
 
-                if player.weapons.bombs > 0 || player.weapons.mines > 0 {
+                if player.weapons.mines > 0 || player.weapons.bombs > 0 {
                     ui.separator();
 
                     ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
@@ -570,7 +570,7 @@ pub fn weapons_panel(
                             let label = ui.add_enabled_ui(*game_state.get() == GameState::Running, |ui| {
                                 ui.add(egui::Label::new(format!("Bomb ({}): ", player.weapons.bombs)))
                                     .on_hover_cursor(CursorIcon::PointingHand)
-                                    .on_hover_text("Launch!");
+                                    .on_hover_text("Launch!")
                             });
 
                             ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Density, FireStrategy::Density.name())
@@ -578,7 +578,7 @@ pub fn weapons_panel(
                             ui.selectable_value(&mut player.weapons.settings.bomb, FireStrategy::Strongest, FireStrategy::Strongest.name())
                                 .on_hover_text("Launch at strongest enemy.");
 
-                            if label.response.clicked() {
+                            if label.inner.clicked() {
                                 let mut bomb = weapons.bomb.clone();
 
                                 let explosion = match &bomb.impact {
@@ -852,7 +852,10 @@ pub fn day_panel(
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
     let clock_texture = contexts.add_image(assets.get_image("clock"));
+    let armory_texture = contexts.add_image(assets.get_image("armory"));
+    let refinery_texture = contexts.add_image(assets.get_image("refinery"));
     let factory_texture = contexts.add_image(assets.get_image("factory"));
+    let laboratory_texture = contexts.add_image(assets.get_image("laboratory"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -905,6 +908,8 @@ pub fn day_panel(
             ui.separator();
             ui.add_space(10.);
 
+            let new_resources = player.new_resources();
+
             match game_settings.day_tab {
                 DayTabs::Overview => {
                     ui.vertical_centered(|ui| {
@@ -948,8 +953,6 @@ pub fn day_panel(
                         );
                         ui.add_space(15.);
                     });
-
-                    let new_resources = player.new_resources();
 
                     ui.add_scroll("res2", MAP_SIZE.x * 0.125, |ui| {
                         let soldiers = ui
@@ -1114,31 +1117,45 @@ pub fn day_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add_space(20.);
+                        ui.heading("Resources");
+                    });
+                    ui.add_space(15.);
+
+                    ui.horizontal(|ui| {
+                        ui.add_space(30.);
+                        ui.add_image(armory_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            ui.strong("Armory");
+                            ui.label(format!("Level: {}", player.constructions.armory));
+                            ui.label(format!("Armorers: {}", player.population.armorer));
+                            ui.label(format!("Production: +{:.0}", 0.5 * new_resources.bullets)).on_hover_text("Production of bullets per night.");
+                            ui.add_space(10.);
+                            ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
+                        }).response.on_hover_text("Upgrade the armory to increase bullet production.");
+
+                        ui.add_space(40.);
+
+                        ui.add_image(refinery_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            ui.strong("Refinery");
+                            ui.label(format!("Level: {}", player.constructions.refinery));
+                            ui.label(format!("Refiners: {}", player.population.refiner));
+                            ui.label(format!("Production: +{:.0}", 0.5 * new_resources.gasoline)).on_hover_text("Production of gasoline per night.");
+                            ui.add_space(10.);
+                            ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
+                        }).response.on_hover_text("Upgrade the armory to increase bullet production.");
+                    });
+
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(20.);
                         ui.heading("Defense");
                     });
                     ui.add_space(15.);
 
-                    egui::ScrollArea::vertical()
-                        .max_width(MAP_SIZE.x * 0.5)
-                        .show(ui, |ui| {
-                            ui.add_space(25.);
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(30.);
-                                ui.add_image(factory_texture, [150., 150.]);
-
-                                ui.add_space(20.);
-
-                                ui.vertical(|ui| {
-                                    ui.strong("Bullet factory");
-                                    ui.label(format!("\nLevel: {}", "2"));
-                                    ui.label(format!("Production: {}x\n", "2"));
-                                    ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
-                                }).response.on_hover_text("Upgrade the factory to increase the production rate.");
-
-                                ui.add_space(25.);
-                            });
-                        });
                 }
                 DayTabs::Technology => {
                     for category in TechnologyCategory::iter() {
@@ -1279,8 +1296,7 @@ pub fn info_panel(
                                 handful of survivors, you have built a fortress to defend yourself \
                                 from their ferocious attacks. Every night, an ever-increasing swarm \
                                 attacks the fortress. Kill them before they enter the fortress and \
-                                finish the remaining population!
-
+                                finish the remaining population!\n\n\
                                 During the day, you can collect resources, research technologies, \
                                 send expeditions, and most importantly, upgrade your weapon arsenal \
                                 to prepare yourself for the following night. During the attack, you \
@@ -1301,7 +1317,8 @@ pub fn info_panel(
 
                         ui.add_night_stats(&player, player.day);
 
-                        ui.horizontal_centered(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.add_space(200.);
                             if ui.add_button("New game").clicked() {
                                 next_state.set(AppState::StartGame);
                             }
