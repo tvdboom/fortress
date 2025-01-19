@@ -7,6 +7,10 @@
 [![Play](https://gist.githubusercontent.com/cxmeel/0dbc95191f239b631c3874f4ccf114e2/raw/play.svg)](https://tvdboom.github.io/fortress/)
 <br><br>
 
+<p align="center">
+	<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" title="Fortress" height="540" width="960"/>
+</p>
+
 </div>
 
 ## 📜 Introduction
@@ -43,14 +47,11 @@ When a bug reaches the fortress (i.e., it dissapears from the screen), it fights
 the existing population. If there are any soldiers, they will fight the bug first.
 
 On the fortress' wall, you can place weapons that shoot at the incoming enemies.
-The weapons panel, on the right-hand side, shows the settings you have available.
+The weapons panel, on the right-hand side, shows the options you have available.
 Use these settings during the night to minimalize the number of resources spent
 while preventing the bugs from entering the fortress.
 
 If all the population within the fortress is killed, the game is over.
-
-Use button `e` to open the enemy info panel for an overview of all enemies and
-their characteristics.
 
 <br>
 
@@ -58,7 +59,7 @@ their characteristics.
 
 During the day, the player can manage the fortress and prepare for the next night.
 When the day starts, a random number of survivors joins the fortress, and new
-resources are collected.
+resources are collected. The following operations can be performed:
 
 #### Population
 
@@ -69,4 +70,30 @@ which have increased strength when fighting bugs that enter the fortress.
 
 #### Constructions
 
-#### Weapons
+Upgrade buildings to increase the amount of resources collected during the day. The player
+can also (re)build the wall and a fence to stop the bugs from reaching the fortress.
+
+#### Armory
+
+Buy, improve and position weapons on the fortress' wall. The weapons have different
+characteristics, such as range, damage, and fire rate. The player can also research
+new weapons and upgrade existing ones.
+
+#### Technology
+
+Research new technologies to improve the fortress' capabilities.
+
+#### Expeditions
+
+Send out expeditions. Expeditions cost resources and are away for a number of days.
+If they return, they can bring back significant rewards. Requires the `charts`
+technology.
+
+<br>
+
+### Key bindings
+
+- `enter`: Go to next stage (night -> day, day -> night).
+- `space`: Pause/unpause the game.
+- `e`: Open/close the enemy info panel for an overview of all enemies and
+  their characteristics.

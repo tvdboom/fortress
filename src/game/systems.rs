@@ -84,6 +84,7 @@ pub fn check_keys(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut player: ResMut<Player>,
     mut game_settings: ResMut<GameSettings>,
+    mut messages: ResMut<Messages>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
@@ -102,7 +103,11 @@ pub fn check_keys(
                 {
                     player.resolve_expedition();
                 } else {
-                    next_app_state.set(AppState::Night);
+                    if player.population.idle > 0 {
+                        messages.error("You have idle population!");
+                    } else {
+                        next_app_state.set(AppState::Night);
+                    }
                 }
             }
             AppState::GameOver => next_app_state.set(AppState::StartGame),

@@ -1,4 +1,4 @@
-use crate::constants::{NIGHT_DURATION, RESOURCE_FACTOR};
+use crate::constants::{NIGHT_DURATION, RESOURCE_FACTOR, SOLDIER_BASE_DAMAGE};
 use crate::game::enemy::components::Size;
 use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell, WeaponName};
 use bevy::prelude::{default, Resource, Timer};
@@ -237,15 +237,15 @@ pub struct Weapons {
 
 #[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
 pub enum TechnologyName {
+    Spotlight,
+    Electricity,
+    Physics,
+    Marines,
     Aimbot,
     Bombing,
-    Charts,
-    Electricity,
     Homing,
-    Marines,
-    Physics,
+    Charts,
     Productivity,
-    Spotlight,
 }
 
 #[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
@@ -306,13 +306,15 @@ impl Technology {
                 name: TechnologyName::Bombing,
                 price: 400.,
                 category: TechnologyCategory::Military,
-                description: "Unlocks the mines and bombs weapons.",
+                description: "Unlocks mines and bombs.",
             },
             TechnologyName::Homing => Self {
                 name: TechnologyName::Homing,
                 price: 500.,
                 category: TechnologyCategory::Military,
-                description: "Unlocks the homing weapon.",
+                description: "\
+                Homing bullets are directed to a specific enemy and follow its movement.\
+                Unlocks homing weapons turret and missile launcher.",
             },
             TechnologyName::Charts => Self {
                 name: TechnologyName::Charts,
@@ -434,12 +436,16 @@ impl Expedition {
             self.status = ExpeditionStatus::Lost;
         } else if random::<f32>() < self.return_prob {
             self.status = ExpeditionStatus::Returned(ExpeditionReward {
-                population: ((self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5) as u32,
+                population: ((self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5)
+                    as u32,
                 resources: Resources {
                     bullets: (self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5,
-                    gasoline: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
-                    materials: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
-                    technology: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>() + 0.5,
+                    gasoline: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                        + 0.5,
+                    materials: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                        + 0.5,
+                    technology: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                        + 0.5,
                 },
                 mines: (self.day.pow(2) as f32 * random::<f32>()) as u32,
                 bombs: (self.day as f32 * random::<f32>()) as u32,
@@ -567,6 +573,14 @@ impl Player {
 
     pub fn has_tech(&self, tech: TechnologyName) -> bool {
         self.technology.contains(&tech)
+    }
+
+    pub fn get_soldier_damage(&self) -> u32 {
+        if self.has_tech(TechnologyName::Marines) {
+            2 * SOLDIER_BASE_DAMAGE
+        } else {
+            SOLDIER_BASE_DAMAGE
+        }
     }
 
     pub fn resolve_expedition(&mut self) {

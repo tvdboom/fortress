@@ -59,7 +59,6 @@ impl FromWorld for WorldAssets {
             ("tick", assets.load("icons/tick.png")),
             ("hourglass", assets.load("icons/hourglass.png")),
             ("clock", assets.load("icons/clock.png")),
-            ("game_over", assets.load("map/game-over.png")),
             // Enemies
             ("Dartling", assets.load("enemy/dartling.png")),
             ("Skitterling", assets.load("enemy/skitterling.png")),
@@ -84,6 +83,9 @@ impl FromWorld for WorldAssets {
             ("flame", assets.load("weapon/flame.png")),
             ("explosion1", assets.load("weapon/explosion1.png")),
             ("explosion2", assets.load("weapon/explosion2.png")),
+            // Others
+            ("factory", assets.load("map/factory.png")),
+            ("game_over", assets.load("map/game-over.png")),
         ]);
 
         let mut texture = world

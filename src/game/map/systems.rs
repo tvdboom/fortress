@@ -30,6 +30,17 @@ pub fn set_style(mut contexts: EguiContexts) {
 pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
+    // Background on top of the actual map to hide fow and spawning enemies
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/bg.png"),
+            custom_size: Some(SIZE),
+            ..default()
+        },
+        Transform::from_xyz(0., SIZE.y - MENU_PANEL_SIZE.y, 10.),
+        Map,
+    ));
+
     commands.spawn((
         Sprite {
             image: asset_server.load("map/map.png"),
@@ -841,6 +852,7 @@ pub fn day_panel(
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
     let clock_texture = contexts.add_image(assets.get_image("clock"));
+    let factory_texture = contexts.add_image(assets.get_image("factory"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -953,8 +965,8 @@ pub fn day_panel(
                                 ))
                                 .on_hover_text("Assign the population to produce bullets.");
                                 ui.add_space(10.);
-                                ui.add_image(combat_texture, [20., 20.]);
-                                ui.label("x3").on_hover_text("Combat strength.");
+                                ui.add_image(combat_texture, [20., 20.]).on_hover_text("Combat strength.");
+                                ui.label(format!("x{}", player.get_soldier_damage()));
 
                                 if label.clicked() {
                                     soldiers = player.population.soldier + player.population.idle;
@@ -1097,6 +1109,36 @@ pub fn day_panel(
                             };
                         }
                     });
+                }
+                DayTabs::Constructions => {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(20.);
+                        ui.heading("Defense");
+                    });
+                    ui.add_space(15.);
+
+                    egui::ScrollArea::vertical()
+                        .max_width(MAP_SIZE.x * 0.5)
+                        .show(ui, |ui| {
+                            ui.add_space(25.);
+
+                            ui.horizontal(|ui| {
+                                ui.add_space(30.);
+                                ui.add_image(factory_texture, [150., 150.]);
+
+                                ui.add_space(20.);
+
+                                ui.vertical(|ui| {
+                                    ui.strong("Bullet factory");
+                                    ui.label(format!("\nLevel: {}", "2"));
+                                    ui.label(format!("Production: {}x\n", "2"));
+                                    ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
+                                }).response.on_hover_text("Upgrade the factory to increase the production rate.");
+
+                                ui.add_space(25.);
+                            });
+                        });
                 }
                 DayTabs::Technology => {
                     for category in TechnologyCategory::iter() {
@@ -1392,56 +1434,69 @@ pub fn expedition_panel(
                             });
                         }
                         ExpeditionStatus::Returned(reward) => {
-                            ui.heading(format!("The expedition returned after {} days!", expedition.day));
+                            ui.heading(format!(
+                                "The expedition returned after {} days!",
+                                expedition.day
+                            ));
                             ui.add_space(20.);
                             ui.label("The expedition brought back the following:");
 
-                            ui.add_space(10.);
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(population_texture, [20., 20.]);
-                                ui.label(format!("Population: {:.0}", reward.population));
-                            });
+                            if reward.population > 0 {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(population_texture, [20., 20.]);
+                                    ui.label(format!("Population: {:.0}", reward.population));
+                                });
+                            }
 
-                            ui.add_space(10.);
+                            if reward.resources.bullets > 0. {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(bullets_texture, [20., 20.]);
+                                    ui.label(format!("Bullets: {:.0}", reward.resources.bullets));
+                                });
+                            }
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(bullets_texture, [20., 20.]);
-                                ui.label(format!("Bullets: {:.0}", reward.resources.bullets));
-                            });
+                            if reward.resources.gasoline > 0. {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(gasoline_texture, [20., 20.]);
+                                    ui.label(format!("Gasoline: {:.0}", reward.resources.gasoline));
+                                });
+                            }
 
-                            ui.add_space(10.);
+                            if reward.resources.materials > 0. {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(materials_texture, [20., 20.]);
+                                    ui.label(format!(
+                                        "Materials: {:.0}",
+                                        reward.resources.materials
+                                    ));
+                                });
+                            }
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(gasoline_texture, [20., 20.]);
-                                ui.label(format!("Gasoline: {:.0}", reward.resources.gasoline));
-                            });
+                            if reward.mines > 0 {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(mine_texture, [20., 20.]);
+                                    ui.label(format!("Mines: {:.0}", reward.mines));
+                                });
+                            }
 
-                            ui.add_space(10.);
-
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(materials_texture, [20., 20.]);
-                                ui.label(format!("Materials: {:.0}", reward.resources.materials));
-                            });
-
-                            ui.add_space(10.);
-
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(mine_texture, [20., 20.]);
-                                ui.label(format!("Mines: {:.0}", reward.mines));
-                            });
-
-                            ui.add_space(10.);
-
-                            ui.horizontal(|ui| {
-                                ui.add_space(160.);
-                                ui.add_image(bomb_texture, [20., 20.]);
-                                ui.label(format!("Bombs: {:.0}", reward.bombs));
-                            });
+                            if reward.bombs > 0 {
+                                ui.add_space(10.);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(160.);
+                                    ui.add_image(bomb_texture, [20., 20.]);
+                                    ui.label(format!("Bombs: {:.0}", reward.bombs));
+                                });
+                            }
                         }
                         _ => unreachable!(),
                     }
