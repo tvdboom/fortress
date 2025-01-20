@@ -15,6 +15,9 @@ pub struct FenceComponent;
 #[derive(Component)]
 pub struct WallComponent;
 
+#[derive(Component)]
+pub struct Mine;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WeaponName {
     AAA,

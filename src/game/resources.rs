@@ -8,6 +8,7 @@ use rand::random;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use bevy::ecs::system::SystemId;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -24,6 +25,7 @@ pub enum DayTabs {
 #[derive(Resource)]
 pub struct GameSettings {
     pub speed: f32,
+    pub system: Option<SystemId>,
     pub day_tab: DayTabs,
     pub enemy_info: bool,
 }
@@ -32,6 +34,7 @@ impl Default for GameSettings {
     fn default() -> Self {
         Self {
             speed: 1.,
+            system: None,
             day_tab: DayTabs::Overview,
             enemy_info: false,
         }
@@ -501,8 +504,8 @@ impl Player {
                 },
             },
             fence: Fence {
-                health: 300.,
-                max_health: 300.,
+                health: 0.,
+                max_health: 0.,
                 enabled: false,
                 damage: 5.,
                 cost: Resources {

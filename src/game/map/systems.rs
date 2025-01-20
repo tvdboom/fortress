@@ -16,6 +16,7 @@ use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiB
 use bevy_egui::{egui, EguiContexts};
 use std::f32::consts::PI;
 use strum::IntoEnumIterator;
+use crate::game::weapon::systems::{spawn_fence, spawn_wall};
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -828,12 +829,16 @@ pub fn weapons_panel(
 }
 
 pub fn day_panel(
+    mut commands: Commands,
+    fence_q: Query<SpriteQ, With<FenceComponent>>,
+    wall_q: Query<SpriteQ, With<WallComponent>>,
     mut contexts: EguiContexts,
     mut player: ResMut<Player>,
     mut messages: ResMut<Messages>,
     mut game_settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
     assets: Local<WorldAssets>,
+    asset_server: Res<AssetServer>,
     window: Query<&Window>,
 ) {
     let window_size = window.single().size();
@@ -849,6 +854,8 @@ pub fn day_panel(
     let materials_texture = contexts.add_image(assets.get_image("materials"));
     let scientist_texture = contexts.add_image(assets.get_image("scientist"));
     let technology_texture = contexts.add_image(assets.get_image("technology"));
+    let up_texture = contexts.add_image(assets.get_image("up-arrow"));
+    let repair_texture = contexts.add_image(assets.get_image("repair"));
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
     let clock_texture = contexts.add_image(assets.get_image("clock"));
@@ -856,6 +863,8 @@ pub fn day_panel(
     let refinery_texture = contexts.add_image(assets.get_image("refinery"));
     let factory_texture = contexts.add_image(assets.get_image("factory"));
     let laboratory_texture = contexts.add_image(assets.get_image("laboratory"));
+    let wall_texture = contexts.add_image(assets.get_image("wall-shop"));
+    let fence_texture = contexts.add_image(assets.get_image("fence-shop"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -1126,36 +1135,217 @@ pub fn day_panel(
                         ui.add_image(armory_texture, [130., 130.]);
                         ui.add_space(20.);
                         ui.vertical(|ui| {
+                            let cost = ((player.constructions.armory + 1) * 100) as f32;
+
                             ui.strong("Armory");
                             ui.label(format!("Level: {}", player.constructions.armory));
                             ui.label(format!("Armorers: {}", player.population.armorer));
-                            ui.label(format!("Production: +{:.0}", 0.5 * new_resources.bullets)).on_hover_text("Production of bullets per night.");
+                            ui.label(format!("Production: +{:.0}", new_resources.bullets)).on_hover_text("Production of bullets per night.");
                             ui.add_space(10.);
-                            ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
-                        }).response.on_hover_text("Upgrade the armory to increase bullet production.");
+                            ui.horizontal(|ui| {
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase bullet production.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.constructions.armory += 1;
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                        });
 
                         ui.add_space(40.);
 
                         ui.add_image(refinery_texture, [130., 130.]);
                         ui.add_space(20.);
                         ui.vertical(|ui| {
+                            let cost = ((player.constructions.refinery + 1) * 100) as f32;
+
                             ui.strong("Refinery");
                             ui.label(format!("Level: {}", player.constructions.refinery));
                             ui.label(format!("Refiners: {}", player.population.refiner));
-                            ui.label(format!("Production: +{:.0}", 0.5 * new_resources.gasoline)).on_hover_text("Production of gasoline per night.");
+                            ui.label(format!("Production: +{:.0}", new_resources.gasoline)).on_hover_text("Production of gasoline per night.");
                             ui.add_space(10.);
-                            ui.add_sized([80., 30.], egui::Button::new("Upgrade"));
-                        }).response.on_hover_text("Upgrade the armory to increase bullet production.");
+                            ui.horizontal(|ui| {
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase gasoline production.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.constructions.refinery += 1;
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                        });
                     });
 
-                    ui.add_space(5.);
+                    ui.add_space(35.);
+
+                    ui.horizontal(|ui| {
+                        ui.add_space(30.);
+                        ui.add_image(factory_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            let cost = ((player.constructions.factory + 1) * 100) as f32;
+
+                            ui.strong("Factory");
+                            ui.label(format!("Level: {}", player.constructions.factory));
+                            ui.label(format!("Constructors: {}", player.population.constructor));
+                            ui.label(format!("Production: +{:.0}", new_resources.materials)).on_hover_text("Production of materials per night.");
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase materials production.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.constructions.factory += 1;
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                        });
+
+                        ui.add_space(40.);
+
+                        ui.add_image(laboratory_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            let cost = ((player.constructions.laboratory + 1) * 100) as f32;
+
+                            ui.strong("Laboratory");
+                            ui.label(format!("Level: {}", player.constructions.laboratory));
+                            ui.label(format!("Scientists: {}", player.population.scientist));
+                            ui.label(format!("Production: +{:.0}", new_resources.technology)).on_hover_text("Production of technology per night.");
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase technology production.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.constructions.laboratory += 1;
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                        });
+                    });
+
+                    ui.add_space(35.);
+
                     ui.horizontal(|ui| {
                         ui.add_space(20.);
                         ui.heading("Defense");
                     });
                     ui.add_space(15.);
 
+                    ui.horizontal(|ui| {
+                        ui.add_space(30.);
+                        ui.add_image(wall_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            ui.strong("Wall");
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                let cost = player.wall.max_health;
 
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase the max health.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.wall.health += 1000.;
+                                        player.wall.max_health += 1000.;
+                                        spawn_wall(&mut commands, &wall_q, &player, &asset_server);
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                ui.add_enabled_ui(player.wall.health < player.wall.max_health, |ui| {
+                                    let cost = 100.;
+
+                                    let button = ui.add_upgrade_button(repair_texture).on_hover_text("Add 500 health to the wall.");
+                                    ui.strong(format!("{}", cost));
+                                    ui.add_image(materials_texture, [20., 20.]);
+                                    if button.clicked() {
+                                        if player.resources.materials >= cost {
+                                            player.resources.materials -= cost;
+                                            player.wall.health += 500.;
+                                        } else {
+                                            messages.error("Not enough materials.");
+                                        }
+                                    }
+                                });
+                            });
+
+                            if player.wall.health > player.wall.max_health {
+                                player.wall.health = player.wall.max_health;
+                            }
+                        });
+
+                        ui.add_space(40.);
+
+                        ui.add_image(fence_texture, [130., 130.]);
+                        ui.add_space(20.);
+                        ui.vertical(|ui| {
+                            ui.strong("Fence");
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                let cost = 100. + player.fence.max_health;
+
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase the max health.");
+                                ui.strong(format!("{}", cost));
+                                ui.add_image(materials_texture, [20., 20.]);
+                                if button.clicked() {
+                                    if player.resources.materials >= cost {
+                                        player.resources.materials -= cost;
+                                        player.fence.health += 100.;
+                                        player.fence.max_health += 100.;
+                                        spawn_fence(&mut commands, &fence_q, &player, &asset_server);
+                                    } else {
+                                        messages.error("Not enough materials.");
+                                    }
+                                }
+                            });
+                            ui.add_space(10.);
+                            ui.horizontal(|ui| {
+                                ui.add_enabled_ui(player.fence.health < player.fence.max_health, |ui| {
+                                    let cost = 100.;
+
+                                    let button = ui.add_upgrade_button(repair_texture).on_hover_text("Add 300 health to the fence.");
+                                    ui.strong(format!("{}", cost));
+                                    ui.add_image(materials_texture, [20., 20.]);
+                                    if button.clicked() {
+                                        if player.resources.materials >= cost {
+                                            player.resources.materials -= cost;
+                                            player.fence.health += 300.;
+                                        } else {
+                                            messages.error("Not enough materials.");
+                                        }
+                                    }
+                                });
+                            });
+
+                            if player.fence.health > player.fence.max_health {
+                                player.fence.health = player.fence.max_health;
+                            }
+                        });
+                    });
                 }
                 DayTabs::Technology => {
                     for category in TechnologyCategory::iter() {
@@ -1716,7 +1906,7 @@ pub fn clear_map(
     mut commands: Commands,
     animation_q: Query<Entity, With<AnimationComponent>>,
     weapon_q: Query<Entity, With<Weapon>>,
-    bullet_q: Query<Entity, With<Bullet>>,
+    bullet_q: Query<Entity, (With<Bullet>, Without<Mine>)>,
     enemy_q: Query<Entity, With<Enemy>>,
 ) {
     animation_q

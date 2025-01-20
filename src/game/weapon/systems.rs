@@ -11,16 +11,19 @@ use rand::prelude::*;
 use std::collections::HashSet;
 use std::f32::consts::PI;
 
-pub fn spawn_weapons(
-    mut commands: Commands,
-    fence_q: Query<SpriteQ, With<FenceComponent>>,
-    wall_q: Query<SpriteQ, With<WallComponent>>,
-    player: Res<Player>,
-    weapons: Res<WeaponManager>,
-    asset_server: Res<AssetServer>,
+pub fn spawn_fence(
+    commands: &mut Commands,
+    fence_q: &Query<SpriteQ, With<FenceComponent>>,
+    player: &Player,
+    asset_server: &Res<AssetServer>,
 ) {
-    if player.fence.health > 0. && fence_q.get_single().is_err() {
-        let level = (player.fence.max_health as u32 / 100).min(3);
+    if player.fence.health > 0. {
+        // Despawn existing since we can require a new image (more fence lines)
+        if let Ok((entity, _, _)) = fence_q.get_single() {
+            commands.entity(entity).despawn();
+        }
+
+        let level = (1 + player.fence.max_health as u32 / 300).min(3);
         commands.spawn((
             Sprite {
                 image: asset_server.load(format!("map/fence{}.png", level)),
@@ -35,7 +38,14 @@ pub fn spawn_weapons(
             FenceComponent,
         ));
     }
+}
 
+pub fn spawn_wall(
+    commands: &mut Commands,
+    wall_q: &Query<SpriteQ, With<WallComponent>>,
+    player: &Player,
+    asset_server: &Res<AssetServer>,
+) {
     if player.wall.health > 0. && wall_q.get_single().is_err() {
         commands.spawn((
             Sprite {
@@ -51,6 +61,19 @@ pub fn spawn_weapons(
             WallComponent,
         ));
     }
+}
+
+pub fn spawn_weapons(
+    mut commands: Commands,
+    fence_q: Query<SpriteQ, With<FenceComponent>>,
+    wall_q: Query<SpriteQ, With<WallComponent>>,
+    mine_q: Query<SpriteQ, With<Mine>>,
+    player: Res<Player>,
+    weapons: Res<WeaponManager>,
+    asset_server: Res<AssetServer>,
+) {
+    spawn_fence(&mut commands, &fence_q, &player, &asset_server);
+    spawn_wall(&mut commands, &wall_q, &player, &asset_server);
 
     // Spawn spots
     let positions = player
@@ -87,7 +110,11 @@ pub fn spawn_weapons(
     }
 
     // Spawn mines
-    let mut positions = vec![];
+    let mut positions = mine_q
+        .iter()
+        .map(|(_, t, _)| t.translation.truncate())
+        .collect::<Vec<_>>();
+
     let size = weapons.mine.dim;
     while positions.len() < player.weapons.mines as usize {
         let x = thread_rng()
@@ -113,6 +140,7 @@ pub fn spawn_weapons(
                 },
                 Transform::from_xyz(pos.x, pos.y, STRUCTURE_Z),
                 weapons.mine.clone(),
+                Mine
             ));
         }
     }

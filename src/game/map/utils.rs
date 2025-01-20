@@ -6,6 +6,7 @@ use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy::utils::HashMap;
 use bevy_egui::egui::*;
 use std::hash::Hash;
+use bevy_egui::egui::load::SizedTexture;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
@@ -26,6 +27,7 @@ pub fn collision(pos1: &Vec3, size1: &BVec2, pos2: &Vec3, size2: &BVec2) -> bool
 /// Custom syntactic sugar for repetitive UI elements
 pub trait CustomUi {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response;
+    fn add_upgrade_button(&mut self, texture: impl Into<TextureId>) -> Response;
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response;
     fn add_text(&mut self, text: impl Into<WidgetText>, width: f32) -> Response;
     fn add_scroll<R>(
@@ -53,6 +55,10 @@ pub trait CustomUi {
 impl CustomUi for Ui {
     fn add_button(&mut self, text: impl Into<WidgetText>) -> Response {
         self.add_sized([120., 40.], Button::new(text))
+    }
+
+    fn add_upgrade_button(&mut self, texture: impl Into<TextureId>) -> Response {
+        self.add(ImageButton::new(Image::from_texture(SizedTexture::new(texture, [30., 30.]))).rounding(20.))
     }
 
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {

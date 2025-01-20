@@ -52,10 +52,12 @@ impl FromWorld for WorldAssets {
             ("bulb", assets.load("icons/bulb.png")),
             ("weapon", assets.load("icons/rifle.png")),
             ("combat", assets.load("icons/combat.png")),
-            ("bullets", assets.load("icons/bullet.png")),
+            ("bullets", assets.load("icons/bullets.png")),
             ("gasoline", assets.load("icons/gasoline.png")),
-            ("materials", assets.load("icons/brick.png")),
+            ("materials", assets.load("icons/materials.png")),
             ("technology", assets.load("icons/technology.png")),
+            ("up-arrow", assets.load("icons/up-arrow.png")),
+            ("repair", assets.load("icons/repair.png")),
             ("tick", assets.load("icons/tick.png")),
             ("hourglass", assets.load("icons/hourglass.png")),
             ("clock", assets.load("icons/clock.png")),
@@ -88,6 +90,8 @@ impl FromWorld for WorldAssets {
             ("refinery", assets.load("map/refinery.png")),
             ("factory", assets.load("map/factory.png")),
             ("laboratory", assets.load("map/laboratory.png")),
+            ("wall-shop", assets.load("map/wall-shop.png")),
+            ("fence-shop", assets.load("map/fence-shop.png")),
             ("game_over", assets.load("map/game-over.png")),
         ]);
 
