@@ -7,6 +7,7 @@ use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
 use std::collections::HashSet;
+use std::f32::consts::PI;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -18,7 +19,7 @@ pub struct WallComponent;
 #[derive(Component)]
 pub struct Mine;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum WeaponName {
     AAA,
     Artillery,
@@ -397,7 +398,7 @@ impl Weapon {
     /// Whether the weapon points at the given angle
     pub fn is_aiming(&self, angle: &f32, transform: &Transform) -> bool {
         // Accept a 0.1 tolerance (in radians)
-        (angle - transform.rotation.to_euler(EulerRot::XYZ).2).abs() < 0.1
+        (angle - PI * 0.5 - transform.rotation.to_euler(EulerRot::XYZ).2).abs() < 0.1
     }
 
     /// Update the weapon's settings based on the player and game settings
@@ -659,7 +660,7 @@ impl Default for WeaponManager {
             canon: Weapon {
                 name: WeaponName::Canon,
                 image: "weapon/canon.png",
-                dim: Vec2::new(70., 50.),
+                dim: Vec2::new(50., 70.),
                 rotation_speed: 6.,
                 target: None,
                 price: Resources {

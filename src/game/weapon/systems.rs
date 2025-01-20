@@ -15,7 +15,7 @@ pub fn spawn_fence(
     commands: &mut Commands,
     fence_q: &Query<SpriteQ, With<FenceComponent>>,
     player: &Player,
-    asset_server: &Res<AssetServer>,
+    asset_server: &AssetServer,
 ) {
     if player.fence.health > 0. {
         // Despawn existing since we can require a new image (more fence lines)
@@ -44,7 +44,7 @@ pub fn spawn_wall(
     commands: &mut Commands,
     wall_q: &Query<SpriteQ, With<WallComponent>>,
     player: &Player,
-    asset_server: &Res<AssetServer>,
+    asset_server: &AssetServer,
 ) {
     if player.wall.health > 0. && wall_q.get_single().is_err() {
         commands.spawn((
@@ -63,19 +63,17 @@ pub fn spawn_wall(
     }
 }
 
-pub fn spawn_weapons(
-    mut commands: Commands,
-    fence_q: Query<SpriteQ, With<FenceComponent>>,
-    wall_q: Query<SpriteQ, With<WallComponent>>,
-    mine_q: Query<SpriteQ, With<Mine>>,
-    player: Res<Player>,
-    weapons: Res<WeaponManager>,
-    asset_server: Res<AssetServer>,
+pub fn spawn_spots(
+    commands: &mut Commands,
+    weapon_q: &Query<Entity, With<Weapon>>,
+    player: &Player,
+    weapons: &WeaponManager,
+    asset_server: &AssetServer,
 ) {
-    spawn_fence(&mut commands, &fence_q, &player, &asset_server);
-    spawn_wall(&mut commands, &wall_q, &player, &asset_server);
+    for entity in weapon_q.iter() {
+        commands.entity(entity).despawn();
+    }
 
-    // Spawn spots
     let positions = player
         .weapons
         .spots
@@ -95,19 +93,30 @@ pub fn spawn_weapons(
                     custom_size: Some(w.dim),
                     ..default()
                 },
-                Transform {
-                    translation: Vec3::new(
-                        -SIZE.x * 0.5 + pos,
-                        -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
-                        WEAPON_Z,
-                    ),
-                    rotation: Quat::from_rotation_z(PI * 0.5),
-                    ..default()
-                },
+                Transform::from_translation(Vec3::new(
+                    -SIZE.x * 0.5 + pos,
+                    -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y + WALL_SIZE.y * 0.5,
+                    WEAPON_Z,
+                )),
                 w,
             ));
         }
     }
+}
+
+pub fn spawn_weapons(
+    mut commands: Commands,
+    fence_q: Query<SpriteQ, With<FenceComponent>>,
+    wall_q: Query<SpriteQ, With<WallComponent>>,
+    weapon_q: Query<Entity, With<Weapon>>,
+    mine_q: Query<SpriteQ, With<Mine>>,
+    player: Res<Player>,
+    weapons: Res<WeaponManager>,
+    asset_server: Res<AssetServer>,
+) {
+    spawn_fence(&mut commands, &fence_q, &player, &asset_server);
+    spawn_wall(&mut commands, &wall_q, &player, &asset_server);
+    spawn_spots(&mut commands, &weapon_q, &player, &weapons, &asset_server);
 
     // Spawn mines
     let mut positions = mine_q
@@ -140,7 +149,7 @@ pub fn spawn_weapons(
                 },
                 Transform::from_xyz(pos.x, pos.y, STRUCTURE_Z),
                 weapons.mine.clone(),
-                Mine
+                Mine,
             ));
         }
     }
@@ -309,7 +318,7 @@ pub fn spawn_bullets(
                 } else {
                     // Not pointing at target -> rotate towards it
                     weapon_t.rotation = weapon_t.rotation.slerp(
-                        Quat::from_rotation_z(angle),
+                        Quat::from_rotation_z(angle - PI * 0.5),
                         weapon.rotation_speed * game_settings.speed * time.delta_secs(),
                     );
                 }
@@ -321,7 +330,7 @@ pub fn spawn_bullets(
         // If it didn't find a target or doesn't have the
         // resources to fire, return to the default position
         weapon_t.rotation = weapon_t.rotation.slerp(
-            Quat::from_rotation_z(PI * 0.5),
+            Quat::from_rotation_z(0.),
             weapon.rotation_speed * game_settings.speed * time.delta_secs(),
         );
     }

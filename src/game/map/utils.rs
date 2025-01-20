@@ -4,9 +4,9 @@ use crate::game::resources::{Expedition, Player, Technology};
 use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy::utils::HashMap;
+use bevy_egui::egui::load::SizedTexture;
 use bevy_egui::egui::*;
 use std::hash::Hash;
-use bevy_egui::egui::load::SizedTexture;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
@@ -58,11 +58,14 @@ impl CustomUi for Ui {
     }
 
     fn add_upgrade_button(&mut self, texture: impl Into<TextureId>) -> Response {
-        self.add(ImageButton::new(Image::from_texture(SizedTexture::new(texture, [30., 30.]))).rounding(20.))
+        self.add(
+            ImageButton::new(Image::from_texture(SizedTexture::new(texture, [30., 30.])))
+                .rounding(20.),
+        )
     }
 
     fn add_image(&mut self, id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
-        self.add(Image::new(load::SizedTexture::new(id, size)))
+        self.add(Image::new(SizedTexture::new(id, size)))
     }
 
     fn add_text(&mut self, text: impl Into<WidgetText>, width: f32) -> Response {

@@ -1,6 +1,7 @@
 use crate::constants::{NIGHT_DURATION, RESOURCE_FACTOR, SOLDIER_BASE_DAMAGE};
 use crate::game::enemy::components::Size;
 use crate::game::weapon::components::{AirFireStrategy, FireStrategy, MortarShell, WeaponName};
+use bevy::ecs::system::SystemId;
 use bevy::prelude::{default, Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
@@ -8,7 +9,6 @@ use rand::random;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
-use bevy::ecs::system::SystemId;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 

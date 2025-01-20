@@ -6,6 +6,7 @@ use crate::game::enemy::utils::get_future_position;
 use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
 use crate::game::resources::*;
 use crate::game::weapon::components::*;
+use crate::game::weapon::systems::{spawn_fence, spawn_spots, spawn_wall};
 use crate::game::{AppState, GameState};
 use crate::messages::Messages;
 use crate::utils::*;
@@ -14,9 +15,9 @@ use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
 use bevy_egui::egui::{Align, CursorIcon, Layout, RichText, Style, TextStyle, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
+use egui_dnd::dnd;
 use std::f32::consts::PI;
 use strum::IntoEnumIterator;
-use crate::game::weapon::systems::{spawn_fence, spawn_wall};
 
 pub fn set_style(mut contexts: EguiContexts) {
     let context = contexts.ctx_mut();
@@ -832,8 +833,10 @@ pub fn day_panel(
     mut commands: Commands,
     fence_q: Query<SpriteQ, With<FenceComponent>>,
     wall_q: Query<SpriteQ, With<WallComponent>>,
+    weapon_q: Query<Entity, With<Weapon>>,
     mut contexts: EguiContexts,
     mut player: ResMut<Player>,
+    mut weapons: ResMut<WeaponManager>,
     mut messages: ResMut<Messages>,
     mut game_settings: ResMut<GameSettings>,
     mut next_state: ResMut<NextState<AppState>>,
@@ -857,6 +860,7 @@ pub fn day_panel(
     let up_texture = contexts.add_image(assets.get_image("up-arrow"));
     let repair_texture = contexts.add_image(assets.get_image("repair"));
     let tick_texture = contexts.add_image(assets.get_image("tick"));
+    let cross_texture = contexts.add_image(assets.get_image("cross"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
     let clock_texture = contexts.add_image(assets.get_image("clock"));
     let armory_texture = contexts.add_image(assets.get_image("armory"));
@@ -865,6 +869,14 @@ pub fn day_panel(
     let laboratory_texture = contexts.add_image(assets.get_image("laboratory"));
     let wall_texture = contexts.add_image(assets.get_image("wall-shop"));
     let fence_texture = contexts.add_image(assets.get_image("fence-shop"));
+    let aaa_texture = contexts.add_image(assets.get_image("aaa"));
+    let artillery_texture = contexts.add_image(assets.get_image("artillery"));
+    let canon_texture = contexts.add_image(assets.get_image("canon"));
+    let flamethrower_texture = contexts.add_image(assets.get_image("flamethrower"));
+    let machine_gun_texture = contexts.add_image(assets.get_image("machine-gun"));
+    let missile_launcher_texture = contexts.add_image(assets.get_image("missile-launcher"));
+    let mortar_texture = contexts.add_image(assets.get_image("mortar"));
+    let turret_texture = contexts.add_image(assets.get_image("turret"));
 
     egui::Window::new("info panel")
         .title_bar(false)
@@ -1347,6 +1359,36 @@ pub fn day_panel(
                         });
                     });
                 }
+                DayTabs::Armory => {
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(20.);
+                        ui.heading("Spots");
+                    });
+                    ui.add_space(15.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(50.);
+                        dnd(ui, "armory").show_vec(&mut player.weapons.spots, |ui, item, handle, state| {
+                            handle.ui(ui, |ui| {
+                                let texture = match item {
+                                    Some(WeaponName::AAA) => aaa_texture,
+                                    Some(WeaponName::Artillery) => artillery_texture,
+                                    Some(WeaponName::Canon) => canon_texture,
+                                    Some(WeaponName::Flamethrower) => flamethrower_texture,
+                                    Some(WeaponName::MachineGun) => machine_gun_texture,
+                                    Some(WeaponName::MissileLauncher) => missile_launcher_texture,
+                                    Some(WeaponName::Mortar) => mortar_texture,
+                                    Some(WeaponName::Turret) => turret_texture,
+                                    None => cross_texture,
+                                };
+                                ui.add_image(texture, [50., 50.]);
+                            });
+                            ui.add_space(10.);
+                        });
+
+                        spawn_spots(&mut commands, &weapon_q, &player, &weapons, &asset_server);
+                    });
+                }
                 DayTabs::Technology => {
                     for category in TechnologyCategory::iter() {
                         ui.add_space(5.);
@@ -1445,7 +1487,6 @@ pub fn day_panel(
                         });
                     }
                 }
-                _ => (),
             }
 
             ui.add_space(15.);
@@ -1905,16 +1946,12 @@ pub fn update_game(
 pub fn clear_map(
     mut commands: Commands,
     animation_q: Query<Entity, With<AnimationComponent>>,
-    weapon_q: Query<Entity, With<Weapon>>,
     bullet_q: Query<Entity, (With<Bullet>, Without<Mine>)>,
     enemy_q: Query<Entity, With<Enemy>>,
 ) {
     animation_q
         .iter()
         .for_each(|a| commands.entity(a).try_despawn());
-    weapon_q
-        .iter()
-        .for_each(|w| commands.entity(w).try_despawn());
     bullet_q
         .iter()
         .for_each(|b| commands.entity(b).try_despawn());
