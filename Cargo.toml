@@ -13,6 +13,7 @@ rand = "0.8.5"
 rand_distr = "0.4"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+uuid = { version = "1.4", features = ["v4"] }
 winit = "0.30.8"
 
 # Enable a small amount of optimization in the dev profile.

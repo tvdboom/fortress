@@ -2680,6 +2680,7 @@ dependencies = [
  "rand_distr",
  "strum",
  "strum_macros",
+ "uuid",
  "winit",
 ]
 

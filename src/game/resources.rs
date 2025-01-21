@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
 pub enum DayTabs {
@@ -235,7 +236,7 @@ pub struct WeaponSettings {
 
 #[derive(Hash)]
 pub struct Spot {
-    pub id: usize,
+    pub id: Uuid,
     pub weapon: Option<WeaponName>,
 }
 
@@ -254,7 +255,7 @@ pub enum TechnologyName {
     Physics,
     Marines,
     Aimbot,
-    Bombing,
+    Explosives,
     Homing,
     Charts,
     Productivity,
@@ -314,8 +315,8 @@ impl Technology {
                     an enemy is going to be when the bullet arrives. Not relevant for \
                     homing bullets.",
             },
-            TechnologyName::Bombing => Self {
-                name: TechnologyName::Bombing,
+            TechnologyName::Explosives => Self {
+                name: TechnologyName::Explosives,
                 price: 400.,
                 category: TechnologyCategory::Military,
                 description: "Unlocks mines and bombs.",
@@ -529,23 +530,23 @@ impl Player {
             weapons: Weapons {
                 spots: vec![
                     Spot {
-                        id: 0,
+                        id: Uuid::new_v4(),
                         weapon: Some(WeaponName::Mortar),
                     },
                     Spot {
-                        id: 1,
+                        id: Uuid::new_v4(),
                         weapon: Some(WeaponName::Turret),
                     },
                     Spot {
-                        id: 1,
+                        id: Uuid::new_v4(),
                         weapon: Some(WeaponName::Flamethrower),
                     },
                     Spot {
-                        id: 2,
+                        id: Uuid::new_v4(),
                         weapon: Some(WeaponName::MissileLauncher),
                     },
                     Spot {
-                        id: 3,
+                        id: Uuid::new_v4(),
                         weapon: Some(WeaponName::MissileLauncher),
                     },
                     // Some(WeaponName::MissileLauncher),

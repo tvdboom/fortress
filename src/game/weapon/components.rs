@@ -944,7 +944,6 @@ impl Default for WeaponManager {
                 price: Resources {
                     bullets: 2500.,
                     gasoline: 2500.,
-                    materials: 2500.,
                     ..default()
                 },
                 speed: 0.2 * MAP_SIZE.y,
@@ -957,9 +956,9 @@ impl Default for WeaponManager {
                     interval: 0.05,
                     radius: 1.5 * MAP_SIZE.y,
                     damage: Damage {
-                        ground: 20_000.,
-                        air: 20_000.,
-                        penetration: 20_000.,
+                        ground: 100_000.,
+                        air: 100_000.,
+                        penetration: 100_000.,
                     },
                     ..default()
                 }),
