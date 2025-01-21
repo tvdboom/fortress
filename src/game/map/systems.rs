@@ -32,7 +32,7 @@ pub fn set_style(mut contexts: EguiContexts) {
 pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
-    // Background on top of the actual map to hide fow and spawning enemies
+    // Background on top and bottom of the actual map to hide fow and (de)spawning enemies
     commands.spawn((
         Sprite {
             image: asset_server.load("map/bg.png"),
@@ -40,6 +40,15 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         Transform::from_xyz(0., SIZE.y - MENU_PANEL_SIZE.y, 10.),
+        Map,
+    ));
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("map/bg.png"),
+            custom_size: Some(SIZE),
+            ..default()
+        },
+        Transform::from_xyz(0., -SIZE.y + RESOURCES_PANEL_SIZE.y, 10.),
         Map,
     ));
 
@@ -370,8 +379,8 @@ pub fn weapons_panel(
                 let old_s = player.weapons.settings.clone();
 
                 // Machine gun
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::MachineGun,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::MachineGun,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -392,8 +401,8 @@ pub fn weapons_panel(
                 }
 
                 // Canon
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::Canon,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::Canon,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -409,8 +418,8 @@ pub fn weapons_panel(
                 }
 
                 // Flamethrower
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::Flamethrower,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::Flamethrower,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -431,8 +440,8 @@ pub fn weapons_panel(
                 }
 
                 // Artillery
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::Artillery,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::Artillery,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -448,8 +457,8 @@ pub fn weapons_panel(
                 }
 
                 // AAA
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::AAA,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::AAA,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -465,8 +474,8 @@ pub fn weapons_panel(
                 }
 
                 // Mortar
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::Mortar,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::Mortar,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -482,8 +491,8 @@ pub fn weapons_panel(
                 }
                 
                 // Turret
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::Turret,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::Turret,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -510,8 +519,8 @@ pub fn weapons_panel(
                 }
 
                 // Missile launcher
-                if player.weapons.spots.iter().any(|w| match w {
-                    Some(w) => *w == WeaponName::MissileLauncher,
+                if player.weapons.spots.iter().any(|w| match w.weapon {
+                    Some(w) => w == WeaponName::MissileLauncher,
                     None => false,
                 }) {
                     ui.add_space(7.);
@@ -554,7 +563,7 @@ pub fn weapons_panel(
                     ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
                         ui.add_space(7.);
                         ui.horizontal(|ui| {
-                            ui.add_image(mine_texture, [20., 20.]);
+                            ui.add_image(mine_texture, [20., 15.]);
                             ui.add(egui::Label::new(format!("Mine ({}): ", player.weapons.mines)));
                             ui.selectable_value(&mut player.weapons.settings.mine, Size::Small, Size::Small.name())
                                 .on_hover_text("Detonate for all enemies.");
@@ -859,6 +868,8 @@ pub fn day_panel(
     let technology_texture = contexts.add_image(assets.get_image("technology"));
     let up_texture = contexts.add_image(assets.get_image("up-arrow"));
     let repair_texture = contexts.add_image(assets.get_image("repair"));
+    let spots_texture = contexts.add_image(assets.get_image("spots"));
+    let damage_texture = contexts.add_image(assets.get_image("damage"));
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let cross_texture = contexts.add_image(assets.get_image("cross"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
@@ -869,6 +880,7 @@ pub fn day_panel(
     let laboratory_texture = contexts.add_image(assets.get_image("laboratory"));
     let wall_texture = contexts.add_image(assets.get_image("wall-shop"));
     let fence_texture = contexts.add_image(assets.get_image("fence-shop"));
+    let lightning_texture = contexts.add_image(assets.get_image("lightning"));
     let aaa_texture = contexts.add_image(assets.get_image("aaa"));
     let artillery_texture = contexts.add_image(assets.get_image("artillery"));
     let canon_texture = contexts.add_image(assets.get_image("canon"));
@@ -1264,7 +1276,14 @@ pub fn day_panel(
 
                     ui.horizontal(|ui| {
                         ui.add_space(30.);
-                        ui.add_image(wall_texture, [130., 130.]);
+                        ui.vertical(|ui| {
+                            ui.add_space(20.);
+                            ui.add_image(wall_texture, [130., 130.]);
+                            ui.horizontal(|ui| {
+                                ui.add_image(spots_texture, [25., 25.]);
+                                ui.label(format!("{} / {}", player.weapons.spots.len(), MAX_SPOTS));
+                            });
+                        });
                         ui.add_space(20.);
                         ui.vertical(|ui| {
                             ui.strong("Wall");
@@ -1280,7 +1299,6 @@ pub fn day_panel(
                                         player.resources.materials -= cost;
                                         player.wall.health += 1000.;
                                         player.wall.max_health += 1000.;
-                                        spawn_wall(&mut commands, &wall_q, &player, &asset_server);
                                     } else {
                                         messages.error("Not enough materials.");
                                     }
@@ -1291,7 +1309,8 @@ pub fn day_panel(
                                 ui.add_enabled_ui(player.wall.health < player.wall.max_health, |ui| {
                                     let cost = 100.;
 
-                                    let button = ui.add_upgrade_button(repair_texture).on_hover_text("Add 500 health to the wall.");
+                                    let button = ui.add_upgrade_button(repair_texture)
+                                        .on_hover_text("Add 500 health to the wall. Double click to repair to full health.");
                                     ui.strong(format!("{}", cost));
                                     ui.add_image(materials_texture, [20., 20.]);
                                     if button.clicked() {
@@ -1302,8 +1321,43 @@ pub fn day_panel(
                                             messages.error("Not enough materials.");
                                         }
                                     }
+
+                                    // Double-click to repair to full health
+                                    if button.double_clicked() {
+                                        let cost = ((player.wall.max_health - player.wall.health) as u32 + 499 / 5) as f32;
+                                        if player.resources.materials >= cost {
+                                            player.resources.materials -= cost;
+                                            player.wall.health = player.wall.max_health;
+                                        } else {
+                                            messages.error("Not enough materials.");
+                                        }
+                                    }
                                 });
                             });
+                            ui.add_space(10.);
+                            ui.add_enabled_ui(player.weapons.spots.len() < MAX_SPOTS, |ui| {
+                                ui.horizontal(|ui| {
+                                    let cost = 1000.;
+
+                                    let button = ui.add_upgrade_button(spots_texture)
+                                        .on_hover_text("Add an extra weapon on the wall.")
+                                        .on_disabled_hover_text("Maximum number of weapons reached.");
+                                    ui.strong(format!("{}", cost));
+                                    ui.add_image(technology_texture, [20., 20.]);
+                                    if button.clicked() {
+                                        if player.resources.technology >= cost {
+                                            player.resources.technology -= cost;
+
+                                            let s = player.weapons.spots.len();
+                                            player.weapons.spots.push(Spot { id: s, weapon: None });
+                                        } else {
+                                            messages.error("Not enough technology.");
+                                        }
+                                    }
+                                });
+                            });
+
+                            spawn_wall(&mut commands, &wall_q, &player, &asset_server);
 
                             if player.wall.health > player.wall.max_health {
                                 player.wall.health = player.wall.max_health;
@@ -1312,7 +1366,16 @@ pub fn day_panel(
 
                         ui.add_space(40.);
 
-                        ui.add_image(fence_texture, [130., 130.]);
+                        ui.vertical(|ui| {
+                            ui.add_space(20.);
+                            ui.add_image(fence_texture, [130., 130.]);
+                            if player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity) {
+                                ui.horizontal(|ui| {
+                                    ui.add_image(lightning_texture, [20., 20.]).on_hover_text("Damage to adjacent enemies.");
+                                    ui.label(format!("x{}", player.fence.damage));
+                                });
+                            }
+                        });
                         ui.add_space(20.);
                         ui.vertical(|ui| {
                             ui.strong("Fence");
@@ -1328,7 +1391,6 @@ pub fn day_panel(
                                         player.resources.materials -= cost;
                                         player.fence.health += 100.;
                                         player.fence.max_health += 100.;
-                                        spawn_fence(&mut commands, &fence_q, &player, &asset_server);
                                     } else {
                                         messages.error("Not enough materials.");
                                     }
@@ -1339,7 +1401,8 @@ pub fn day_panel(
                                 ui.add_enabled_ui(player.fence.health < player.fence.max_health, |ui| {
                                     let cost = 100.;
 
-                                    let button = ui.add_upgrade_button(repair_texture).on_hover_text("Add 300 health to the fence.");
+                                    let button = ui.add_upgrade_button(repair_texture)
+                                        .on_hover_text("Add 300 health to the fence. Double click to repair to full health.");
                                     ui.strong(format!("{}", cost));
                                     ui.add_image(materials_texture, [20., 20.]);
                                     if button.clicked() {
@@ -1350,8 +1413,41 @@ pub fn day_panel(
                                             messages.error("Not enough materials.");
                                         }
                                     }
+
+                                    // Double-click to repair to full health
+                                    if button.double_clicked() {
+                                        let cost = ((player.fence.max_health - player.fence.health) as u32 + 299 / 3) as f32;
+                                        if player.resources.materials >= cost {
+                                            player.resources.materials -= cost;
+                                            player.fence.health = player.fence.max_health;
+                                        } else {
+                                            messages.error("Not enough materials.");
+                                        }
+                                    }
                                 });
                             });
+                            ui.add_space(10.);
+                            ui.add_enabled_ui(player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity), |ui| {
+                                ui.horizontal(|ui| {
+                                    let cost = player.fence.damage * 20.;
+
+                                    let button = ui.add_upgrade_button(lightning_texture)
+                                        .on_hover_text("Increase the fence's damage.")
+                                        .on_disabled_hover_text("Requires the electricity technology.");
+                                    ui.strong(format!("{}", cost));
+                                    ui.add_image(technology_texture, [20., 20.]);
+                                    if button.clicked() {
+                                        if player.resources.technology >= cost {
+                                            player.resources.technology -= cost;
+                                            player.fence.damage += 5.;
+                                        } else {
+                                            messages.error("Not enough technology.");
+                                        }
+                                    }
+                                });
+                            });
+
+                            spawn_fence(&mut commands, &fence_q, &player, &asset_server);
 
                             if player.fence.health > player.fence.max_health {
                                 player.fence.health = player.fence.max_health;
@@ -1363,14 +1459,27 @@ pub fn day_panel(
                     ui.add_space(5.);
                     ui.horizontal(|ui| {
                         ui.add_space(20.);
+                        ui.heading("Weapons");
+                    });
+
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(20.);
+                        ui.heading("Explosives");
+                    });
+
+                    ui.add_space(5.);
+                    ui.horizontal(|ui| {
+                        ui.add_space(20.);
                         ui.heading("Spots");
                     });
                     ui.add_space(15.);
                     ui.horizontal(|ui| {
                         ui.add_space(50.);
-                        dnd(ui, "armory").show_vec(&mut player.weapons.spots, |ui, item, handle, state| {
-                            handle.ui(ui, |ui| {
-                                let texture = match item {
+
+                        dnd(ui, "armory").show_vec(&mut player.weapons.spots, |ui, item, handle, _| {
+                            let response = handle.ui(ui, |ui| {
+                                let texture = match item.weapon {
                                     Some(WeaponName::AAA) => aaa_texture,
                                     Some(WeaponName::Artillery) => artillery_texture,
                                     Some(WeaponName::Canon) => canon_texture,
@@ -1381,8 +1490,13 @@ pub fn day_panel(
                                     Some(WeaponName::Turret) => turret_texture,
                                     None => cross_texture,
                                 };
-                                ui.add_image(texture, [50., 50.]);
+                                let mut response = ui.add_image(texture, [50., 50.]);
+
+                                if let Some(w) = item.weapon {
+                                    response = response.on_hover_text(w.name());
+                                }
                             });
+
                             ui.add_space(10.);
                         });
 

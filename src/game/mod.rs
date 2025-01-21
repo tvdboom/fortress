@@ -6,9 +6,11 @@ pub mod systems;
 pub mod weapon;
 
 use crate::game::enemy::EnemyPlugin;
+use crate::game::map::systems::clear_map;
 use crate::game::map::MapPlugin;
 use crate::game::resources::{GameSettings, NightStats};
 use crate::game::systems::*;
+use crate::game::weapon::systems::spawn_weapons;
 use crate::game::weapon::WeaponPlugin;
 use bevy::prelude::*;
 
@@ -17,7 +19,10 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((MapPlugin, EnemyPlugin, WeaponPlugin))
-            .add_systems(OnEnter(AppState::StartGame), new_game)
+            .add_systems(
+                OnEnter(AppState::StartGame),
+                (new_game, clear_map, spawn_weapons).chain(),
+            )
             .add_systems(OnEnter(AppState::Night), start_night)
             .add_systems(OnExit(AppState::Night), end_night)
             .add_systems(OnEnter(AppState::Day), start_day)

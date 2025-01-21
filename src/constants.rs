@@ -55,7 +55,7 @@ pub const SOLDIER_BASE_DAMAGE: u32 = 3;
 pub const RESOURCE_FACTOR: u32 = 10; // Factor to multiply population by to get resources
 
 // Weapon settings
-pub const MAX_SPOTS: u32 = 10;
+pub const MAX_SPOTS: usize = 8;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;
 pub const DEFAULT_TURRET_POWER_TIME: f32 = 10.; // Seconds to power-up the turret

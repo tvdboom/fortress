@@ -58,6 +58,8 @@ impl FromWorld for WorldAssets {
             ("technology", assets.load("icons/technology.png")),
             ("up-arrow", assets.load("icons/up-arrow.png")),
             ("repair", assets.load("icons/repair.png")),
+            ("spots", assets.load("icons/spots.png")),
+            ("damage", assets.load("icons/damage.png")),
             ("tick", assets.load("icons/tick.png")),
             ("cross", assets.load("icons/cross.png")),
             ("hourglass", assets.load("icons/hourglass.png")),
@@ -69,7 +71,10 @@ impl FromWorld for WorldAssets {
             ("flamethrower", assets.load("weapon/flamethrower.png")),
             ("machine-gun", assets.load("weapon/machine-gun.png")),
             ("mortar", assets.load("weapon/mortar.png")),
-            ("missile-launcher", assets.load("weapon/missile-launcher.png")),
+            (
+                "missile-launcher",
+                assets.load("weapon/missile-launcher.png"),
+            ),
             ("turret", assets.load("weapon/turret.png")),
             ("mine-shop", assets.load("weapon/mine.png")),
             ("bomb-shop", assets.load("weapon/bomb.png")),
@@ -98,6 +103,7 @@ impl FromWorld for WorldAssets {
             ("flame", assets.load("weapon/flame.png")),
             ("explosion1", assets.load("weapon/explosion1.png")),
             ("explosion2", assets.load("weapon/explosion2.png")),
+            ("explosion3", assets.load("weapon/explosion3.png")),
             // Others
             ("armory", assets.load("map/armory.png")),
             ("refinery", assets.load("map/refinery.png")),
@@ -119,6 +125,7 @@ impl FromWorld for WorldAssets {
         let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(256, 256), 8, 6, None, None);
         let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(257, 252), 8, 6, None, None);
+        let explosion3 = TextureAtlasLayout::from_grid(UVec2::new(181, 205), 4, 4, None, None);
 
         let atlas = HashMap::from([
             (
@@ -196,6 +203,17 @@ impl FromWorld for WorldAssets {
                         index: 1,
                     },
                     last_index: 32,
+                },
+            ),
+            (
+                "explosion3",
+                AtlasInfo {
+                    image: images["explosion3"].clone_weak(),
+                    texture: TextureAtlas {
+                        layout: texture.add(explosion3),
+                        index: 1,
+                    },
+                    last_index: 16,
                 },
             ),
         ]);

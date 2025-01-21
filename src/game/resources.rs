@@ -73,8 +73,6 @@ impl Default for Population {
 pub struct Wall {
     pub health: f32,
     pub max_health: f32,
-    pub upgrade_price: Resources,
-    pub repair_price: Resources,
 }
 
 pub struct Fence {
@@ -83,8 +81,6 @@ pub struct Fence {
     pub enabled: bool,
     pub damage: f32,
     pub cost: Resources,
-    pub upgrade_price: Resources,
-    pub repair_price: Resources,
 }
 
 pub struct Spotlight {
@@ -237,8 +233,14 @@ pub struct WeaponSettings {
     pub mine: Size,
 }
 
+#[derive(Hash)]
+pub struct Spot {
+    pub id: usize,
+    pub weapon: Option<WeaponName>,
+}
+
 pub struct Weapons {
-    pub spots: Vec<Option<WeaponName>>,
+    pub spots: Vec<Spot>,
     pub mines: u32,
     pub bombs: u32,
     pub nuke: u32,
@@ -494,14 +496,6 @@ impl Player {
             wall: Wall {
                 health: 1_000.,
                 max_health: 1_000.,
-                upgrade_price: Resources {
-                    materials: 10.,
-                    ..Resources::default()
-                },
-                repair_price: Resources {
-                    materials: 1.,
-                    ..Resources::default()
-                },
             },
             fence: Fence {
                 health: 0.,
@@ -510,14 +504,6 @@ impl Player {
                 damage: 5.,
                 cost: Resources {
                     gasoline: 2.,
-                    ..Resources::default()
-                },
-                upgrade_price: Resources {
-                    materials: 1.,
-                    ..Resources::default()
-                },
-                repair_price: Resources {
-                    materials: 1.,
                     ..Resources::default()
                 },
             },
@@ -542,14 +528,30 @@ impl Player {
             },
             weapons: Weapons {
                 spots: vec![
-                    Some(WeaponName::Canon),
-                    Some(WeaponName::Mortar),
-                    Some(WeaponName::AAA),
-                    Some(WeaponName::MissileLauncher),
-                    Some(WeaponName::Flamethrower),
-                    Some(WeaponName::Turret),
-                    Some(WeaponName::MachineGun),
-                    Some(WeaponName::Artillery),
+                    Spot {
+                        id: 0,
+                        weapon: Some(WeaponName::Mortar),
+                    },
+                    Spot {
+                        id: 1,
+                        weapon: Some(WeaponName::Turret),
+                    },
+                    Spot {
+                        id: 1,
+                        weapon: Some(WeaponName::Flamethrower),
+                    },
+                    Spot {
+                        id: 2,
+                        weapon: Some(WeaponName::MissileLauncher),
+                    },
+                    Spot {
+                        id: 3,
+                        weapon: Some(WeaponName::MissileLauncher),
+                    },
+                    // Some(WeaponName::MissileLauncher),
+                    // Some(WeaponName::Flamethrower),
+                    // Some(WeaponName::Turret),
+                    // Some(WeaponName::MachineGun),
                 ],
                 mines: 10,
                 bombs: 10,

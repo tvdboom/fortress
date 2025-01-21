@@ -1,4 +1,6 @@
-use crate::constants::{EnemyQ, EXPLOSION_Z, MAP_SIZE, SIZE, WEAPONS_PANEL_SIZE};
+use crate::constants::{
+    EnemyQ, EXPLOSION_Z, MAP_SIZE, MAX_FLAMETHROWER_POWER, SIZE, WEAPONS_PANEL_SIZE,
+};
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
 use crate::game::map::components::{AnimationComponent, FogOfWar};
@@ -19,7 +21,7 @@ pub struct WallComponent;
 #[derive(Component)]
 pub struct Mine;
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum WeaponName {
     AAA,
     Artillery,
@@ -135,8 +137,8 @@ impl Default for Damage {
 impl Damage {
     /// Calculate the damage inflicted on `enemy`
     pub fn calculate(&self, enemy: &Enemy) -> f32 {
-        (if enemy.can_fly { self.air } else { self.ground })
-            + (enemy.armor - self.penetration).max(0.)
+        let base = if enemy.can_fly { self.air } else { self.ground };
+        (base - (enemy.armor - self.penetration).max(0.)).max(0.)
     }
 }
 
@@ -184,7 +186,10 @@ pub enum Impact {
     SingleTarget(Damage),
 
     /// Piercing bullets don't despawn after hitting an enemy
-    Piercing(Damage),
+    Piercing {
+        damage: Damage,
+        hits: HashSet<Entity>, // Keep track of enemies already hit
+    },
 
     /// Explodes after colliding with an enemy
     Explosion(Explosion),
@@ -194,7 +199,7 @@ impl Impact {
     /// Resolve the impact of the bullet on the enemy
     /// Return whether the impact was resolved
     pub fn resolve(
-        &self,
+        &mut self,
         commands: &mut Commands,
         bullet_e: Entity,
         bullet_t: &Transform,
@@ -202,18 +207,24 @@ impl Impact {
         assets: &Local<WorldAssets>,
     ) -> bool {
         match self {
-            Impact::SingleTarget(d) | Impact::Piercing(d) => {
-                let (_, enemy) = enemy.expect("No enemy to resolve impact.");
-
+            Impact::SingleTarget(d) => {
+                let (_, enemy) = enemy.unwrap();
                 if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
                     enemy.health -= d.calculate(enemy).min(enemy.health);
-
-                    // Piercing bullets don't despawn on impact
-                    if matches!(self, Impact::SingleTarget { .. }) {
-                        commands.entity(bullet_e).try_despawn();
-                    }
-
+                    commands.entity(bullet_e).try_despawn();
                     return true;
+                }
+            }
+            Impact::Piercing { damage: d, hits } => {
+                let (enemy_e, enemy) = enemy.unwrap();
+
+                // The same enemy can only be hit once
+                if !hits.contains(&enemy_e) {
+                    if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
+                        enemy.health -= d.calculate(enemy).min(enemy.health);
+                        hits.insert(enemy_e);
+                        return true;
+                    }
                 }
             }
             Impact::Explosion(e) => {
@@ -319,7 +330,7 @@ impl Weapon {
                 // Don't shoot flying units when the bullet has only ground damage and vice versa
                 match &self.bullet.impact {
                     Impact::SingleTarget(d)
-                    | Impact::Piercing(d)
+                    | Impact::Piercing { damage: d, .. }
                     | Impact::Explosion(Explosion { damage: d, .. }) => {
                         if (d.ground == 0. && !enemy.can_fly) || (d.air == 0. && enemy.can_fly) {
                             return None;
@@ -470,14 +481,11 @@ impl Weapon {
                     self.fire_strategy = FireStrategy::Closest;
                     self.fire_animation.scale.x = 1.5 + power * 0.5;
                     if let Some(timer) = self.fire_timer.as_mut() {
-                        timer.set_duration(Duration::from_secs_f32(0.6 - power * 0.1));
+                        timer.set_duration(Duration::from_secs_f32(
+                            0.1 * (MAX_FLAMETHROWER_POWER + 1 - power as u32) as f32,
+                        ));
                     }
                     self.bullet.max_distance = 100. * (1.5 + power * 0.5);
-                    self.bullet.impact = Impact::Piercing(Damage {
-                        ground: power,
-                        air: power,
-                        penetration: power,
-                    });
                     self.bullet.price.gasoline = power;
                 }
             },
@@ -713,18 +721,21 @@ impl Default for WeaponManager {
                 fire_strategy: FireStrategy::None,
                 bullet: Bullet {
                     image: "weapon/invisible-bullet.png",
-                    dim: Vec2::new(20., 7.),
+                    dim: Vec2::new(20., 40.),
                     price: Resources {
                         gasoline: 1.,
                         ..default()
                     },
                     speed: 1.2 * MAP_SIZE.y,
                     movement: Movement::Straight,
-                    impact: Impact::Piercing(Damage {
-                        ground: 1.,
-                        air: 1.,
-                        penetration: 0.,
-                    }),
+                    impact: Impact::Piercing {
+                        damage: Damage {
+                            ground: 5.,
+                            air: 5.,
+                            penetration: 5.,
+                        },
+                        hits: HashSet::new(),
+                    },
                     max_distance: 0., // Is set by self.update()
                     distance: 0.,
                 },

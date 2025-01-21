@@ -1,5 +1,5 @@
 use crate::constants::*;
-use crate::game::map::components::PauseWrapper;
+use crate::game::map::components::{FogOfWar, PauseWrapper};
 use crate::game::resources::*;
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, GameState};
@@ -8,10 +8,20 @@ use bevy::prelude::*;
 use rand::prelude::*;
 use rand_distr::Normal;
 
-pub fn new_game(mut commands: Commands, mut next_state: ResMut<NextState<GameState>>) {
+pub fn new_game(
+    mut commands: Commands,
+    mut fow_q: Query<&mut Transform, With<FogOfWar>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
     commands.insert_resource(Player::init());
     commands.insert_resource(WeaponManager::default());
     commands.insert_resource(NightStats::default());
+
+    // Reset the fow's position
+    if let Ok(mut transform) = fow_q.get_single_mut() {
+        transform.translation.y = SIZE.y * 0.5 - MENU_PANEL_SIZE.y - FOW_SIZE.y * 0.5;
+    }
+
     next_state.set(GameState::Running);
 }
 

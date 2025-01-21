@@ -34,8 +34,6 @@ fn main() {
                     },
                     // Tells Wasm to resize the window according to the available canvas
                     fit_canvas_to_parent: true,
-                    // Tells Wasm not to override default event handling, like F5, Ctrl+R etc.
-                    prevent_default_event_handling: false,
                     ..default()
                 }),
                 ..default()

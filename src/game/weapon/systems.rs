@@ -82,8 +82,8 @@ pub fn spawn_spots(
         .map(|(i, _)| (i + 1) as f32 * MAP_SIZE.x / (player.weapons.spots.len() + 1) as f32)
         .collect::<Vec<f32>>();
 
-    for (weapon, pos) in player.weapons.spots.iter().zip(positions) {
-        if let Some(w) = weapon {
+    for (spot, pos) in player.weapons.spots.iter().zip(positions) {
+        if let Some(w) = spot.weapon {
             let mut w = weapons.get(&w);
             w.update(&player);
 
@@ -317,7 +317,7 @@ pub fn spawn_bullets(
                     }
                 } else {
                     // Not pointing at target -> rotate towards it
-                    weapon_t.rotation = weapon_t.rotation.slerp(
+                    weapon_t.rotation = weapon_t.rotation.rotate_towards(
                         Quat::from_rotation_z(angle - PI * 0.5),
                         weapon.rotation_speed * game_settings.speed * time.delta_secs(),
                     );
@@ -442,9 +442,9 @@ pub fn move_bullets(
         // If the bullet traveled more than max distance or left window boundaries -> despawn
         if bullet.distance >= bullet.max_distance
             || bullet_t.translation.x < -SIZE.x * 0.5
-            || bullet_t.translation.x > SIZE.x * 0.5
-            || bullet_t.translation.y > SIZE.y * 0.5
-            || bullet_t.translation.y < -SIZE.y * 0.5
+            || bullet_t.translation.x > SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x
+            || bullet_t.translation.y > SIZE.y * 0.5 - MENU_PANEL_SIZE.y
+            || bullet_t.translation.y < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y
         {
             commands.entity(bullet_e).try_despawn();
         }

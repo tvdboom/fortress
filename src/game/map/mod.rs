@@ -10,8 +10,7 @@ pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, (set_style, draw_map))
-            .add_systems(OnEnter(AppState::StartGame), clear_map)
+        app.add_systems(Startup, (set_style, draw_map).chain())
             .add_systems(OnEnter(AppState::Day), clear_map)
             .add_systems(
                 Update,
