@@ -1,6 +1,7 @@
 use crate::constants::{FOW_SIZE, MAP_SIZE};
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::{Expedition, Player, Technology};
+use crate::game::weapon::components::Weapon;
 use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy::utils::HashMap;
@@ -36,6 +37,7 @@ pub trait CustomUi {
         indent: f32,
         add_contents: impl FnOnce(&mut Ui) -> R,
     );
+    fn add_weapon(&mut self, texture: TextureId, weapon: &mut Weapon, player: &mut Player);
     fn add_night_stats(&mut self, player: &Player, day: u32);
     fn add_technology(
         &mut self,
@@ -87,6 +89,42 @@ impl CustomUi for Ui {
                     ui.with_layout(Layout::top_down(Align::LEFT), add_contents);
                 })
             });
+    }
+
+    fn add_weapon(&mut self, texture: TextureId, weapon: &mut Weapon, player: &mut Player) {
+        // self.vertical(|ui| {
+        //     ui.add_space(20.);
+        //     ui.add_image(texture, [50., 50.])
+        //         .on_hover_text("blabla");
+        //
+        //     ui.add_space(-10.);
+        //     ui.horizontal(|ui| {
+        //         ui.add_space(25.);
+        //         let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine.");
+        //
+        //         if button.clicked() {
+        //             if player.weapons.mines >= MAX_MINES {
+        //                 messages.error("Maximum number of mines reached.");
+        //             } else {
+        //                 if player.resources >= weapon.price {
+        //                     player.resources -= &weapon.price;
+        //                     player.weapons.mines += 1;
+        //                 } else {
+        //                     messages.error("Not enough resources.");
+        //                 }
+        //             }
+        //         }
+        //     });
+        // });
+        // self.add_space(10.);
+        // self.vertical(|ui| {
+        //     ui.strong(weapon.name.name());
+        //     ui.add_space(10.);
+        //     ui.horizontal(|ui| {
+        //         ui.strong(format!("{}", weapon.price.materials));
+        //         ui.add_image(materials_texture, [20., 20.]);
+        //     });
+        // });
     }
 
     fn add_night_stats(&mut self, player: &Player, day: u32) {
