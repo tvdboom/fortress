@@ -543,16 +543,24 @@ impl Player {
                     },
                     Spot {
                         id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::MissileLauncher),
+                        weapon: Some(WeaponName::Canon),
+                    },
+                    Spot {
+                        id: Uuid::new_v4(),
+                        weapon: Some(WeaponName::AAA),
+                    },
+                    Spot {
+                        id: Uuid::new_v4(),
+                        weapon: Some(WeaponName::Artillery),
+                    },
+                    Spot {
+                        id: Uuid::new_v4(),
+                        weapon: Some(WeaponName::MachineGun),
                     },
                     Spot {
                         id: Uuid::new_v4(),
                         weapon: Some(WeaponName::MissileLauncher),
                     },
-                    // Some(WeaponName::MissileLauncher),
-                    // Some(WeaponName::Flamethrower),
-                    // Some(WeaponName::Turret),
-                    // Some(WeaponName::MachineGun),
                 ],
                 mines: 10,
                 bombs: 10,

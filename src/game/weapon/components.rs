@@ -84,6 +84,9 @@ pub struct Weapon {
     /// Name of the asset for sprite
     pub image: &'static str,
 
+    /// Short description
+    pub description: &'static str,
+
     /// Dimensions (size) of the sprite
     pub dim: Vec2,
 
@@ -596,6 +599,10 @@ impl Default for WeaponManager {
             aaa: Weapon {
                 name: WeaponName::AAA,
                 image: "weapon/aaa.png",
+                description: "\
+                    Medium range, single-target anti-aircraft artillery. Effective against flying \
+                    units. Has two shooting strategies: all (shoots at all enemies doing low damage) \
+                    and airborne (shoots only at flying enemies doing high damage).",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
                 target: None,
@@ -632,6 +639,11 @@ impl Default for WeaponManager {
             artillery: Weapon {
                 name: WeaponName::Artillery,
                 image: "weapon/artillery.png",
+                description:"\
+                    Long range, single-target, high damage weapon. Although slow to reload, its \
+                    high penetration bullets can kill even the strongest of foes. It has two \
+                    firing strategies: closest (shoots at the closes enemy) and strongest (shoot \
+                    at the enemy with the highest maximum health).",
                 dim: Vec2::new(80., 80.),
                 rotation_speed: 5.,
                 target: None,
@@ -668,6 +680,10 @@ impl Default for WeaponManager {
             canon: Weapon {
                 name: WeaponName::Canon,
                 image: "weapon/canon.png",
+                description:"\
+                    Medium range and damage weapon that fires explosive shells. Slow to reload. It \
+                    has two firing strategies: grounded (shoots only at ground enemies) and airborne \
+                    (shoots only at flying enemies).",
                 dim: Vec2::new(50., 70.),
                 rotation_speed: 6.,
                 target: None,
@@ -704,6 +720,10 @@ impl Default for WeaponManager {
             flamethrower: Weapon {
                 name: WeaponName::Flamethrower,
                 image: "weapon/flamethrower.png",
+                description:"\
+                    Short range, high damage weapon that shoots a continuous stream of fire. The \
+                    flamethrower can adjust its firing power, increasing its range and damage at \
+                    an increased gasoline consumption. All enemies in the stream take damage.",
                 dim: Vec2::new(60., 60.),
                 rotation_speed: 7.,
                 target: None,
@@ -743,6 +763,9 @@ impl Default for WeaponManager {
             machine_gun: Weapon {
                 name: WeaponName::MachineGun,
                 image: "weapon/machine-gun.png",
+                description:"\
+                    Medium range, low damage, single-target fire weapon. The machine gun can \
+                    change its firing frequency.",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 7.,
                 target: None,
@@ -779,6 +802,10 @@ impl Default for WeaponManager {
             missile_launcher: Weapon {
                 name: WeaponName::MissileLauncher,
                 image: "weapon/missile-launcher.png",
+                description:"\
+                    Medium range and damage weapon that fires multiple explosive shells. Very \
+                    effective to deal with large number of enemies. The missile launcher shoots \
+                    homing shells, always targeting the strongest enemies.",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 5.,
                 target: None,
@@ -819,6 +846,11 @@ impl Default for WeaponManager {
             mortar: Weapon {
                 name: WeaponName::Mortar,
                 image: "weapon/mortar.png",
+                description:"\
+                    Long range weapon that fires explosive shells at the highest enemy density \
+                    location. The mortar has two explosive types to choose from: light (medium \
+                    damage and radius) and heavy (high damage and radius, but costs more and does \
+                    damage to structures).",
                 dim: Vec2::new(70., 70.),
                 rotation_speed: 5.,
                 target: None,
@@ -859,6 +891,13 @@ impl Default for WeaponManager {
             turret: Weapon {
                 name: WeaponName::Turret,
                 image: "weapon/turret.png",
+                description:"\
+                    Long range, single-target weapon, that always shoots at the strongest enemy. \
+                    The turret requires you to click on the button on the weapons panel to shoot. \
+                    The weapon shoots with the power indicated in the bar next to the button. \
+                    Although it can shoot at >20% power, its damage increases exponentially with \
+                    the shooting power. The turret has high penetration bullets. Only one turret \
+                    can be built.",
                 dim: Vec2::new(90., 90.),
                 rotation_speed: 5.,
                 target: None,

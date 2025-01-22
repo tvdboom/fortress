@@ -440,11 +440,12 @@ pub fn move_bullets(
         }
 
         // If the bullet traveled more than max distance or left window boundaries -> despawn
-        if bullet.distance >= bullet.max_distance
-            || bullet_t.translation.x < -SIZE.x * 0.5
-            || bullet_t.translation.x > SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x
-            || bullet_t.translation.y > SIZE.y * 0.5 - MENU_PANEL_SIZE.y
-            || bullet_t.translation.y < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y
+        if bullet.max_distance != f32::MAX
+            && (bullet.distance >= bullet.max_distance
+                || bullet_t.translation.x < -SIZE.x * 0.5
+                || bullet_t.translation.x > SIZE.x * 0.5 - WEAPONS_PANEL_SIZE.x
+                || bullet_t.translation.y > SIZE.y * 0.5 - MENU_PANEL_SIZE.y
+                || bullet_t.translation.y < -SIZE.y * 0.5 + RESOURCES_PANEL_SIZE.y)
         {
             commands.entity(bullet_e).try_despawn();
         }
