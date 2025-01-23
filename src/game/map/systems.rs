@@ -1114,7 +1114,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to research technology.");
                                 ui.add_space(10.);
                                 ui.add_image(technology_texture, [20., 20.]);
-                                ui.label(format!("+{}", scientists));
+                                ui.label(format!("+{}", new_resources.technology));
 
                                 if label.clicked() {
                                     scientists =
@@ -1353,7 +1353,7 @@ pub fn day_panel(
                             ui.add_space(10.);
                             ui.add_enabled_ui(player.weapons.spots.len() < MAX_SPOTS, |ui| {
                                 ui.horizontal(|ui| {
-                                    let cost = 1000.;
+                                    let cost = 500.;
 
                                     let button = ui.add_upgrade_button(spots_texture)
                                         .on_hover_text("Add an extra weapon on the wall.")
@@ -1474,12 +1474,6 @@ pub fn day_panel(
                     });
                 }
                 DayTabs::Armory => {
-                    ui.add_space(5.);
-                    ui.horizontal(|ui| {
-                        ui.add_space(20.);
-                        ui.heading("Weapons");
-                    });
-
                     let frame = egui::Frame::none()
                         .fill(Color32::from_black_alpha(190))
                         .rounding(15.)
@@ -1511,8 +1505,15 @@ pub fn day_panel(
                     ScrollArea::vertical()
                         .id_salt("weapons")
                         .max_width(MAP_SIZE.x * 0.6)
-                        .max_height(MAP_SIZE.y * 0.23)
+                        .max_height(MAP_SIZE.y * 0.55)
                         .show(ui, |ui| {
+                            ui.add_space(5.);
+                            ui.horizontal(|ui| {
+                                ui.add_space(20.);
+                                ui.heading("Weapons");
+                                ui.add_space(550.);
+                            });
+
                             ui.horizontal(|ui| {
                                 ui.add_space(70.);
                                 ui.add_weapon(&textures, &mut weapons.machine_gun, &mut player, &mut messages);
@@ -1542,163 +1543,164 @@ pub fn day_panel(
                                     ui.add_weapon(&textures, &mut weapons.missile_launcher, &mut player, &mut messages);
                                 });
                             }).response.on_disabled_hover_text("Requires the homing technology.");
-                        });
 
-                    ui.add_space(35.);
-                    ui.horizontal(|ui| {
-                        ui.add_space(20.);
-                        ui.heading("Explosives");
-                    });
-
-                    ui.add_space(15.);
-                    ui.add_enabled_ui(player.has_tech(TechnologyName::Explosives), |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add_space(75.);
-
-                            ui.vertical(|ui| {
+                            ui.add_space(35.);
+                            ui.horizontal(|ui| {
                                 ui.add_space(20.);
-                                ui.add_image(mine_texture, [50., 30.])
-                                    .on_hover_text("\
-                                        Small explosive placed at random locations. Explodes when an \
-                                        enemy walks over (is never triggered by flying enemies). You \
-                                        can decide at which enemy size to detonate. Maximum of 25 allowed.")
-                                    .on_disabled_hover_text("Requires the explosives technology.");
-
-                                ui.add_space(-10.);
-                                ui.horizontal(|ui| {
-                                    ui.add_space(-10.);
-                                    frame.show(ui, |ui| {
-                                        ui.strong(format!("{}", player.weapons.mines));
-                                    });
-                                    let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine.");
-
-                                    if button.clicked() {
-                                        if player.weapons.mines >= MAX_MINES {
-                                            messages.error("Maximum number of mines reached.");
-                                        } else {
-                                            if player.resources >= weapons.mine.price {
-                                                player.resources -= &weapons.mine.price;
-                                                player.weapons.mines += 1;
-                                            } else {
-                                                messages.error("Not enough resources.");
-                                            }
-                                        }
-                                    }
-                                });
-                            });
-                            ui.vertical(|ui| {
-                                ui.strong("Mine");
-                                ui.add_space(10.);
-                                ui.horizontal(|ui| {
-                                    ui.strong(format!("{}", weapons.mine.price.bullets));
-                                    ui.add_image(bullets_texture, [20., 20.]);
-                                });
-                                ui.horizontal(|ui| {
-                                    ui.strong(format!("{}", weapons.mine.price.gasoline));
-                                    ui.add_image(gasoline_texture, [20., 20.]);
-                                });
+                                ui.heading("Explosives");
                             });
 
-                            ui.add_space(70.);
-
-                            ui.vertical(|ui| {
-                                ui.add_space(20.);
-                                ui.add_image(bomb_texture, [50., 30.])
-                                    .on_hover_text("\
-                                        Large explosive that flies towards the selected target \
-                                        (strongest enemy or densest location). Maximum of 5 allowed.")
-                                    .on_disabled_hover_text("Requires the explosives technology.");
-
-                                ui.add_space(-10.);
+                            ui.add_space(15.);
+                            ui.add_enabled_ui(player.has_tech(TechnologyName::Explosives), |ui| {
                                 ui.horizontal(|ui| {
-                                    ui.add_space(-10.);
-                                    frame.show(ui, |ui| {
-                                        ui.strong(format!("{}", player.weapons.bombs));
-                                    });
-                                    let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a bomb.");
+                                    ui.add_space(85.);
 
-                                    if button.clicked() {
-                                        if player.weapons.bombs >= MAX_BOMBS {
-                                            messages.error("Maximum number of bombs reached.");
-                                        } else {
-                                            if player.resources >= weapons.bomb.price {
-                                                player.resources -= &weapons.bomb.price;
-                                                player.weapons.bombs += 1;
-                                            } else {
-                                                messages.error("Not enough resources.");
-                                            }
-                                        }
-                                    }
-                                });
-                            });
-                            ui.vertical(|ui| {
-                                ui.strong("Bomb");
-                                ui.add_space(10.);
-                                ui.horizontal(|ui| {
-                                    ui.strong(format!("{}", weapons.bomb.price.bullets));
-                                    ui.add_image(bullets_texture, [20., 20.]);
-                                });
-                                ui.horizontal(|ui| {
-                                    ui.strong(format!("{}", weapons.bomb.price.gasoline));
-                                    ui.add_image(gasoline_texture, [20., 20.]);
-                                });
-                            });
+                                    ui.vertical(|ui| {
+                                        ui.add_space(20.);
+                                        ui.add_image(mine_texture, [50., 30.])
+                                            .on_hover_text("\
+                                                Small explosive placed at random locations. Explodes when an \
+                                                enemy walks over (is never triggered by flying enemies). You \
+                                                can decide at which enemy size to detonate. Maximum of 25 allowed.")
+                                            .on_disabled_hover_text("Requires the explosives technology.");
 
-                            ui.add_enabled_ui(player.has_tech(TechnologyName::Physics), |ui| {
-                                ui.add_space(70.);
-
-                                ui.vertical(|ui| {
-                                    ui.add_space(20.);
-                                    ui.add_image(nuke_texture, [50., 30.])
-                                        .on_hover_text("\
-                                            Huge explosive that, after a short delay, kills every enemy \
-                                            on the map. The fence and wall are also destroyed. Maximum \
-                                            of 1 allowed.")
-                                        .on_disabled_hover_text("Requires the explosives and physics technology.");
-
-                                    ui.add_space(-10.);
-                                    ui.horizontal(|ui| {
                                         ui.add_space(-10.);
-                                        frame.show(ui, |ui| {
-                                            ui.strong(format!("{}", player.weapons.nuke));
-                                        });
-                                        let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a nuke.");
+                                        ui.horizontal(|ui| {
+                                            ui.add_space(-10.);
+                                            frame.show(ui, |ui| {
+                                                ui.strong(format!("{}", player.weapons.mines));
+                                            });
+                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine.");
 
-                                        if button.clicked() {
-                                            if player.weapons.nuke >= MAX_NUKES {
-                                                messages.error("Maximum number of nukes reached.");
-                                            } else {
-                                                if player.resources >= weapons.nuke.price {
-                                                    player.resources -= &weapons.nuke.price;
-                                                    player.weapons.nuke += 1;
+                                            if button.clicked() {
+                                                if player.weapons.mines >= MAX_MINES {
+                                                    messages.error("Maximum number of mines reached.");
                                                 } else {
-                                                    messages.error("Not enough resources.");
+                                                    if player.resources >= weapons.mine.price {
+                                                        player.resources -= &weapons.mine.price;
+                                                        player.weapons.mines += 1;
+                                                    } else {
+                                                        messages.error("Not enough resources.");
+                                                    }
                                                 }
                                             }
-                                        }
+                                        });
                                     });
-                                });
-                                ui.vertical(|ui| {
-                                    ui.strong("Nuke");
-                                    ui.add_space(10.);
-                                    ui.horizontal(|ui| {
-                                        ui.strong(format!("{}", weapons.nuke.price.bullets));
-                                        ui.add_image(bullets_texture, [20., 20.]);
+                                    ui.vertical(|ui| {
+                                        ui.strong("Mine");
+                                        ui.add_space(10.);
+                                        ui.horizontal(|ui| {
+                                            ui.strong(format!("{}", weapons.mine.price.bullets));
+                                            ui.add_image(bullets_texture, [20., 20.]);
+                                        });
+                                        ui.horizontal(|ui| {
+                                            ui.strong(format!("{}", weapons.mine.price.gasoline));
+                                            ui.add_image(gasoline_texture, [20., 20.]);
+                                        });
                                     });
-                                    ui.horizontal(|ui| {
-                                        ui.strong(format!("{}", weapons.nuke.price.gasoline));
-                                        ui.add_image(gasoline_texture, [20., 20.]);
+
+                                    ui.add_space(70.);
+
+                                    ui.vertical(|ui| {
+                                        ui.add_space(20.);
+                                        ui.add_image(bomb_texture, [50., 30.])
+                                            .on_hover_text("\
+                                                Large explosive that flies towards the selected target \
+                                                (strongest enemy or densest location). Maximum of 5 allowed.")
+                                            .on_disabled_hover_text("Requires the explosives technology.");
+
+                                        ui.add_space(-10.);
+                                        ui.horizontal(|ui| {
+                                            ui.add_space(-10.);
+                                            frame.show(ui, |ui| {
+                                                ui.strong(format!("{}", player.weapons.bombs));
+                                            });
+                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a bomb.");
+
+                                            if button.clicked() {
+                                                if player.weapons.bombs >= MAX_BOMBS {
+                                                    messages.error("Maximum number of bombs reached.");
+                                                } else {
+                                                    if player.resources >= weapons.bomb.price {
+                                                        player.resources -= &weapons.bomb.price;
+                                                        player.weapons.bombs += 1;
+                                                    } else {
+                                                        messages.error("Not enough resources.");
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    });
+                                    ui.vertical(|ui| {
+                                        ui.strong("Bomb");
+                                        ui.add_space(10.);
+                                        ui.horizontal(|ui| {
+                                            ui.strong(format!("{}", weapons.bomb.price.bullets));
+                                            ui.add_image(bullets_texture, [20., 20.]);
+                                        });
+                                        ui.horizontal(|ui| {
+                                            ui.strong(format!("{}", weapons.bomb.price.gasoline));
+                                            ui.add_image(gasoline_texture, [20., 20.]);
+                                        });
+                                    });
+
+                                    ui.add_enabled_ui(player.has_tech(TechnologyName::Physics), |ui| {
+                                        ui.add_space(70.);
+
+                                        ui.vertical(|ui| {
+                                            ui.add_space(20.);
+                                            ui.add_image(nuke_texture, [50., 30.])
+                                                .on_hover_text("\
+                                                    Huge explosive that, after a short delay, kills every enemy \
+                                                    on the map. The fence and wall are also destroyed. Maximum \
+                                                    of 1 allowed.")
+                                                .on_disabled_hover_text("Requires the explosives and physics technology.");
+
+                                            ui.add_space(-10.);
+                                            ui.horizontal(|ui| {
+                                                ui.add_space(-10.);
+                                                frame.show(ui, |ui| {
+                                                    ui.strong(format!("{}", player.weapons.nuke));
+                                                });
+                                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a nuke.");
+
+                                                if button.clicked() {
+                                                    if player.weapons.nuke >= MAX_NUKES {
+                                                        messages.error("Maximum number of nukes reached.");
+                                                    } else {
+                                                        if player.resources >= weapons.nuke.price {
+                                                            player.resources -= &weapons.nuke.price;
+                                                            player.weapons.nuke += 1;
+                                                        } else {
+                                                            messages.error("Not enough resources.");
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        });
+                                        ui.vertical(|ui| {
+                                            ui.strong("Nuke");
+                                            ui.add_space(10.);
+                                            ui.horizontal(|ui| {
+                                                ui.strong(format!("{}", weapons.nuke.price.bullets));
+                                                ui.add_image(bullets_texture, [20., 20.]);
+                                            });
+                                            ui.horizontal(|ui| {
+                                                ui.strong(format!("{}", weapons.nuke.price.gasoline));
+                                                ui.add_image(gasoline_texture, [20., 20.]);
+                                            });
+                                        });
                                     });
                                 });
                             });
                         });
-                    });
 
-                ui.add_space(35.);
-                ui.horizontal(| ui | {
+                ui.add_space(15.);
+                ui.horizontal(|ui| {
                     ui.add_space(20.);
                     ui.heading("Wall");
                 });
+
                 ui.add_space(15.);
                 ui.horizontal(|ui| {
                         ui.add_space(ui.available_width() * 0.5 - player.weapons.spots.len() as f32 * 36.);

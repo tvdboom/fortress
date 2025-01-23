@@ -1083,7 +1083,7 @@ impl Default for WeaponManager {
                 },
                 upgrade2: Upgrade {
                     level: 0,
-                    description: "Increase the number of bullets.",
+                    description: "Increase the number of shells fired.",
                     texture: "targets",
                     price: Resources {
                         technology: 300.,

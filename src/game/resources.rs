@@ -489,10 +489,10 @@ impl Player {
             day: 1,
             population: Population {
                 soldier: 5,
-                armorer: 20,
-                refiner: 20,
-                constructor: 20,
-                scientist: 5,
+                armorer: 40,
+                refiner: 40,
+                constructor: 40,
+                scientist: 40,
                 idle: 0,
             },
             wall: Wall {
@@ -517,10 +517,10 @@ impl Player {
                 },
             },
             resources: Resources {
-                bullets: 10_000.,
-                gasoline: 10_000.,
-                materials: 10_000.,
-                technology: 10_000.,
+                bullets: 600.,
+                gasoline: 600.,
+                materials: 400.,
+                technology: 400.,
             },
             constructions: Constructions {
                 armory: 1,

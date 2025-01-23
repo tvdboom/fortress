@@ -159,11 +159,12 @@ impl CustomUi for Ui {
             for upgrade in [&mut weapon.upgrade1, &mut weapon.upgrade2].iter_mut() {
                 ui.add_enabled_ui(upgrade.level < MAX_UPGRADE_LEVEL, |ui| {
                     ui.horizontal(|ui| {
+                        let cost = upgrade.price.technology * (upgrade.level + 1) as f32;
+
                         ui.vertical(|ui| {
                             let button = ui.add_upgrade_button(textures[upgrade.texture])
                                 .on_hover_text(upgrade.description);
 
-                            let cost = upgrade.price.technology * upgrade.level as f32;
                             if button.clicked() {
                                 if player.resources.technology >= cost {
                                     player.resources.technology -= cost;
@@ -179,8 +180,7 @@ impl CustomUi for Ui {
                             });
                         });
 
-                        let cost = upgrade.price * upgrade.level as f32;
-                        ui.strong(format!("{}", cost.technology));
+                        ui.strong(format!("{}", cost));
                         ui.add_image(textures["technology"], [20., 20.]);
                     });
                 }).response.on_disabled_hover_text("Maximum upgrade level reached.");
