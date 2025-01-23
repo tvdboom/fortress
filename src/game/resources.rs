@@ -241,6 +241,7 @@ pub struct Spot {
 }
 
 pub struct Weapons {
+    pub owned: HashMap<WeaponName, u32>,
     pub spots: Vec<Spot>,
     pub mines: u32,
     pub bombs: u32,
@@ -528,43 +529,20 @@ impl Player {
                 laboratory: 1,
             },
             weapons: Weapons {
+                owned: HashMap::from([(WeaponName::MachineGun, 2)]),
                 spots: vec![
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::Mortar),
-                    },
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::Turret),
-                    },
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::Flamethrower),
-                    },
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::Canon),
-                    },
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::AAA),
-                    },
-                    Spot {
-                        id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::Artillery),
-                    },
                     Spot {
                         id: Uuid::new_v4(),
                         weapon: Some(WeaponName::MachineGun),
                     },
                     Spot {
                         id: Uuid::new_v4(),
-                        weapon: Some(WeaponName::MissileLauncher),
+                        weapon: Some(WeaponName::MachineGun),
                     },
                 ],
-                mines: 10,
-                bombs: 10,
-                nuke: 5,
+                mines: 0,
+                bombs: 0,
+                nuke: 0,
                 settings: WeaponSettings {
                     aaa: AirFireStrategy::None,
                     artillery: FireStrategy::None,

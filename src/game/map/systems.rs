@@ -13,11 +13,7 @@ use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
-use bevy_egui::egui::load::SizedTexture;
-use bevy_egui::egui::{
-    emath, Align, Color32, CursorIcon, ImageButton, Layout, RichText, ScrollArea, Style, TextStyle,
-    UiBuilder,
-};
+use bevy_egui::egui::{Align, Color32, CursorIcon, Layout, RichText, ScrollArea, Style, TextStyle, TextureId, UiBuilder};
 use bevy_egui::{egui, EguiContexts};
 use egui_dnd::dnd;
 use std::f32::consts::PI;
@@ -172,7 +168,6 @@ pub fn menu_panel(
 
 pub fn resources_panel(
     mut contexts: EguiContexts,
-    mut weapon_q: Query<&mut Weapon>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<GameState>>,
     player: Res<Player>,
@@ -323,7 +318,6 @@ pub fn resources_panel(
                             if game_settings.speed == 0. {
                                 next_state.set(GameState::Paused);
                             } else {
-                                weapon_q.iter_mut().for_each(|mut w| w.update(&player));
                                 next_state.set(GameState::Running);
                             }
                         }
@@ -558,7 +552,7 @@ pub fn weapons_panel(
                         WeaponName::Turret => old_s.turret != player.weapons.settings.turret,
                         WeaponName::MissileLauncher => old_s.missile_launcher != player.weapons.settings.missile_launcher,
                     })
-                    .for_each(|mut w| w.as_mut().update(&player));
+                    .for_each(|mut w| w.as_mut().update(&player, &weapons));
 
                 ui.add_space(7.);
 
@@ -875,6 +869,11 @@ pub fn day_panel(
     let repair_texture = contexts.add_image(assets.get_image("repair"));
     let spots_texture = contexts.add_image(assets.get_image("spots"));
     let damage_texture = contexts.add_image(assets.get_image("damage"));
+    let explosion_texture = contexts.add_image(assets.get_image("explosion"));
+    let range_texture = contexts.add_image(assets.get_image("range"));
+    let reload_texture = contexts.add_image(assets.get_image("reload"));
+    let penetration_texture = contexts.add_image(assets.get_image("penetration"));
+    let targets_texture = contexts.add_image(assets.get_image("targets"));
     let tick_texture = contexts.add_image(assets.get_image("tick"));
     let cross_texture = contexts.add_image(assets.get_image("cross"));
     let idle_texture = contexts.add_image(assets.get_image("idle"));
@@ -891,7 +890,7 @@ pub fn day_panel(
     let canon_texture = contexts.add_image(assets.get_image("canon"));
     let flamethrower_texture = contexts.add_image(assets.get_image("flamethrower"));
     let machine_gun_texture = contexts.add_image(assets.get_image("machine-gun"));
-    let missile_launcher_texture = contexts.add_image(assets.get_image("missile-launcher"));
+    let missile_launcher_texture = contexts.add_image(assets.get_image("ml"));
     let mortar_texture = contexts.add_image(assets.get_image("mortar"));
     let turret_texture = contexts.add_image(assets.get_image("turret"));
     let mine_texture = contexts.add_image(assets.get_image("mine-shop"));
@@ -1162,6 +1161,11 @@ pub fn day_panel(
                     });
                     ui.add_space(15.);
 
+                    let frame = egui::Frame::none()
+                        .fill(Color32::from_black_alpha(190))
+                        .rounding(5.0)
+                        .inner_margin(egui::vec2(10., 5.));
+
                     ui.horizontal(|ui| {
                         ui.add_space(30.);
                         ui.add_image(armory_texture, [130., 130.]);
@@ -1289,11 +1293,6 @@ pub fn day_panel(
                             ui.add_image(wall_texture, [130., 130.]);
 
                             ui.add_space(-30.);
-                            let frame = egui::Frame::none()
-                                .fill(Color32::from_black_alpha(190))
-                                .rounding(5.0)
-                                .inner_margin(egui::vec2(10., 5.));
-
                             ui.horizontal(|ui| {
                                 frame.show(ui, |ui| {
                                     ui.add_image(spots_texture, [25., 25.]);
@@ -1387,11 +1386,6 @@ pub fn day_panel(
 
                             if player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity) {
                                 ui.add_space(-30.);
-                                let frame = egui::Frame::none()
-                                    .fill(Color32::from_black_alpha(190))
-                                    .rounding(5.0)
-                                    .inner_margin(egui::vec2(10., 5.));
-
                                 ui.horizontal(|ui| {
                                     frame.show(ui, |ui| {
                                         ui.add_image(lightning_texture, [25., 25.]);
@@ -1486,45 +1480,75 @@ pub fn day_panel(
                         ui.heading("Weapons");
                     });
 
-                    // ScrollArea::vertical()
-                    //     .id_salt("weapons")
-                    //     .max_width(MAP_SIZE.x * 0.5)
-                    //     .show(ui, |ui| {
-                    //         ui.horizontal(|ui| {
-                    //             ui.add_weapon(machine_gun_texture, &mut weapons.machine_gun, &mut player);
-                    //             ui.add_space(50.);
-                    //             ui.add_weapon(&mut weapons.canon, &mut player);
-                    //             ui.add_space(50.);
-                    //             ui.add_weapon(&mut weapons.flamethrower, &mut player);
-                    //         });
-                    //
-                    //         ui.add_space(30.);
-                    //
-                    //         ui.horizontal(|ui| {
-                    //             ui.add_weapon(&mut weapons.artillery, &mut player);
-                    //             ui.add_space(50.);
-                    //             ui.add_weapon(&mut weapons.aaa, &mut player);
-                    //             ui.add_space(50.);
-                    //             ui.add_weapon(&mut weapons.mortar, &mut player);
-                    //         });
-                    //
-                    //         ui.add_enabled_ui(player.has_tech(TechnologyName::Homing), |ui| {
-                    //             ui.add_weapon(&mut weapons.artillery, &mut player);
-                    //             ui.add_space(50.);
-                    //             ui.add_weapon(&mut weapons.aaa, &mut player);
-                    //         });
-                    //     });
+                    let frame = egui::Frame::none()
+                        .fill(Color32::from_black_alpha(190))
+                        .rounding(15.)
+                        .inner_margin(egui::vec2(5., 5.));
+
+                    let textures: HashMap<&str, TextureId> = HashMap::from([
+                        ("MachineGun", machine_gun_texture),
+                        ("Canon", canon_texture),
+                        ("Flamethrower", flamethrower_texture),
+                        ("MissileLauncher", missile_launcher_texture),
+                        ("Turret", turret_texture),
+                        ("Artillery", artillery_texture),
+                        ("AAA", aaa_texture),
+                        ("Mortar", mortar_texture),
+                        ("spots", spots_texture),
+                        ("cross", cross_texture),
+                        ("up", up_texture),
+                        ("damage", damage_texture),
+                        ("explosion", explosion_texture),
+                        ("reload", reload_texture),
+                        ("range", range_texture),
+                        ("penetration", penetration_texture),
+                        ("targets", targets_texture),
+                        ("materials", materials_texture),
+                        ("technology", technology_texture),
+                    ]);
+
+                    ui.add_space(10.);
+                    ScrollArea::vertical()
+                        .id_salt("weapons")
+                        .max_width(MAP_SIZE.x * 0.6)
+                        .max_height(MAP_SIZE.y * 0.23)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.machine_gun, &mut player, &mut messages);
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.canon, &mut player, &mut messages);
+                            });
+                            ui.add_space(30.);
+                            ui.horizontal(|ui| {
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.aaa, &mut player, &mut messages);
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.flamethrower, &mut player, &mut messages);
+                            });
+                            ui.add_space(30.);
+                            ui.horizontal(|ui| {
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.mortar, &mut player, &mut messages);
+                                ui.add_space(70.);
+                                ui.add_weapon(&textures, &mut weapons.artillery, &mut player, &mut messages);
+                            });
+                            ui.add_space(30.);
+                            ui.add_enabled_ui(player.has_tech(TechnologyName::Homing), |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(70.);
+                                    ui.add_weapon(&textures, &mut weapons.turret, &mut player, &mut messages);
+                                    ui.add_space(70.);
+                                    ui.add_weapon(&textures, &mut weapons.missile_launcher, &mut player, &mut messages);
+                                });
+                            }).response.on_disabled_hover_text("Requires the homing technology.");
+                        });
 
                     ui.add_space(35.);
                     ui.horizontal(|ui| {
                         ui.add_space(20.);
                         ui.heading("Explosives");
                     });
-
-                    let frame = egui::Frame::none()
-                        .fill(Color32::from_black_alpha(190))
-                        .rounding(15.)
-                        .inner_margin(egui::vec2(5., 5.));
 
                     ui.add_space(15.);
                     ui.add_enabled_ui(player.has_tech(TechnologyName::Explosives), |ui| {
@@ -1673,7 +1697,7 @@ pub fn day_panel(
                 ui.add_space(35.);
                 ui.horizontal(| ui | {
                     ui.add_space(20.);
-                    ui.heading("Spots");
+                    ui.heading("Wall");
                 });
                 ui.add_space(15.);
                 ui.horizontal(|ui| {
@@ -1693,7 +1717,7 @@ pub fn day_panel(
                                     None => cross_texture,
                                 };
 
-                                let mut response = ui.add_image(texture, [50., 50.]);
+                                let response = ui.add_image(texture, [50., 50.]);
                                 if let Some(w) = item.weapon {
                                     response.on_hover_text(w.name());
                                 }

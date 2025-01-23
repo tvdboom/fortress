@@ -76,6 +76,21 @@ pub enum MortarShell {
     Heavy,
 }
 
+#[derive(Clone)]
+pub struct Upgrade {
+    /// Level of the upgrade
+    pub level: u32,
+
+    /// Upgrade description
+    pub description: &'static str,
+
+    /// Texture corresponding to an asset
+    pub texture: &'static str,
+
+    /// Upgrade cost
+    pub price: Resources,
+}
+
 #[derive(Component, Clone)]
 pub struct Weapon {
     /// Name of the weapon
@@ -90,6 +105,9 @@ pub struct Weapon {
     /// Dimensions (size) of the sprite
     pub dim: Vec2,
 
+    /// Maximum number that can be bought
+    pub maximum: u32,
+
     /// Rotation speed in radians per second
     pub rotation_speed: f32,
 
@@ -102,7 +120,7 @@ pub struct Weapon {
     /// Number of bullets fired per shot
     pub n_bullets: u32,
 
-    /// Target entitiy to point to
+    /// Target entity to point to
     pub target: Option<Entity>,
 
     /// Time between shots (reload time)
@@ -113,6 +131,10 @@ pub struct Weapon {
 
     /// Bullet fired by the weapon
     pub bullet: Bullet,
+
+    /// Upgrades for the weapon
+    pub upgrade1: Upgrade,
+    pub upgrade2: Upgrade,
 }
 
 #[derive(Clone)]
@@ -415,10 +437,20 @@ impl Weapon {
         (angle - PI * 0.5 - transform.rotation.to_euler(EulerRot::XYZ).2).abs() < 0.1
     }
 
-    /// Update the weapon's settings based on the player and game settings
-    pub fn update(&mut self, player: &Player) {
+    /// Update the weapon's based on the player's settings
+    pub fn update(&mut self, player: &Player, weapons: &WeaponManager) {
+        let main = weapons.get(&self.name);
+        self.upgrade1.level = main.upgrade1.level;
+        self.upgrade2.level = main.upgrade2.level;
+
+        let upgrade1 = main.upgrade1.level as f32;
+        let upgrade2 = main.upgrade2.level as f32;
+
         match self.name {
             WeaponName::AAA => {
+                // Increase weapon range with upgrade
+                self.bullet.max_distance = (0.6 + 0.1 * upgrade2) * MAP_SIZE.y;
+
                 // Reset the target to avoid one last shot at the wrong enemy
                 self.target = None;
 
@@ -427,8 +459,8 @@ impl Weapon {
                     AirFireStrategy::All => {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.impact = Impact::SingleTarget(Damage {
-                            ground: 5.,
-                            air: 5.,
+                            ground: 5. + 5. * upgrade1,
+                            air: 5. + 5. * upgrade1,
                             penetration: 0.,
                         })
                     }
@@ -436,7 +468,7 @@ impl Weapon {
                         self.fire_strategy = FireStrategy::Closest;
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
-                            air: 20.,
+                            air: 20. + 5. * upgrade1,
                             penetration: 0.,
                         })
                     }
@@ -444,6 +476,13 @@ impl Weapon {
                 };
             }
             WeaponName::Artillery => {
+                self.bullet.impact = Impact::SingleTarget(Damage {
+                    ground: 40. + 10. * upgrade1,
+                    air: 40. + 10. * upgrade1,
+                    penetration: 30. + 5. * upgrade1,
+                });
+                self.fire_timer = Some(Timer::from_seconds(1.1 - 0.1 * upgrade2, TimerMode::Once));
+
                 self.target = None;
                 self.fire_strategy = player.weapons.settings.artillery.clone();
             }
@@ -457,10 +496,12 @@ impl Weapon {
                         self.fire_strategy = FireStrategy::Closest;
                         if let Impact::Explosion(ref mut explosion) = self.bullet.impact {
                             explosion.damage = Damage {
-                                ground: 20.,
+                                ground: 20. + 5. * upgrade1,
                                 air: 0.,
                                 penetration: 0.,
                             };
+                            explosion.radius = (0.08 + 0.02 * upgrade2) * MAP_SIZE.y;
+                            explosion.interval = 0.01 + 0.005 * upgrade2;
                         }
                     }
                     AirFireStrategy::Airborne => {
@@ -468,9 +509,11 @@ impl Weapon {
                         if let Impact::Explosion(ref mut explosion) = self.bullet.impact {
                             explosion.damage = Damage {
                                 ground: 0.,
-                                air: 20.0,
+                                air: 20. + 5. * upgrade1,
                                 penetration: 0.,
                             };
+                            explosion.radius = (0.08 + 0.02 * upgrade2) * MAP_SIZE.y;
+                            explosion.interval = 0.01 + 0.005 * upgrade2;
                         }
                     }
                     _ => unreachable!(),
@@ -490,6 +533,14 @@ impl Weapon {
                     }
                     self.bullet.max_distance = 100. * (1.5 + power * 0.5);
                     self.bullet.price.gasoline = power;
+
+                    if let Impact::Piercing {damage, ..} = &mut self.bullet.impact {
+                        *damage = Damage {
+                            ground: 5. + upgrade1,
+                            air: 5. + upgrade1,
+                            penetration: 5. + upgrade1 + 2. * upgrade2,
+                        }
+                    }
                 }
             },
             WeaponName::MachineGun => {
@@ -499,6 +550,12 @@ impl Weapon {
                         self.fire_strategy = FireStrategy::None;
                     }
                     v => {
+                        self.bullet.impact = Impact::SingleTarget(Damage {
+                            ground: 5. + 2. * upgrade1,
+                            air: 5. + 2. * upgrade1,
+                            penetration: 0.,
+                        });
+                        self.bullet.max_distance = (0.7 + 0.1 * upgrade2) * MAP_SIZE.y;
                         self.fire_strategy = FireStrategy::Closest;
                         if let Some(ref mut timer) = self.fire_timer {
                             timer.set_duration(Duration::from_secs_f32(1. / v as f32));
@@ -510,6 +567,15 @@ impl Weapon {
                 };
             }
             WeaponName::MissileLauncher => {
+                if let Impact::Explosion(Explosion {radius, damage, ..}) = &mut self.bullet.impact {
+                    *radius = (0.1 + 0.2 * upgrade2) * MAP_SIZE.y;
+                    *damage = Damage {
+                        ground: 30. + 5. * upgrade1,
+                        air: 30. + 5. * upgrade1,
+                        penetration: 5. + upgrade1,
+                    }
+                }
+
                 self.n_bullets = player.weapons.settings.missile_launcher;
                 if self.n_bullets == 0 {
                     self.fire_strategy = FireStrategy::None;
@@ -520,6 +586,8 @@ impl Weapon {
             WeaponName::Mortar => {
                 // Reset the target to recalculate the highest density
                 self.target = None;
+
+                self.n_bullets = 1 + upgrade2 as u32;
 
                 match player.weapons.settings.mortar {
                     MortarShell::None => self.fire_strategy = FireStrategy::None,
@@ -532,8 +600,8 @@ impl Weapon {
                         self.bullet.impact = Impact::Explosion(Explosion {
                             radius: 0.05 * MAP_SIZE.y,
                             damage: Damage {
-                                ground: 50.,
-                                air: 50.,
+                                ground: 50. + 10. * upgrade1,
+                                air: 50. + 10. * upgrade1,
                                 penetration: 0.,
                             },
                             ..default()
@@ -548,16 +616,18 @@ impl Weapon {
                         self.bullet.impact = Impact::Explosion(Explosion {
                             radius: 0.1 * MAP_SIZE.y,
                             damage: Damage {
-                                ground: 75.,
-                                air: 75.,
-                                penetration: 25.,
+                                ground: 75. + 15. * upgrade1,
+                                air: 75. + 15. * upgrade1,
+                                penetration: 25. + 5. * upgrade1,
                             },
                             ..default()
                         })
                     }
                 };
             }
-            WeaponName::Turret => (),
+            WeaponName::Turret => {
+                self.fire_timer = Some(Timer::from_seconds(1. - 0.1 * upgrade2, TimerMode::Once));
+            },
         }
     }
 }
@@ -604,6 +674,7 @@ impl Default for WeaponManager {
                     units. Has two shooting strategies: all (shoots at all enemies doing low damage) \
                     and airborne (shoots only at flying enemies doing high damage).",
                 dim: Vec2::new(80., 80.),
+                maximum: u32::MAX,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -635,6 +706,24 @@ impl Default for WeaponManager {
                     max_distance: 0.7 * MAP_SIZE.y,
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 150.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the fire range.",
+                    texture: "range",
+                    price: Resources {
+                        technology: 75.,
+                        ..default()
+                    },
+                },
             },
             artillery: Weapon {
                 name: WeaponName::Artillery,
@@ -645,6 +734,7 @@ impl Default for WeaponManager {
                     firing strategies: closest (shoots at the closes enemy) and strongest (shoot \
                     at the enemy with the highest maximum health).",
                 dim: Vec2::new(80., 80.),
+                maximum: u32::MAX,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -676,6 +766,24 @@ impl Default for WeaponManager {
                     max_distance: 1. * MAP_SIZE.y,
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 400.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Decrease the reload time.",
+                    texture: "reload",
+                    price: Resources {
+                        technology: 400.,
+                        ..default()
+                    },
+                },
             },
             canon: Weapon {
                 name: WeaponName::Canon,
@@ -685,6 +793,7 @@ impl Default for WeaponManager {
                     has two firing strategies: grounded (shoots only at ground enemies) and airborne \
                     (shoots only at flying enemies).",
                 dim: Vec2::new(50., 70.),
+                maximum: u32::MAX,
                 rotation_speed: 6.,
                 target: None,
                 price: Resources {
@@ -716,6 +825,24 @@ impl Default for WeaponManager {
                     max_distance: 0.9 * MAP_SIZE.y,
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 100.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the explosion radius.",
+                    texture: "explosion",
+                    price: Resources {
+                        technology: 150.,
+                        ..default()
+                    },
+                },
             },
             flamethrower: Weapon {
                 name: WeaponName::Flamethrower,
@@ -725,6 +852,7 @@ impl Default for WeaponManager {
                     flamethrower can adjust its firing power, increasing its range and damage at \
                     an increased gasoline consumption. All enemies in the stream take damage.",
                 dim: Vec2::new(60., 60.),
+                maximum: u32::MAX,
                 rotation_speed: 7.,
                 target: None,
                 price: Resources {
@@ -759,6 +887,24 @@ impl Default for WeaponManager {
                     max_distance: 0., // Is set by self.update()
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 150.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the penetration.",
+                    texture: "penetration",
+                    price: Resources {
+                        technology: 100.,
+                        ..default()
+                    },
+                },
             },
             machine_gun: Weapon {
                 name: WeaponName::MachineGun,
@@ -767,6 +913,7 @@ impl Default for WeaponManager {
                     Medium range, low damage, single-target fire weapon. The machine gun can \
                     change its firing frequency.",
                 dim: Vec2::new(70., 70.),
+                maximum: u32::MAX,
                 rotation_speed: 7.,
                 target: None,
                 price: Resources {
@@ -792,11 +939,29 @@ impl Default for WeaponManager {
                     movement: Movement::Straight,
                     impact: Impact::SingleTarget(Damage {
                         ground: 5.,
-                        air: 0.,
+                        air: 5.,
                         penetration: 0.,
                     }),
                     max_distance: 0.7 * MAP_SIZE.y,
                     distance: 0.,
+                },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 50.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the fire range.",
+                    texture: "range",
+                    price: Resources {
+                        technology: 30.,
+                        ..default()
+                    },
                 },
             },
             missile_launcher: Weapon {
@@ -807,6 +972,7 @@ impl Default for WeaponManager {
                     effective to deal with large number of enemies. The missile launcher shoots \
                     homing shells, always targeting the strongest enemies.",
                 dim: Vec2::new(90., 90.),
+                maximum: 2,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -842,6 +1008,24 @@ impl Default for WeaponManager {
                     max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 100.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the explosion radius.",
+                    texture: "explosion",
+                    price: Resources {
+                        technology: 100.,
+                        ..default()
+                    },
+                },
             },
             mortar: Weapon {
                 name: WeaponName::Mortar,
@@ -852,6 +1036,7 @@ impl Default for WeaponManager {
                     damage and radius) and heavy (high damage and radius, but costs more and does \
                     damage to structures).",
                 dim: Vec2::new(70., 70.),
+                maximum: u32::MAX,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -887,6 +1072,24 @@ impl Default for WeaponManager {
                     max_distance: 1.8 * MAP_SIZE.y,
                     distance: 0.,
                 },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 200.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the number of bullets.",
+                    texture: "targets",
+                    price: Resources {
+                        technology: 300.,
+                        ..default()
+                    },
+                },
             },
             turret: Weapon {
                 name: WeaponName::Turret,
@@ -899,6 +1102,7 @@ impl Default for WeaponManager {
                     the shooting power. The turret has high penetration bullets. Only one turret \
                     can be built.",
                 dim: Vec2::new(90., 90.),
+                maximum: 1,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -929,6 +1133,24 @@ impl Default for WeaponManager {
                     }),
                     max_distance: 2. * MAP_SIZE.y,
                     distance: 0.,
+                },
+                upgrade1: Upgrade {
+                    level: 0,
+                    description: "Increase the damage.",
+                    texture: "damage",
+                    price: Resources {
+                        technology: 500.,
+                        ..default()
+                    },
+                },
+                upgrade2: Upgrade {
+                    level: 0,
+                    description: "Increase the power-up speed.",
+                    texture: "reload",
+                    price: Resources {
+                        technology: 500.,
+                        ..default()
+                    },
                 },
             },
             mine: Bullet {

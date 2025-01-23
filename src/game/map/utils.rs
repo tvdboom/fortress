@@ -1,6 +1,6 @@
-use crate::constants::{FOW_SIZE, MAP_SIZE};
+use crate::constants::{FOW_SIZE, MAP_SIZE, MAX_UPGRADE_LEVEL};
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{Expedition, Player, Technology};
+use crate::game::resources::{Expedition, Player, Spot, Technology};
 use crate::game::weapon::components::Weapon;
 use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
@@ -8,6 +8,8 @@ use bevy::utils::HashMap;
 use bevy_egui::egui::load::SizedTexture;
 use bevy_egui::egui::*;
 use std::hash::Hash;
+use uuid::Uuid;
+use crate::messages::Messages;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
@@ -37,7 +39,13 @@ pub trait CustomUi {
         indent: f32,
         add_contents: impl FnOnce(&mut Ui) -> R,
     );
-    fn add_weapon(&mut self, texture: TextureId, weapon: &mut Weapon, player: &mut Player);
+    fn add_weapon(
+        &mut self,
+        textures: &HashMap<&str, TextureId>,
+        weapon: &mut Weapon,
+        player: &mut Player,
+        messages: &mut Messages,
+    );
     fn add_night_stats(&mut self, player: &Player, day: u32);
     fn add_technology(
         &mut self,
@@ -91,40 +99,117 @@ impl CustomUi for Ui {
             });
     }
 
-    fn add_weapon(&mut self, texture: TextureId, weapon: &mut Weapon, player: &mut Player) {
-        // self.vertical(|ui| {
-        //     ui.add_space(20.);
-        //     ui.add_image(texture, [50., 50.])
-        //         .on_hover_text("blabla");
-        //
-        //     ui.add_space(-10.);
-        //     ui.horizontal(|ui| {
-        //         ui.add_space(25.);
-        //         let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine.");
-        //
-        //         if button.clicked() {
-        //             if player.weapons.mines >= MAX_MINES {
-        //                 messages.error("Maximum number of mines reached.");
-        //             } else {
-        //                 if player.resources >= weapon.price {
-        //                     player.resources -= &weapon.price;
-        //                     player.weapons.mines += 1;
-        //                 } else {
-        //                     messages.error("Not enough resources.");
-        //                 }
-        //             }
-        //         }
-        //     });
-        // });
-        // self.add_space(10.);
-        // self.vertical(|ui| {
-        //     ui.strong(weapon.name.name());
-        //     ui.add_space(10.);
-        //     ui.horizontal(|ui| {
-        //         ui.strong(format!("{}", weapon.price.materials));
-        //         ui.add_image(materials_texture, [20., 20.]);
-        //     });
-        // });
+    fn add_weapon(
+        &mut self,
+        textures: &HashMap<&str, TextureId>,
+        weapon: &mut Weapon,
+        player: &mut Player,
+        messages: &mut Messages,
+    ) {
+        let frame = Frame::none()
+            .fill(Color32::from_black_alpha(190))
+            .rounding(15.)
+            .inner_margin(vec2(5., 5.));
+
+        let owned = *player.weapons.owned.get(&weapon.name).unwrap_or(&0);
+
+        // Index of the first matching weapon on the wall, return None if not found
+        let pos = player.weapons.spots.iter().position(|w| w.weapon == Some(weapon.name));
+
+        self.vertical(|ui| {
+            ui.add_space(20.);
+            ui.add_image(textures[weapon.name.name().as_str()], [100., 100.])
+                .on_hover_text(weapon.description);
+
+            ui.add_space(-10.);
+            ui.horizontal(|ui| {
+                frame.show(ui, |ui| {
+                    ui.strong(format!("{}", owned));
+                });
+
+                let button = ui.add_visible(
+                    pos.is_some(),
+                    ImageButton::new(Image::from_texture(SizedTexture::new(textures["cross"], [30., 30.]))).rounding(20.)
+                ).on_hover_text(format!("Remove a {} from the wall.", weapon.name.name()));
+
+                if button.clicked() {
+                    player.weapons.spots[pos.unwrap()] = Spot {id: Uuid::new_v4(), weapon: None};
+                }
+
+                let button = ui.add_visible(
+                    owned > 0,
+                    ImageButton::new(Image::from_texture(SizedTexture::new(textures["spots"], [30., 30.]))).rounding(20.)
+                ).on_hover_text(format!("Place a {} on the wall.", weapon.name.name()));
+
+                if button.clicked() {
+                    if let Some(pos) = player.weapons.spots.iter().position(|w| w.weapon == None) {
+                        player.weapons.spots[pos].weapon = Some(weapon.name);
+                    } else {
+                        messages.error("No spots available on the wall.");
+                    }
+                }
+            });
+        });
+
+        self.add_space(10.);
+        self.vertical(|ui| {
+            ui.strong(weapon.name.name());
+            ui.add_space(10.);
+
+            for upgrade in [&mut weapon.upgrade1, &mut weapon.upgrade2].iter_mut() {
+                ui.add_enabled_ui(upgrade.level < MAX_UPGRADE_LEVEL, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            let button = ui.add_upgrade_button(textures[upgrade.texture])
+                                .on_hover_text(upgrade.description);
+
+                            let cost = upgrade.price.technology * upgrade.level as f32;
+                            if button.clicked() {
+                                if player.resources.technology >= cost {
+                                    player.resources.technology -= cost;
+                                    upgrade.level += 1;
+                                } else {
+                                    messages.error("Not enough resources.");
+                                }
+                            }
+
+                            ui.add_space(-25.);
+                            frame.show(ui, |ui| {
+                                ui.strong(format!("{}", upgrade.level));
+                            });
+                        });
+
+                        let cost = upgrade.price * upgrade.level as f32;
+                        ui.strong(format!("{}", cost.technology));
+                        ui.add_image(textures["technology"], [20., 20.]);
+                    });
+                }).response.on_disabled_hover_text("Maximum upgrade level reached.");
+            }
+
+            ui.horizontal(|ui| {
+                let button = ui.add_upgrade_button(textures["up"]).on_hover_text(format!("Buy a {}.", weapon.name.name()));
+                ui.strong(format!("{}", weapon.price.materials));
+                ui.add_image(textures["materials"], [20., 20.]);
+
+                if button.clicked() {
+                    if owned + 1 <= weapon.maximum {
+                        if player.resources > weapon.price {
+                            player.resources -= &weapon.price;
+                            player.weapons.owned.entry(weapon.name).and_modify(|w| *w += 1).or_insert(1);
+
+                            // If there is a spot available, place it directly on the wall
+                            if let Some(pos) = player.weapons.spots.iter().position(|w| w.weapon == None) {
+                                player.weapons.spots[pos].weapon = Some(weapon.name);
+                            }
+                        } else {
+                            messages.error("Not enough resources.");
+                        }
+                    } else {
+                        messages.error(format!("Maximum number of {}s reached.", weapon.name.name()));
+                    }
+                }
+            });
+        });
     }
 
     fn add_night_stats(&mut self, player: &Player, day: u32) {

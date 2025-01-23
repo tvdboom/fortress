@@ -60,6 +60,11 @@ impl FromWorld for WorldAssets {
             ("repair", assets.load("icons/repair.png")),
             ("spots", assets.load("icons/spots.png")),
             ("damage", assets.load("icons/damage.png")),
+            ("explosion", assets.load("icons/explosion.png")),
+            ("range", assets.load("icons/range.png")),
+            ("reload", assets.load("icons/reload.png")),
+            ("penetration", assets.load("icons/penetration.png")),
+            ("targets", assets.load("icons/targets.png")),
             ("tick", assets.load("icons/tick.png")),
             ("cross", assets.load("icons/cross.png")),
             ("hourglass", assets.load("icons/hourglass.png")),
@@ -71,10 +76,7 @@ impl FromWorld for WorldAssets {
             ("flamethrower", assets.load("weapon/flamethrower.png")),
             ("machine-gun", assets.load("weapon/machine-gun.png")),
             ("mortar", assets.load("weapon/mortar.png")),
-            (
-                "missile-launcher",
-                assets.load("weapon/missile-launcher.png"),
-            ),
+            ("ml", assets.load("weapon/missile-launcher.png")),
             ("turret", assets.load("weapon/turret.png")),
             ("mine-shop", assets.load("weapon/mine.png")),
             ("bomb-shop", assets.load("weapon/bomb.png")),
@@ -124,7 +126,7 @@ impl FromWorld for WorldAssets {
         let wide_flash = TextureAtlasLayout::from_grid(UVec2::new(97, 150), 4, 4, None, None);
         let flame = TextureAtlasLayout::from_grid(UVec2::new(124, 50), 1, 12, None, None);
         let explosion1 = TextureAtlasLayout::from_grid(UVec2::new(256, 256), 8, 6, None, None);
-        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(257, 252), 8, 6, None, None);
+        let explosion2 = TextureAtlasLayout::from_grid(UVec2::new(257, 251), 8, 6, None, None);
         let explosion3 = TextureAtlasLayout::from_grid(UVec2::new(181, 205), 4, 4, None, None);
 
         let atlas = HashMap::from([
