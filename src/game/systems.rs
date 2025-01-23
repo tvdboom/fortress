@@ -135,6 +135,7 @@ pub fn check_keys(
         if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
             if keyboard.just_pressed(KeyCode::ArrowUp) {
                 player.day += 1;
+                player.resources += 2000.;
             }
             if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
                 player.day -= 1;

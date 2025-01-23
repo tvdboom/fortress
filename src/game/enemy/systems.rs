@@ -111,7 +111,7 @@ pub fn move_enemies(
         let mut new_pos =
             enemy_t.translation.y - enemy.speed * game_settings.speed * time.delta_secs();
 
-        if !enemy.can_fly {
+        if !enemy.flies {
             if let Some(fence_y) = get_structure_top(fence_q.get_single()) {
                 if new_pos < fence_y {
                     new_pos = fence_y;

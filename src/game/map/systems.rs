@@ -13,7 +13,10 @@ use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
-use bevy_egui::egui::{Align, Color32, CursorIcon, Layout, RichText, ScrollArea, Style, TextStyle, TextureId, UiBuilder};
+use bevy_egui::egui::{
+    Align, Color32, CursorIcon, Layout, RichText, ScrollArea, Style, TextStyle, TextureId,
+    UiBuilder,
+};
 use bevy_egui::{egui, EguiContexts};
 use egui_dnd::dnd;
 use std::f32::consts::PI;
@@ -1962,7 +1965,7 @@ pub fn enemy_info_panel(
                                     ui.label(format!("Speed: {:.0}", e.speed)).on_hover_text(
                                         "As percentage of the map's height per second.",
                                     );
-                                    ui.label(format!("Can fly: {}", e.can_fly))
+                                    ui.label(format!("Can fly: {}", e.flies))
                                         .on_hover_text("Flying bugs can pass over constructions.");
                                     ui.label(format!("Damage: {}", e.damage)).on_hover_text(
                                         "Damage dealt to constructions or population.",

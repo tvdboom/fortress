@@ -84,7 +84,9 @@ pub fn spawn_spots(
 
     for (spot, pos) in player.weapons.spots.iter().zip(positions) {
         if let Some(w) = spot.weapon {
-            let w = weapons.get(&w);
+            let mut w = weapons.get(&w);
+            w.update(&player, &weapons);
+
             commands.spawn((
                 Sprite {
                     image: asset_server.load(w.image),

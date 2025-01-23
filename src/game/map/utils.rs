@@ -2,6 +2,7 @@ use crate::constants::{FOW_SIZE, MAP_SIZE, MAX_UPGRADE_LEVEL};
 use crate::game::enemy::components::Enemy;
 use crate::game::resources::{Expedition, Player, Spot, Technology};
 use crate::game::weapon::components::Weapon;
+use crate::messages::Messages;
 use crate::utils::NameFromEnum;
 use bevy::prelude::{Transform, Vec2 as BVec2, Vec3};
 use bevy::utils::HashMap;
@@ -9,7 +10,6 @@ use bevy_egui::egui::load::SizedTexture;
 use bevy_egui::egui::*;
 use std::hash::Hash;
 use uuid::Uuid;
-use crate::messages::Messages;
 
 /// Whether an enemy is behind the fog of war
 pub fn is_visible(fow_t: &Transform, enemy_t: &Transform, enemy: &Enemy) -> bool {
@@ -114,7 +114,11 @@ impl CustomUi for Ui {
         let owned = *player.weapons.owned.get(&weapon.name).unwrap_or(&0);
 
         // Index of the first matching weapon on the wall, return None if not found
-        let pos = player.weapons.spots.iter().position(|w| w.weapon == Some(weapon.name));
+        let pos = player
+            .weapons
+            .spots
+            .iter()
+            .position(|w| w.weapon == Some(weapon.name));
 
         self.vertical(|ui| {
             ui.add_space(20.);
@@ -127,19 +131,41 @@ impl CustomUi for Ui {
                     ui.strong(format!("{}", owned));
                 });
 
-                let button = ui.add_visible(
-                    pos.is_some(),
-                    ImageButton::new(Image::from_texture(SizedTexture::new(textures["cross"], [30., 30.]))).rounding(20.)
-                ).on_hover_text(format!("Remove a {} from the wall.", weapon.name.name()));
+                let button = ui
+                    .add_visible(
+                        pos.is_some(),
+                        ImageButton::new(Image::from_texture(SizedTexture::new(
+                            textures["cross"],
+                            [30., 30.],
+                        )))
+                        .rounding(20.),
+                    )
+                    .on_hover_text(format!("Remove a {} from the wall.", weapon.name.name()));
 
                 if button.clicked() {
-                    player.weapons.spots[pos.unwrap()] = Spot {id: Uuid::new_v4(), weapon: None};
+                    player.weapons.spots[pos.unwrap()] = Spot {
+                        id: Uuid::new_v4(),
+                        weapon: None,
+                    };
                 }
 
-                let button = ui.add_visible(
-                    owned > 0,
-                    ImageButton::new(Image::from_texture(SizedTexture::new(textures["spots"], [30., 30.]))).rounding(20.)
-                ).on_hover_text(format!("Place a {} on the wall.", weapon.name.name()));
+                let button = ui
+                    .add_visible(
+                        owned as usize
+                            - player
+                                .weapons
+                                .spots
+                                .iter()
+                                .filter(|w| w.weapon == Some(weapon.name))
+                                .count()
+                            > 0,
+                        ImageButton::new(Image::from_texture(SizedTexture::new(
+                            textures["spots"],
+                            [30., 30.],
+                        )))
+                        .rounding(20.),
+                    )
+                    .on_hover_text(format!("Place a {} on the wall.", weapon.name.name()));
 
                 if button.clicked() {
                     if let Some(pos) = player.weapons.spots.iter().position(|w| w.weapon == None) {
@@ -162,7 +188,8 @@ impl CustomUi for Ui {
                         let cost = upgrade.price.technology * (upgrade.level + 1) as f32;
 
                         ui.vertical(|ui| {
-                            let button = ui.add_upgrade_button(textures[upgrade.texture])
+                            let button = ui
+                                .add_upgrade_button(textures[upgrade.texture])
                                 .on_hover_text(upgrade.description);
 
                             if button.clicked() {
@@ -183,11 +210,15 @@ impl CustomUi for Ui {
                         ui.strong(format!("{}", cost));
                         ui.add_image(textures["technology"], [20., 20.]);
                     });
-                }).response.on_disabled_hover_text("Maximum upgrade level reached.");
+                })
+                .response
+                .on_disabled_hover_text("Maximum upgrade level reached.");
             }
 
             ui.horizontal(|ui| {
-                let button = ui.add_upgrade_button(textures["up"]).on_hover_text(format!("Buy a {}.", weapon.name.name()));
+                let button = ui
+                    .add_upgrade_button(textures["up"])
+                    .on_hover_text(format!("Buy a {}.", weapon.name.name()));
                 ui.strong(format!("{}", weapon.price.materials));
                 ui.add_image(textures["materials"], [20., 20.]);
 
@@ -195,17 +226,27 @@ impl CustomUi for Ui {
                     if owned + 1 <= weapon.maximum {
                         if player.resources > weapon.price {
                             player.resources -= &weapon.price;
-                            player.weapons.owned.entry(weapon.name).and_modify(|w| *w += 1).or_insert(1);
+                            player
+                                .weapons
+                                .owned
+                                .entry(weapon.name)
+                                .and_modify(|w| *w += 1)
+                                .or_insert(1);
 
                             // If there is a spot available, place it directly on the wall
-                            if let Some(pos) = player.weapons.spots.iter().position(|w| w.weapon == None) {
+                            if let Some(pos) =
+                                player.weapons.spots.iter().position(|w| w.weapon == None)
+                            {
                                 player.weapons.spots[pos].weapon = Some(weapon.name);
                             }
                         } else {
                             messages.error("Not enough resources.");
                         }
                     } else {
-                        messages.error(format!("Maximum number of {}s reached.", weapon.name.name()));
+                        messages.error(format!(
+                            "Maximum number of {}s reached.",
+                            weapon.name.name()
+                        ));
                     }
                 }
             });

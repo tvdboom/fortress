@@ -162,7 +162,7 @@ impl Default for Damage {
 impl Damage {
     /// Calculate the damage inflicted on `enemy`
     pub fn calculate(&self, enemy: &Enemy) -> f32 {
-        let base = if enemy.can_fly { self.air } else { self.ground };
+        let base = if enemy.flies { self.air } else { self.ground };
         (base - (enemy.armor - self.penetration).max(0.)).max(0.)
     }
 }
@@ -234,7 +234,7 @@ impl Impact {
         match self {
             Impact::SingleTarget(d) => {
                 let (_, enemy) = enemy.unwrap();
-                if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
+                if (d.ground > 0. && !enemy.flies) || (d.air > 0. && enemy.flies) {
                     enemy.health -= d.calculate(enemy).min(enemy.health);
                     commands.entity(bullet_e).try_despawn();
                     return true;
@@ -245,7 +245,7 @@ impl Impact {
 
                 // The same enemy can only be hit once
                 if !hits.contains(&enemy_e) {
-                    if (d.ground > 0. && !enemy.can_fly) || (d.air > 0. && enemy.can_fly) {
+                    if (d.ground > 0. && !enemy.flies) || (d.air > 0. && enemy.flies) {
                         enemy.health -= d.calculate(enemy).min(enemy.health);
                         hits.insert(enemy_e);
                         return true;
@@ -256,8 +256,8 @@ impl Impact {
                 // If an enemy is passed, check it can trigger the explosion
                 // E.g., a mine can collide with a flying enemy, and it shouldn't explode
                 if let Some((_, enemy)) = enemy {
-                    if (e.damage.ground == 0. && !enemy.can_fly)
-                        || (e.damage.air == 0. && enemy.can_fly)
+                    if (e.damage.ground == 0. && !enemy.flies)
+                        || (e.damage.air == 0. && enemy.flies)
                     {
                         return false;
                     }
@@ -357,7 +357,7 @@ impl Weapon {
                     Impact::SingleTarget(d)
                     | Impact::Piercing { damage: d, .. }
                     | Impact::Explosion(Explosion { damage: d, .. }) => {
-                        if (d.ground == 0. && !enemy.can_fly) || (d.air == 0. && enemy.can_fly) {
+                        if (d.ground == 0. && !enemy.flies) || (d.air == 0. && enemy.flies) {
                             return None;
                         }
                     }
@@ -534,7 +534,7 @@ impl Weapon {
                     self.bullet.max_distance = 100. * (1.5 + power * 0.5);
                     self.bullet.price.gasoline = power;
 
-                    if let Impact::Piercing {damage, ..} = &mut self.bullet.impact {
+                    if let Impact::Piercing { damage, .. } = &mut self.bullet.impact {
                         *damage = Damage {
                             ground: 5. + upgrade1,
                             air: 5. + upgrade1,
@@ -567,7 +567,8 @@ impl Weapon {
                 };
             }
             WeaponName::MissileLauncher => {
-                if let Impact::Explosion(Explosion {radius, damage, ..}) = &mut self.bullet.impact {
+                if let Impact::Explosion(Explosion { radius, damage, .. }) = &mut self.bullet.impact
+                {
                     *radius = (0.1 + 0.2 * upgrade2) * MAP_SIZE.y;
                     *damage = Damage {
                         ground: 30. + 5. * upgrade1,
@@ -627,7 +628,7 @@ impl Weapon {
             }
             WeaponName::Turret => {
                 self.fire_timer = Some(Timer::from_seconds(1. - 0.1 * upgrade2, TimerMode::Once));
-            },
+            }
         }
     }
 }
