@@ -7,7 +7,7 @@ use crate::game::map::utils::{collision, is_visible, toggle, CustomUi};
 use crate::game::resources::*;
 use crate::game::weapon::components::*;
 use crate::game::weapon::systems::{spawn_fence, spawn_spots, spawn_wall};
-use crate::game::{AppState, GameState};
+use crate::game::{AppState, AudioState, GameState};
 use crate::messages::Messages;
 use crate::utils::*;
 use bevy::color::palettes::basic::WHITE;
@@ -111,12 +111,16 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 pub fn menu_panel(
+    mut commands: Commands,
     mut contexts: EguiContexts,
+    player: Res<Player>,
     mut game_settings: ResMut<GameSettings>,
+    mut messages: ResMut<Messages>,
     app_state: Res<State<AppState>>,
     game_state: Res<State<GameState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
+    mut next_audio_state: ResMut<NextState<AudioState>>,
 ) {
     egui::TopBottomPanel::top("Menu")
         .exact_height(MENU_PANEL_SIZE.y)
@@ -129,18 +133,31 @@ pub fn menu_panel(
                             ui.close_menu();
                         }
                         if ui.button("Load game").clicked() {
-                            todo!();
+                            load_game(
+                                &mut commands,
+                                &game_settings,
+                                &mut next_app_state,
+                                &mut messages,
+                            );
+                            ui.close_menu();
                         }
                         ui.add_enabled_ui(*app_state.get() == AppState::Day, |ui| {
                             if ui.button("Save game").clicked() {
-                                todo!();
+                                save_game(&player, &game_settings, &mut messages);
+                                ui.close_menu();
                             }
                         });
                         if ui.button("Quit").clicked() {
                             std::process::exit(0);
                         }
                     });
-                    egui::menu::menu_button(ui, "Tools", |ui| {
+                    egui::menu::menu_button(ui, "View", |ui| {
+                        if ui.button("Enemy info").clicked() {
+                            game_settings.enemy_info = !game_settings.enemy_info;
+                            ui.close_menu();
+                        }
+                    });
+                    egui::menu::menu_button(ui, "Settings", |ui| {
                         if ui
                             .add_enabled(
                                 *app_state.get() == AppState::Night,
@@ -153,15 +170,12 @@ pub fn menu_panel(
                                 GameState::Paused => next_game_state.set(GameState::Running),
                             }
                         }
-                    });
-                    egui::menu::menu_button(ui, "View", |ui| {
-                        if ui.button("Enemy info").clicked() {
-                            game_settings.enemy_info = !game_settings.enemy_info;
-                            ui.close_menu();
-                        }
-                        if ui.button("Settings").clicked() {
-                            ui.close_menu();
-                            todo!();
+
+                        if ui.button("Toggle audio").clicked() {
+                            match game_settings.audio {
+                                true => next_audio_state.set(AudioState::Stopped),
+                                false => next_audio_state.set(AudioState::Playing),
+                            }
                         }
                     });
                 });
@@ -555,7 +569,7 @@ pub fn weapons_panel(
                         WeaponName::Turret => old_s.turret != player.weapons.settings.turret,
                         WeaponName::MissileLauncher => old_s.missile_launcher != player.weapons.settings.missile_launcher,
                     })
-                    .for_each(|mut w| w.as_mut().update(&player, &weapons));
+                    .for_each(|mut w| w.as_mut().update(&player));
 
                 ui.add_space(7.);
 
@@ -1995,7 +2009,7 @@ pub fn expedition_panel(
     let mine_texture = contexts.add_image(assets.get_image("mine"));
     let bomb_texture = contexts.add_image(assets.get_image("bomb"));
 
-    if let Some(expedition) = player.expedition {
+    if let Some(expedition) = player.expedition.clone() {
         if matches!(expedition.status, ExpeditionStatus::Ongoing) {
             return;
         }
@@ -2271,7 +2285,7 @@ pub fn update_game(
 
                 night_stats
                     .enemies
-                    .entry(enemy.name)
+                    .entry(enemy.name.to_string())
                     .and_modify(|status| status.killed += 1);
             } else {
                 for child in children_q.iter_descendants(enemy_e) {

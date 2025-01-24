@@ -4,14 +4,14 @@ mod messages;
 mod systems;
 mod utils;
 
-use crate::game::GamePlugin;
-use constants::{SIZE, TITLE};
-
 use crate::game::enemy::components::EnemyManager;
+use crate::game::GamePlugin;
 use crate::messages::MessagesPlugin;
 use bevy::prelude::*;
 use bevy::window::{WindowMode, WindowResolution};
 use bevy_egui::EguiPlugin;
+use bevy_kira_audio::prelude::*;
+use constants::{SIZE, TITLE};
 
 fn main() {
     let mut app = App::new();
@@ -39,7 +39,7 @@ fn main() {
                 ..default()
             }),
     )
-    .add_plugins(EguiPlugin)
+    .add_plugins((AudioPlugin, EguiPlugin))
     .add_plugins(MessagesPlugin::default())
     .add_plugins(GamePlugin)
     .init_resource::<EnemyManager>();

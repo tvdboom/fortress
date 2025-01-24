@@ -85,7 +85,7 @@ pub fn spawn_spots(
     for (spot, pos) in player.weapons.spots.iter().zip(positions) {
         if let Some(w) = spot.weapon {
             let mut w = weapons.get(&w);
-            w.update(&player, &weapons);
+            w.update(&player); // Set the weapon's setting at start
 
             commands.spawn((
                 Sprite {
@@ -243,7 +243,15 @@ pub fn spawn_bullets(
 
                                 // Special case => turret only fires with ui button
                                 if weapon.name == WeaponName::Turret {
-                                    let power = 1.05 + 0.01 * weapon.upgrade1.level as f32;
+                                    let power = 1.05
+                                        + 0.01
+                                            * player
+                                                .weapons
+                                                .upgrades
+                                                .get(&weapon.name)
+                                                .unwrap_or(&(0, 0))
+                                                .0
+                                                as f32;
 
                                     // The damage increases exponentially with the firepower
                                     bullet.impact = Impact::SingleTarget(Damage {

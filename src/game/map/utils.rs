@@ -182,10 +182,15 @@ impl CustomUi for Ui {
             ui.strong(weapon.name.name());
             ui.add_space(10.);
 
-            for upgrade in [&mut weapon.upgrade1, &mut weapon.upgrade2].iter_mut() {
-                ui.add_enabled_ui(upgrade.level < MAX_UPGRADE_LEVEL, |ui| {
+            let (l1, l2) = *player.weapons.upgrades.get(&weapon.name).unwrap_or(&(0, 0));
+            for (i, (upgrade, level)) in [&mut weapon.upgrade1, &mut weapon.upgrade2]
+                .iter_mut()
+                .zip([l1, l2])
+                .enumerate()
+            {
+                ui.add_enabled_ui(level < MAX_UPGRADE_LEVEL, |ui| {
                     ui.horizontal(|ui| {
-                        let cost = upgrade.price.technology * (upgrade.level + 1) as f32;
+                        let cost = upgrade.price.technology * (level + 1) as f32;
 
                         ui.vertical(|ui| {
                             let button = ui
@@ -195,16 +200,25 @@ impl CustomUi for Ui {
                             if button.clicked() {
                                 if player.resources.technology >= cost {
                                     player.resources.technology -= cost;
-                                    upgrade.level += 1;
+                                    player
+                                        .weapons
+                                        .upgrades
+                                        .entry(weapon.name)
+                                        .and_modify(|l| {
+                                            if i == 0 {
+                                                l.0 += 1;
+                                            } else {
+                                                l.1 += 1;
+                                            }
+                                        })
+                                        .or_insert(if i == 0 { (1, 0) } else { (0, 1) });
                                 } else {
                                     messages.error("Not enough resources.");
                                 }
                             }
 
                             ui.add_space(-25.);
-                            frame.show(ui, |ui| {
-                                ui.strong(format!("{}", upgrade.level));
-                            });
+                            frame.show(ui, |ui| ui.strong(format!("{}", level)));
                         });
 
                         ui.strong(format!("{}", cost));
@@ -224,7 +238,7 @@ impl CustomUi for Ui {
 
                 if button.clicked() {
                     if owned + 1 <= weapon.maximum {
-                        if player.resources > weapon.price {
+                        if player.resources >= weapon.price {
                             player.resources -= &weapon.price;
                             player
                                 .weapons
@@ -272,7 +286,7 @@ impl CustomUi for Ui {
                         ui.end_row();
 
                         stats.enemies.iter().for_each(|(k, v)| {
-                            ui.label(*k);
+                            ui.label(k);
                             ui.label(format!("{} / {}", v.killed, v.spawned));
                             ui.end_row();
                         });
@@ -468,7 +482,7 @@ impl CustomUi for Ui {
                             ui.horizontal(|ui| {
                                 ui.add_space(50.);
                                 ui.add_image(textures["clock"], [25., 25.]);
-                                Label::new(expedition.duration).selectable(false).ui(ui);
+                                Label::new(&expedition.duration).selectable(false).ui(ui);
                             });
 
                             ui.add_space(50.);

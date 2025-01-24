@@ -8,6 +8,7 @@ use crate::game::map::utils::is_visible;
 use crate::game::resources::{GameSettings, Player, Resources};
 use crate::utils::scale_duration;
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::f32::consts::PI;
 use std::time::Duration;
@@ -21,7 +22,7 @@ pub struct WallComponent;
 #[derive(Component)]
 pub struct Mine;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum WeaponName {
     AAA,
     Artillery,
@@ -45,7 +46,7 @@ pub struct FireAnimation {
     pub duration: f32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum FireStrategy {
     /// Don't fire
     None,
@@ -61,7 +62,7 @@ pub enum FireStrategy {
     Density,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum AirFireStrategy {
     None,
     All,
@@ -69,7 +70,7 @@ pub enum AirFireStrategy {
     Airborne,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MortarShell {
     None,
     Light,
@@ -78,9 +79,6 @@ pub enum MortarShell {
 
 #[derive(Clone)]
 pub struct Upgrade {
-    /// Level of the upgrade
-    pub level: u32,
-
     /// Upgrade description
     pub description: &'static str,
 
@@ -438,13 +436,10 @@ impl Weapon {
     }
 
     /// Update the weapon's based on the player's settings
-    pub fn update(&mut self, player: &Player, weapons: &WeaponManager) {
-        let main = weapons.get(&self.name);
-        self.upgrade1.level = main.upgrade1.level;
-        self.upgrade2.level = main.upgrade2.level;
-
-        let upgrade1 = main.upgrade1.level as f32;
-        let upgrade2 = main.upgrade2.level as f32;
+    pub fn update(&mut self, player: &Player) {
+        let upgrades = *player.weapons.upgrades.get(&self.name).unwrap_or(&(0, 0));
+        let upgrade1 = upgrades.0 as f32;
+        let upgrade2 = upgrades.1 as f32;
 
         match self.name {
             WeaponName::AAA => {
@@ -708,7 +703,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -717,7 +711,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the fire range.",
                     texture: "range",
                     price: Resources {
@@ -768,7 +761,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -777,7 +769,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Decrease the reload time.",
                     texture: "reload",
                     price: Resources {
@@ -827,7 +818,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -836,7 +826,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the explosion radius.",
                     texture: "explosion",
                     price: Resources {
@@ -889,7 +878,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -898,7 +886,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the penetration.",
                     texture: "penetration",
                     price: Resources {
@@ -947,7 +934,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -956,7 +942,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the fire range.",
                     texture: "range",
                     price: Resources {
@@ -1010,7 +995,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -1019,7 +1003,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the explosion radius.",
                     texture: "explosion",
                     price: Resources {
@@ -1074,7 +1057,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -1083,7 +1065,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the number of shells fired.",
                     texture: "targets",
                     price: Resources {
@@ -1136,7 +1117,6 @@ impl Default for WeaponManager {
                     distance: 0.,
                 },
                 upgrade1: Upgrade {
-                    level: 0,
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
@@ -1145,7 +1125,6 @@ impl Default for WeaponManager {
                     },
                 },
                 upgrade2: Upgrade {
-                    level: 0,
                     description: "Increase the power-up speed.",
                     texture: "reload",
                     price: Resources {

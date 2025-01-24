@@ -86,9 +86,9 @@ pub fn spawn_enemies(
 
             night_stats
                 .enemies
-                .entry(enemy.name)
+                .entry(enemy.name.to_string())
                 .and_modify(|status| status.spawned += 1)
-                .or_insert_with(|| EnemyStatus {
+                .or_insert(EnemyStatus {
                     spawned: 1,
                     killed: 0,
                 });

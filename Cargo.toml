@@ -4,13 +4,49 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.15.1"
+bevy = { version = "0.15.1", default-features = false, features = [
+    "animation",
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_gilrs",
+    "bevy_gizmos",
+    "bevy_gltf",
+    "bevy_mesh_picking_backend",
+    "bevy_pbr",
+    "bevy_picking",
+    "bevy_render",
+    "bevy_scene",
+    "bevy_sprite",
+    "bevy_sprite_picking_backend",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_picking_backend",
+    "bevy_window",
+    "bevy_winit",
+    "custom_cursor",
+    "default_font",
+    "hdr",
+    "multi_threaded",
+    "png",
+    "smaa_luts",
+    "sysinfo_plugin",
+    "tonemapping_luts",
+    "vorbis",
+    "webgl2",
+    "x11",
+]}
 bevy_egui = { version = "0.32.0", features = ["immutable_ctx"] }
+bevy_kira_audio = "0.22.0"
 egui_dnd = "0.11.0"
 egui-notify = "0.18.0"
 image = "0.25.5"
 rand = "0.8.5"
 rand_distr = "0.4"
+rfd = "0.15.2"
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.137"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 uuid = { version = "1.4", features = ["v4"] }

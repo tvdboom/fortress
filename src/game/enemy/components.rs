@@ -2,11 +2,12 @@ use crate::constants::*;
 use bevy::prelude::*;
 use bevy::prelude::{Resource, Vec2};
 use rand::distributions::{Distribution, WeightedIndex};
+use serde::{Deserialize, Serialize};
 
 #[derive(Component)]
 pub struct EnemyHealth;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum Size {
     Small,
     Medium,

@@ -28,9 +28,12 @@ impl Plugin for GamePlugin {
             .add_systems(OnEnter(AppState::Day), start_day)
             .add_systems(OnEnter(GameState::Paused), pause_game)
             .add_systems(OnEnter(GameState::Running), unpause_game)
+            .add_systems(OnEnter(AudioState::Stopped), stop_audio)
+            .add_systems(OnEnter(AudioState::Playing), play_audio)
             .add_systems(Update, check_keys)
             .init_state::<AppState>()
             .init_state::<GameState>()
+            .init_state::<AudioState>()
             .init_resource::<GameSettings>()
             .init_resource::<NightStats>();
     }
@@ -50,4 +53,11 @@ pub enum GameState {
     #[default]
     Running,
     Paused,
+}
+
+#[derive(States, Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
+pub enum AudioState {
+    #[default]
+    Playing,
+    Stopped,
 }

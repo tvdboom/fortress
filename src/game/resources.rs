@@ -6,6 +6,7 @@ use bevy::prelude::{default, Resource, Timer};
 use bevy::time::TimerMode;
 use bevy::utils::hashbrown::HashMap;
 use rand::random;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
@@ -13,7 +14,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use uuid::Uuid;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DayTabs {
     Overview,
     Population,
@@ -23,26 +24,30 @@ pub enum DayTabs {
     Expeditions,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct GameSettings {
     pub speed: f32,
+    pub audio: bool,
     pub system: Option<SystemId>,
     pub day_tab: DayTabs,
     pub enemy_info: bool,
+    pub just_loaded: bool,
 }
 
 impl Default for GameSettings {
     fn default() -> Self {
         Self {
             speed: 1.,
+            audio: true,
             system: None,
             day_tab: DayTabs::Overview,
             enemy_info: false,
+            just_loaded: false,
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Population {
     pub soldier: u32,
     pub armorer: u32,
@@ -71,11 +76,13 @@ impl Default for Population {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Wall {
     pub health: f32,
     pub max_health: f32,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Fence {
     pub health: f32,
     pub max_health: f32,
@@ -84,12 +91,13 @@ pub struct Fence {
     pub cost: Resources,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Spotlight {
     pub power: u32,
     pub cost: Resources,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Resources {
     pub bullets: f32,
     pub gasoline: f32,
@@ -213,6 +221,7 @@ resources_assignment_ops!(
     DivAssign, div_assign, /=;
 );
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Constructions {
     pub armory: u32,
     pub refinery: u32,
@@ -220,7 +229,7 @@ pub struct Constructions {
     pub laboratory: u32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct WeaponSettings {
     pub aaa: AirFireStrategy,
     pub artillery: FireStrategy,
@@ -234,14 +243,16 @@ pub struct WeaponSettings {
     pub mine: Size,
 }
 
-#[derive(Hash)]
+#[derive(Clone, Hash, Serialize, Deserialize)]
 pub struct Spot {
     pub id: Uuid,
     pub weapon: Option<WeaponName>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Weapons {
     pub owned: HashMap<WeaponName, u32>,
+    pub upgrades: HashMap<WeaponName, (u32, u32)>,
     pub spots: Vec<Spot>,
     pub mines: u32,
     pub bombs: u32,
@@ -249,7 +260,7 @@ pub struct Weapons {
     pub settings: WeaponSettings,
 }
 
-#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TechnologyName {
     Spotlight,
     Electricity,
@@ -352,14 +363,14 @@ impl Technology {
     }
 }
 
-#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ExpeditionName {
     Small,
     Medium,
     Large,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ExpeditionReward {
     pub population: u32,
     pub resources: Resources,
@@ -367,7 +378,7 @@ pub struct ExpeditionReward {
     pub bombs: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum ExpeditionStatus {
     /// The expedition is still ongoing
     Ongoing,
@@ -379,10 +390,10 @@ pub enum ExpeditionStatus {
     Returned(ExpeditionReward),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Expedition {
     pub name: ExpeditionName,
-    pub duration: &'static str,
+    pub duration: String,
     pub day: u32,
     pub max_day: u32,
     pub return_prob: f32,
@@ -396,7 +407,7 @@ impl Expedition {
         match name {
             ExpeditionName::Small => Self {
                 name,
-                duration: "1-2 days",
+                duration: "1-2 days".to_string(),
                 day: 0,
                 max_day: 3,
                 return_prob: 0.7,
@@ -410,7 +421,7 @@ impl Expedition {
             },
             ExpeditionName::Medium => Self {
                 name,
-                duration: "1-3 days",
+                duration: "1-3 days".to_string(),
                 day: 0,
                 max_day: 4,
                 return_prob: 0.5,
@@ -424,7 +435,7 @@ impl Expedition {
             },
             ExpeditionName::Large => Self {
                 name,
-                duration: "2-4 days",
+                duration: "2-4 days".to_string(),
                 day: 0,
                 max_day: 5,
                 return_prob: 0.3,
@@ -468,7 +479,7 @@ impl Expedition {
     }
 }
 
-#[derive(Resource)]
+#[derive(Clone, Resource, Serialize, Deserialize)]
 pub struct Player {
     pub day: u32,
     pub population: Population,
@@ -480,7 +491,7 @@ pub struct Player {
     pub weapons: Weapons,
     pub technology: HashSet<TechnologyName>,
     pub expedition: Option<Expedition>,
-    pub stats: HashMap<u32, NightStats>,
+    pub stats: HashMap<u32, NightInfo>,
 }
 
 impl Player {
@@ -530,6 +541,7 @@ impl Player {
             },
             weapons: Weapons {
                 owned: HashMap::from([(WeaponName::MachineGun, 2)]),
+                upgrades: HashMap::default(),
                 spots: vec![
                     Spot {
                         id: Uuid::new_v4(),
@@ -615,7 +627,15 @@ impl Player {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct NightInfo {
+    pub day: u32,
+    pub population: Population,
+    pub resources: Resources,
+    pub enemies: HashMap<String, EnemyStatus>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct EnemyStatus {
     pub spawned: u32,
     pub killed: u32,
@@ -636,7 +656,7 @@ pub struct NightStats {
     pub spawn_timer: Timer,
     pub population: Population,
     pub resources: Resources,
-    pub enemies: HashMap<&'static str, EnemyStatus>,
+    pub enemies: HashMap<String, EnemyStatus>,
     pub warnings: ResourcesWarnings,
 }
 
