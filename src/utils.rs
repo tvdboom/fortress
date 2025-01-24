@@ -2,13 +2,15 @@ use crate::game::resources::{GameSettings, Player};
 use crate::game::AppState;
 use crate::messages::Messages;
 use bevy::prelude::{Commands, NextState};
-use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use std::{fs, io};
+
+#[cfg(not(target_arch = "wasm32"))]
+use rfd::FileDialog;
 
 #[derive(Serialize, Deserialize)]
 pub struct SaveAll {

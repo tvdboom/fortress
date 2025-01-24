@@ -68,6 +68,8 @@ pub fn start_day(
         if let Some(ref mut expedition) = &mut player.expedition {
             expedition.update();
         }
+    } else {
+        game_settings.just_loaded = false;
     }
 
     game_settings.day_tab = DayTabs::Overview;
@@ -102,8 +104,8 @@ pub fn unpause_game(
 
 pub fn stop_audio(
     mut game_settings: ResMut<GameSettings>,
-    audio: Res<Audio>,
     mut messages: ResMut<Messages>,
+    audio: Res<Audio>,
 ) {
     audio.stop();
     game_settings.audio = false;

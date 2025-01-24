@@ -49,7 +49,7 @@ serde = { version = "1.0.216", features = ["derive"] }
 serde_json = "1.0.137"
 strum = "0.26.3"
 strum_macros = "0.26.4"
-uuid = { version = "1.4", features = ["v4"] }
+uuid = { version = "1.12.1", features = ["v4"] }
 winit = "0.30.8"
 
 # Enable a small amount of optimization in the dev profile.

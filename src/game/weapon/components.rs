@@ -564,7 +564,7 @@ impl Weapon {
             WeaponName::MissileLauncher => {
                 if let Impact::Explosion(Explosion { radius, damage, .. }) = &mut self.bullet.impact
                 {
-                    *radius = (0.1 + 0.2 * upgrade2) * MAP_SIZE.y;
+                    *radius = (0.1 + 0.02 * upgrade2) * MAP_SIZE.y;
                     *damage = Damage {
                         ground: 30. + 5. * upgrade1,
                         air: 30. + 5. * upgrade1,

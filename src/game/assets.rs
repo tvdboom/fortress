@@ -1,5 +1,6 @@
 use bevy::asset::{AssetServer, Handle};
 use bevy::image::Image;
+use bevy_kira_audio::AudioSource;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
@@ -12,6 +13,7 @@ pub struct AtlasInfo {
 
 pub struct WorldAssets {
     pub images: HashMap<&'static str, Handle<Image>>,
+    pub sounds: HashMap<&'static str, Handle<AudioSource>>,
     pub atlas: HashMap<&'static str, AtlasInfo>,
 }
 
@@ -21,6 +23,10 @@ impl WorldAssets {
             .get(name)
             .expect(&format!("No entry for {}", name))
             .clone_weak()
+    }
+
+    pub fn get_sound(&self, name: &str) -> Handle<AudioSource> {
+        self.sounds[name].clone_weak()
     }
 
     pub fn get_atlas(&self, name: &str) -> AtlasInfo {
@@ -118,6 +124,11 @@ impl FromWorld for WorldAssets {
             ("wall-shop", assets.load("map/wall-shop.png")),
             ("fence-shop", assets.load("map/fence-shop.png")),
             ("game_over", assets.load("map/game-over.png")),
+        ]);
+
+        let sounds = HashMap::from([
+            ("error", assets.load("sounds/error.ogg")),
+            ("turret", assets.load("sounds/turret.ogg")),
         ]);
 
         let mut texture = world
@@ -224,6 +235,6 @@ impl FromWorld for WorldAssets {
             ),
         ]);
 
-        Self { images, atlas }
+        Self { images, sounds, atlas }
     }
 }
