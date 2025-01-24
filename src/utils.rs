@@ -51,6 +51,7 @@ fn load_from_json(file_path: &str) -> io::Result<SaveAll> {
 }
 
 /// Load a game from a JSON file
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_game(
     commands: &mut Commands,
     game_settings: &GameSettings,
@@ -73,7 +74,9 @@ pub fn load_game(
     }
 }
 
+
 /// Save the game to a JSON file
+#[cfg(not(target_arch = "wasm32"))]
 pub fn save_game(player: &Player, game_settings: &GameSettings, messages: &mut Messages) {
     if let Some(mut file_path) = FileDialog::new().save_file() {
         if !file_path.extension().map(|e| e == "json").unwrap_or(false) {

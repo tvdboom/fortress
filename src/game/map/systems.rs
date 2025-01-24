@@ -132,21 +132,23 @@ pub fn menu_panel(
                             next_app_state.set(AppState::StartGame);
                             ui.close_menu();
                         }
-                        if ui.button("Load game").clicked() {
-                            load_game(
-                                &mut commands,
-                                &game_settings,
-                                &mut next_app_state,
-                                &mut messages,
-                            );
-                            ui.close_menu();
-                        }
-                        ui.add_enabled_ui(*app_state.get() == AppState::Day, |ui| {
-                            if ui.button("Save game").clicked() {
-                                save_game(&player, &game_settings, &mut messages);
+                        if cfg!(target_arch != "wasm32") {
+                            if ui.button("Load game").clicked() {
+                                load_game(
+                                    &mut commands,
+                                    &game_settings,
+                                    &mut next_app_state,
+                                    &mut messages,
+                                );
                                 ui.close_menu();
                             }
-                        });
+                            ui.add_enabled_ui(*app_state.get() == AppState::Day, |ui| {
+                                if ui.button("Save game").clicked() {
+                                    save_game(&player, &game_settings, &mut messages);
+                                    ui.close_menu();
+                                }
+                            });
+                        }
                         if ui.button("Quit").clicked() {
                             std::process::exit(0);
                         }
