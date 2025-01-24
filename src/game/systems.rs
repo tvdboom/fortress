@@ -112,9 +112,8 @@ pub fn stop_audio(
     messages.info("Audio disabled.");
 }
 
-pub fn play_audio(mut game_settings: ResMut<GameSettings>, mut messages: ResMut<Messages>) {
+pub fn play_audio(mut game_settings: ResMut<GameSettings>) {
     game_settings.audio = true;
-    messages.info("Audio enabled.");
 }
 
 pub fn check_keys(

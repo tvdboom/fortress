@@ -43,7 +43,7 @@ pub const EXPLOSION_Z: f32 = 5.0;
 pub const FOW_Z: f32 = 6.0;
 
 // Night settings
-pub const NIGHT_DURATION: f32 = 60.; // In seconds
+pub const NIGHT_DURATION: f32 = 45.; // In seconds
 pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
 pub const NO_SPAWN_STEP: f32 = 0.05; // Probability spawning decrease per night
 pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies

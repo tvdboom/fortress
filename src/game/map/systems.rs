@@ -132,7 +132,7 @@ pub fn menu_panel(
                             next_app_state.set(AppState::StartGame);
                             ui.close_menu();
                         }
-                        if cfg!(target_arch != "wasm32") {
+                        if !cfg!(target_arch = "wasm32") {
                             if ui.button("Load game").clicked() {
                                 load_game(
                                     &mut commands,
