@@ -167,17 +167,22 @@ pub fn check_keys(
     if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
         if keyboard.just_pressed(KeyCode::KeyN) {
             next_app_state.set(AppState::StartGame);
-        } else if keyboard.just_pressed(KeyCode::KeyL) {
-            load_game(
-                &mut commands,
-                &game_settings,
-                &mut next_app_state,
-                &mut messages,
-            );
-        } else if keyboard.just_pressed(KeyCode::KeyS) {
-            save_game(&player, &game_settings, &mut messages);
-        } else if keyboard.just_pressed(KeyCode::KeyQ) {
-            std::process::exit(0);
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if keyboard.just_pressed(KeyCode::KeyL) {
+                load_game(
+                    &mut commands,
+                    &game_settings,
+                    &mut next_app_state,
+                    &mut messages,
+                );
+            } else if keyboard.just_pressed(KeyCode::KeyS) {
+                save_game(&player, &game_settings, &mut messages);
+            } else if keyboard.just_pressed(KeyCode::KeyQ) {
+                std::process::exit(0);
+            }
         }
 
         if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {

@@ -532,7 +532,7 @@ impl Player {
                 },
             },
             resources: Resources {
-                bullets: 600.,
+                bullets: 400.,
                 gasoline: 400.,
                 materials: 400.,
                 technology: 400.,

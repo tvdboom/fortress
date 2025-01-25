@@ -373,7 +373,7 @@ pub fn move_bullets(
 
         // Turn the bullet's rotation towards the target's position
         if let Some(d) = d {
-            bullet_t.rotation = bullet_t.rotation.slerp(
+            bullet_t.rotation = bullet_t.rotation.rotate_towards(
                 Quat::from_rotation_z(d.y.atan2(d.x)),
                 8. * game_settings.speed * time.delta_secs(),
             );

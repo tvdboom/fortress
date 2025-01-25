@@ -155,7 +155,7 @@ impl Default for EnemyManager {
                 health: 40.,
                 dim: Vec2::new(45., 65.),
                 size: Size::Medium,
-                armor: 5.,
+                armor: 4.,
                 speed: 0.05 * MAP_SIZE.y,
                 flies: false,
                 damage: 20.,
