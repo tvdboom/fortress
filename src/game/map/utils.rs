@@ -1,6 +1,6 @@
 use crate::constants::{FOW_SIZE, MAP_SIZE, MAX_UPGRADE_LEVEL};
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{Expedition, Player, Spot, Technology};
+use crate::game::resources::{Expedition, NightInfo, Player, Population, Resources, Spot, Technology};
 use crate::game::weapon::components::Weapon;
 use crate::messages::Messages;
 use crate::utils::NameFromEnum;
@@ -268,7 +268,14 @@ impl CustomUi for Ui {
     }
 
     fn add_night_stats(&mut self, player: &Player, day: u32) {
-        let stats = player.stats.get(&day).unwrap();
+        let stats = player.stats.get(&day).unwrap_or(
+            &NightInfo {
+                day,
+                enemies: HashMap::new(),
+                resources: Resources::default(),
+                population: Population::default(),
+            }
+        );
 
         self.add_space(30.);
 

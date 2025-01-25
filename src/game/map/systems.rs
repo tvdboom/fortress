@@ -132,7 +132,8 @@ pub fn menu_panel(
                             next_app_state.set(AppState::StartGame);
                             ui.close_menu();
                         }
-                        if !cfg!(target_arch = "wasm32") {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
                             if ui.button("Load game").clicked() {
                                 load_game(
                                     &mut commands,
@@ -148,9 +149,9 @@ pub fn menu_panel(
                                     ui.close_menu();
                                 }
                             });
-                        }
-                        if ui.button("Quit").clicked() {
-                            std::process::exit(0);
+                            if ui.button("Quit").clicked() {
+                                std::process::exit(0);
+                            }
                         }
                     });
                     egui::menu::menu_button(ui, "View", |ui| {
