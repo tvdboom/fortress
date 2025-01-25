@@ -127,6 +127,9 @@ pub struct Weapon {
     /// Strategy to select a target
     pub fire_strategy: FireStrategy,
 
+    /// The minimum distance at which the weapon can shoot
+    pub min_distance: f32,
+
     /// Bullet fired by the weapon
     pub bullet: Bullet,
 
@@ -328,7 +331,7 @@ impl Weapon {
         fow_q: &Query<&Transform, (With<FogOfWar>, Without<Weapon>)>,
         exclusions: &HashSet<Entity>,
     ) -> Option<Entity> {
-        // Return target if it's already acquired, it still exists and it's still visible
+        // Return target if it's already acquired, and it still exists and is visible
         if let Some(enemy_e) = self.target.and_then(|enemy_e| {
             if let Ok((enemy_e, enemy_t, enemy)) = enemy_q.get(enemy_e) {
                 if is_visible(&fow_q.get_single().unwrap(), enemy_t, enemy)
@@ -363,7 +366,7 @@ impl Weapon {
 
                 // Check if the enemy is in range
                 let distance = transform.translation.distance(enemy_t.translation);
-                if distance > self.bullet.max_distance {
+                if distance < self.min_distance || distance > self.bullet.max_distance {
                     return None;
                 }
 
@@ -685,6 +688,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/shell.png",
                     dim: Vec2::new(20., 7.),
@@ -743,6 +747,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(1., TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/bullet.png",
                     dim: Vec2::new(30., 10.),
@@ -800,6 +805,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(2., TimerMode::Once)),
                 fire_strategy: FireStrategy::Closest,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(25., 10.),
@@ -857,6 +863,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(0.5, TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/invisible-bullet.png",
                     dim: Vec2::new(20., 40.),
@@ -916,6 +923,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: None,
                 fire_strategy: FireStrategy::None,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/bullet.png",
                     dim: Vec2::new(25., 7.),
@@ -956,7 +964,8 @@ impl Default for WeaponManager {
                 description:"\
                     Medium range and damage weapon that fires multiple explosive shells. Very \
                     effective to deal with large number of enemies. The missile launcher shoots \
-                    homing shells, always targeting the strongest enemies.",
+                    homing shells, always targeting the strongest enemies. It can't shoot enemies \
+                    that are too close.",
                 dim: Vec2::new(90., 90.),
                 maximum: 2,
                 rotation_speed: 5.,
@@ -973,6 +982,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
+                min_distance: 0.15 * MAP_SIZE.y,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(20., 6.),
@@ -1018,7 +1028,7 @@ impl Default for WeaponManager {
                     Long range weapon that fires explosive shells at the highest enemy density \
                     location. The mortar has two explosive types to choose from: light (medium \
                     damage and radius) and heavy (high damage and radius, but costs more and does \
-                    damage to structures).",
+                    damage to structures). It can't shoot enemies that are too close.",
                 dim: Vec2::new(70., 70.),
                 maximum: u32::MAX,
                 rotation_speed: 5.,
@@ -1035,6 +1045,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(3., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
+                min_distance: 0.2 * MAP_SIZE.y,
                 bullet: Bullet {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(25., 10.),
@@ -1099,6 +1110,7 @@ impl Default for WeaponManager {
                 n_bullets: 1,
                 fire_timer: Some(Timer::from_seconds(1., TimerMode::Once)),
                 fire_strategy: FireStrategy::None,
+                min_distance: 0.,
                 bullet: Bullet {
                     image: "weapon/triple-bullet.png",
                     dim: Vec2::new(25., 25.),

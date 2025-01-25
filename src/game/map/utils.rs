@@ -268,14 +268,13 @@ impl CustomUi for Ui {
     }
 
     fn add_night_stats(&mut self, player: &Player, day: u32) {
-        let stats = player.stats.get(&day).unwrap_or(
-            &NightInfo {
-                day,
-                enemies: HashMap::new(),
-                resources: Resources::default(),
-                population: Population::default(),
-            }
-        );
+        let default = NightInfo {
+            day,
+            enemies: HashMap::new(),
+            resources: Resources::default(),
+            population: Population::default(),
+        };
+        let stats = player.stats.get(&day).unwrap_or(&default);
 
         self.add_space(30.);
 
