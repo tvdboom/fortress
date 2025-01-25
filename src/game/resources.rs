@@ -464,12 +464,16 @@ impl Expedition {
                 population: ((self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5)
                     as u32,
                 resources: Resources {
-                    bullets: (self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5,
-                    gasoline: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                    bullets: (self.price.bullets as u32 * self.day.pow(3)) as f32 * random::<f32>()
                         + 0.5,
-                    materials: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                    gasoline: (self.price.gasoline as u32 * self.day.pow(3).pow(2)) as f32
+                        * random::<f32>()
                         + 0.5,
-                    technology: (self.population * self.day.pow(3).pow(2)) as f32 * random::<f32>()
+                    materials: (self.price.materials as u32 * self.day.pow(3).pow(2)) as f32
+                        * random::<f32>()
+                        + 0.5,
+                    technology: (self.price.technology as u32 * self.day.pow(3).pow(2)) as f32
+                        * random::<f32>()
                         + 0.5,
                 },
                 mines: (self.day.pow(2) as f32 * random::<f32>()) as u32,

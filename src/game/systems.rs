@@ -4,6 +4,7 @@ use crate::game::resources::*;
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, AudioState, GameState};
 use crate::messages::Messages;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::utils::{load_game, save_game};
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl};

@@ -74,7 +74,6 @@ pub fn load_game(
     }
 }
 
-
 /// Save the game to a JSON file
 #[cfg(not(target_arch = "wasm32"))]
 pub fn save_game(player: &Player, game_settings: &GameSettings, messages: &mut Messages) {

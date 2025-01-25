@@ -1,7 +1,7 @@
 use bevy::asset::{AssetServer, Handle};
 use bevy::image::Image;
-use bevy_kira_audio::AudioSource;
 use bevy::prelude::*;
+use bevy_kira_audio::AudioSource;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -235,6 +235,10 @@ impl FromWorld for WorldAssets {
             ),
         ]);
 
-        Self { images, sounds, atlas }
+        Self {
+            images,
+            sounds,
+            atlas,
+        }
     }
 }

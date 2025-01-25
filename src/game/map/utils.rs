@@ -1,6 +1,8 @@
 use crate::constants::{FOW_SIZE, MAP_SIZE, MAX_UPGRADE_LEVEL};
 use crate::game::enemy::components::Enemy;
-use crate::game::resources::{Expedition, NightInfo, Player, Population, Resources, Spot, Technology};
+use crate::game::resources::{
+    Expedition, NightInfo, Player, Population, Resources, Spot, Technology,
+};
 use crate::game::weapon::components::Weapon;
 use crate::messages::Messages;
 use crate::utils::NameFromEnum;

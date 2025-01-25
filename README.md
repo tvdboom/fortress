@@ -43,8 +43,9 @@ When a bug reaches these structures, their movement stops, and they start attack
 the structure. If the structure is destroyed, the bugs can move southwards again.
 Some bugs at later levels can fly over the wall and fence!
 
-When a bug reaches the fortress (i.e., it dissapears from the screen), it fights with
-the existing population. If there are any soldiers, they will fight the bug first.
+When a bug reaches the fortress (i.e., it exists the screen on the bottom side), it
+fights with the existing population. If there are any soldiers, they will fight the
+bug first.
 
 On the fortress' wall, you can place weapons that shoot at the incoming enemies.
 The weapons panel, on the right-hand side, shows the options you have available.
@@ -75,9 +76,8 @@ can also (re)build the wall and a fence to stop the bugs from reaching the fortr
 
 #### Armory
 
-Buy, improve and position weapons on the fortress' wall. The weapons have different
-characteristics, such as range, damage, and fire rate. The player can also research
-new weapons and upgrade existing ones.
+Buy, upgrade and place weapons on the fortress' wall. The player can also buy one-off
+explosives.
 
 #### Technology
 
@@ -93,7 +93,7 @@ technology.
 
 ### Key bindings
 
-- `enter`: Go to next stage (night -> day, day -> night).
+- `enter`: When in the day menu, enter the next night.
 - `space`: Pause/unpause the game.
 - `e`: Open/close the enemy info panel for an overview of all enemies and
   their characteristics.
