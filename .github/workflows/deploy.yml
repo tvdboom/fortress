@@ -43,3 +43,12 @@ jobs:
 
       - name: Deploy GitHub Pages site
         uses: actions/deploy-pages@v4.0.5
+
+      - name: Deploy to itch.io
+        uses: manleydev/butler-publish-itchio-action@master
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
+          CHANNEL: html
+          ITCH_GAME: fortress
+          ITCH_USER: tvdboom
+          PACKAGE: docs/

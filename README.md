@@ -4,11 +4,11 @@
 ### A tower defense game written in rust
 
 <br><br>
-[![Play](https://gist.githubusercontent.com/cxmeel/0dbc95191f239b631c3874f4ccf114e2/raw/play.svg)](https://tvdboom.github.io/fortress/)
+[![Play](https://gist.githubusercontent.com/cxmeel/0dbc95191f239b631c3874f4ccf114e2/raw/play.svg)](https://tvdboom.itch.io/fortress)
 <br><br>
 </div>
 
-<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" alt="Early game"">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" alt="Early game">
 <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s2.png?raw=true" alt="Population">
 <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s3.png?raw=true" alt="Technologies">
 <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s4.png?raw=true" alt="Armory">
@@ -109,7 +109,7 @@ technology.
 
 ## 💡 Credits
 
- - Game design and implementation: [tvdboom](https://github.com/tvdboom)
+ - Game design and implementation: [Mavs](https://github.com/tvdboom)
  - Weapon sprites: [3HST有限公司](https://steamcommunity.com/workshop/filedetails/?l=english&id=2915717417)
  - Bug sprites: [W_K_Studio](https://whiteknightstudios.itch.io/)
  - Icons: [flaticon.com](https://www.flaticon.com)
