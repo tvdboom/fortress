@@ -8,7 +8,11 @@
 <br><br>
 
 <p align="center">
-	<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" title="Fortress" height="540" width="960"/>
+
+| ![Early game](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true) | ![Population](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s2.png?raw=true)  | ![Technologies](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s3.png?raw=true)   |
+|-----------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| ![Armory](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s4.png?raw=true)     | ![Late game](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s5.png?raw=true) | ![Constructions](https://github.com/tvdboom/fortress/blob/master/assets/scenery/s6.png?raw=true) |
+
 </p>
 
 </div>
@@ -67,7 +71,10 @@ resources are collected. The following operations can be performed:
 Assign the available population to one of the resources: bullets, gasoline, materials
 or technology. The next day, the number of resources you receive will be proportional
 to the number of people assigned to that resource. It's also possible to assign soldiers,
-which have increased strength when fighting bugs that enter the fortress.
+which have increased strength when fighting bugs that enter the fortress. Note that when
+you move a slider, the rest move as well (without changing the values). This is by design,
+since the idle population diminishes and all sliders must be at the far right when it reaches
+zero.
 
 #### Constructions
 
@@ -76,8 +83,8 @@ can also (re)build the wall and a fence to stop the bugs from reaching the fortr
 
 #### Armory
 
-Buy, upgrade and place weapons on the fortress' wall. The player can also buy one-off
-explosives.
+Buy, upgrade and place/reorder weapons on the fortress' wall. The player can also buy
+one-off explosives.
 
 #### Technology
 
@@ -94,6 +101,16 @@ technology.
 ### Key bindings
 
 - `enter`: When in the day menu, enter the next night.
-- `space`: Pause/unpause the game.
+- `space`: Pause/unpause the game during the night.
 - `e`: Open/close the enemy info panel for an overview of all enemies and
   their characteristics.
+
+<br>
+
+## 💡 Credits
+
+ - Game design and implementation: [tvdboom](https://github.com/tvdboom)
+ - Weapon sprites: [3HST有限公司](https://steamcommunity.com/workshop/filedetails/?l=english&id=2915717417)
+ - Bug sprites: [W_K_Studio](https://whiteknightstudios.itch.io/)
+ - Icons: [flaticon.com](https://www.flaticon.com)
+ - Buildings: [pngtree.com](https://pngtree.com/)

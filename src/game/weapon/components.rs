@@ -459,7 +459,7 @@ impl Weapon {
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 5. + 5. * upgrade1,
                             air: 5. + 5. * upgrade1,
-                            penetration: 0.,
+                            penetration: upgrade1,
                         })
                     }
                     AirFireStrategy::Airborne => {
@@ -467,7 +467,7 @@ impl Weapon {
                         self.bullet.impact = Impact::SingleTarget(Damage {
                             ground: 0.,
                             air: 20. + 5. * upgrade1,
-                            penetration: 0.,
+                            penetration: upgrade1,
                         })
                     }
                     _ => unreachable!(),
@@ -477,7 +477,7 @@ impl Weapon {
                 self.bullet.impact = Impact::SingleTarget(Damage {
                     ground: 40. + 10. * upgrade1,
                     air: 40. + 10. * upgrade1,
-                    penetration: 30. + 5. * upgrade1,
+                    penetration: 10. + upgrade1,
                 });
                 self.fire_timer = Some(Timer::from_seconds(1.1 - 0.1 * upgrade2, TimerMode::Once));
 
@@ -625,7 +625,7 @@ impl Weapon {
                 };
             }
             WeaponName::Turret => {
-                self.fire_timer = Some(Timer::from_seconds(1. - 0.1 * upgrade2, TimerMode::Once));
+                self.fire_timer = Some(Timer::from_seconds(1. - 0.05 * upgrade2, TimerMode::Once));
             }
         }
     }
@@ -1008,7 +1008,7 @@ impl Default for WeaponManager {
                     description: "Increase the damage.",
                     texture: "damage",
                     price: Resources {
-                        technology: 100.,
+                        technology: 1000.,
                         ..default()
                     },
                 },
@@ -1016,7 +1016,7 @@ impl Default for WeaponManager {
                     description: "Increase the explosion radius.",
                     texture: "explosion",
                     price: Resources {
-                        technology: 100.,
+                        technology: 1000.,
                         ..default()
                     },
                 },

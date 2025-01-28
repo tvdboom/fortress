@@ -44,7 +44,7 @@ pub const FOW_Z: f32 = 6.0;
 
 // Night settings
 pub const NIGHT_DURATION: f32 = 45.; // In seconds
-pub const NO_SPAWN_START: f32 = 0.9; // Starting probability of not spawning enemies per check
+pub const NO_SPAWN_START: f32 = 1.0; // Starting probability of not spawning enemies per check
 pub const NO_SPAWN_STEP: f32 = 0.05; // Probability spawning decrease per night
 pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 
@@ -52,11 +52,11 @@ pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 pub const POPULATION_MEAN_INCREASE: u32 = 100;
 pub const POPULATION_STD_INCREASE: u32 = 10;
 pub const SOLDIER_BASE_DAMAGE: u32 = 3;
-pub const RESOURCE_FACTOR: u32 = 10; // Factor to multiply population by to get resources
+pub const RESOURCE_FACTOR: u32 = 5; // Factor to multiply population by to get resources
 
 // Weapon settings
 pub const MAX_SPOTS: usize = 8;
-pub const MAX_UPGRADE_LEVEL: u32 = 5;
+pub const MAX_UPGRADE_LEVEL: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;
 pub const DEFAULT_TURRET_POWER_TIME: f32 = 10.; // Seconds to power-up the turret

@@ -23,7 +23,7 @@ pub fn spawn_fence(
             commands.entity(entity).despawn();
         }
 
-        let level = (1 + player.fence.max_health as u32 / 300).min(3);
+        let level = (1 + player.fence.max_health as u32 / 1000).min(3);
         commands.spawn((
             Sprite {
                 image: asset_server.load(format!("map/fence{}.png", level)),

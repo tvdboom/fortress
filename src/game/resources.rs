@@ -118,17 +118,33 @@ impl Default for Resources {
 
 impl PartialOrd for Resources {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let bullets_cmp = self.bullets.partial_cmp(&other.bullets)?;
-        let gasoline_cmp = self.gasoline.partial_cmp(&other.gasoline)?;
-        let materials_cmp = self.materials.partial_cmp(&other.materials)?;
-
-        if bullets_cmp == gasoline_cmp && gasoline_cmp == materials_cmp {
-            Some(bullets_cmp)
-        } else {
-            None
-        }
+        self.bullets
+            .partial_cmp(&other.bullets)
+            .and_then(|bullets_cmp| {
+                if bullets_cmp == Ordering::Equal {
+                    self.gasoline.partial_cmp(&other.gasoline)
+                } else {
+                    Some(bullets_cmp)
+                }
+            })
+            .and_then(|gasoline_cmp| {
+                if gasoline_cmp == Ordering::Equal {
+                    self.materials.partial_cmp(&other.materials)
+                } else {
+                    Some(gasoline_cmp)
+                }
+            })
+            .and_then(|materials_cmp| {
+                if materials_cmp == Ordering::Equal {
+                    self.technology.partial_cmp(&other.technology)
+                } else {
+                    Some(materials_cmp)
+                }
+            })
     }
 }
+
+
 
 macro_rules! resources_binary_ops {
     ($($trait:ident, $method:ident, $op:tt);*;) => {
@@ -292,7 +308,7 @@ impl Technology {
         match name {
             TechnologyName::Spotlight => Self {
                 name,
-                price: 100.,
+                price: 600.,
                 category: TechnologyCategory::Science,
                 description: "\
                     Enables the spotlight during the night. The spotlight \
@@ -301,26 +317,26 @@ impl Technology {
             },
             TechnologyName::Electricity => Self {
                 name: TechnologyName::Electricity,
-                price: 500.,
+                price: 2400.,
                 category: TechnologyCategory::Science,
                 description: "\
                         Enables the option to electrify the fence, doing damage to adjacent enemies.",
             },
             TechnologyName::Physics => Self {
                 name,
-                price: 1000.,
+                price: 5000.,
                 category: TechnologyCategory::Science,
                 description: "Unlocks the nuke.",
             },
             TechnologyName::Marines => Self {
                 name,
-                price: 100.,
+                price: 500.,
                 category: TechnologyCategory::Military,
                 description: "Doubles the strength of your soldiers.",
             },
             TechnologyName::Aimbot => Self {
                 name,
-                price: 200.,
+                price: 1000.,
                 category: TechnologyCategory::Military,
                 description: "\
                     Predict the movement of enemies, shooting at the position where \
@@ -329,13 +345,13 @@ impl Technology {
             },
             TechnologyName::Explosives => Self {
                 name: TechnologyName::Explosives,
-                price: 400.,
+                price: 2500.,
                 category: TechnologyCategory::Military,
                 description: "Unlocks mines and bombs.",
             },
             TechnologyName::Homing => Self {
                 name: TechnologyName::Homing,
-                price: 500.,
+                price: 5000.,
                 category: TechnologyCategory::Military,
                 description: "\
                 Homing bullets are directed to a specific enemy and follow its movement.\
@@ -343,7 +359,7 @@ impl Technology {
             },
             TechnologyName::Charts => Self {
                 name: TechnologyName::Charts,
-                price: 100.,
+                price: 1500.,
                 category: TechnologyCategory::Economy,
                 description: "\
                         Enables sending expeditions. Expeditions cost gasoline, materials and \
@@ -351,7 +367,7 @@ impl Technology {
             },
             TechnologyName::Productivity => Self {
                 name,
-                price: 1000.,
+                price: 5000.,
                 category: TechnologyCategory::Economy,
                 description: "Armorers, refiners and constructors produce 50% more resources.",
             },
@@ -464,7 +480,8 @@ impl Expedition {
                 population: ((self.population * self.day.pow(3)) as f32 * random::<f32>() + 0.5)
                     as u32,
                 resources: Resources {
-                    bullets: (self.price.bullets as u32 * self.day.pow(3)) as f32 * random::<f32>()
+                    bullets: (self.price.gasoline as u32 * self.day.pow(3)) as f32
+                        * random::<f32>()
                         + 0.5,
                     gasoline: (self.price.gasoline as u32 * self.day.pow(3).pow(2)) as f32
                         * random::<f32>()
@@ -472,12 +489,12 @@ impl Expedition {
                     materials: (self.price.materials as u32 * self.day.pow(3).pow(2)) as f32
                         * random::<f32>()
                         + 0.5,
-                    technology: (self.price.technology as u32 * self.day.pow(3).pow(2)) as f32
+                    technology: (self.price.materials as u32 * self.day.pow(3).pow(2)) as f32
                         * random::<f32>()
                         + 0.5,
                 },
-                mines: (self.day.pow(2) as f32 * random::<f32>()) as u32,
-                bombs: (self.day as f32 * random::<f32>()) as u32,
+                mines: (self.day.pow(2) as f32 * random::<f32>() + 0.5) as u32,
+                bombs: (self.day as f32 * random::<f32>() + 0.5) as u32,
             });
         }
     }
@@ -504,7 +521,7 @@ impl Player {
             day: 1,
             population: Population {
                 soldier: 5,
-                armorer: 40,
+                armorer: 60,
                 refiner: 40,
                 constructor: 40,
                 scientist: 40,
@@ -669,7 +686,7 @@ impl Default for NightStats {
         Self {
             day: 1,
             timer: Timer::from_seconds(NIGHT_DURATION, TimerMode::Once),
-            spawn_timer: Timer::from_seconds(0.25, TimerMode::Repeating),
+            spawn_timer: Timer::from_seconds(0.2, TimerMode::Repeating),
             population: Population::default(),
             resources: Resources::default(),
             enemies: HashMap::default(),

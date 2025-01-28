@@ -576,10 +576,10 @@ pub fn weapons_panel(
 
                 ui.add_space(7.);
 
-                if player.weapons.mines > 0 || player.weapons.bombs > 0 {
+                if player.weapons.mines > 0 || player.weapons.bombs > 0 || player.weapons.nuke > 0 {
                     ui.separator();
 
-                    ui.add_enabled_ui(player.weapons.mines > 0, |ui| {
+                    if player.weapons.mines > 0 {
                         ui.add_space(7.);
                         ui.horizontal(|ui| {
                             ui.add_image(mine_texture, [20., 15.]);
@@ -591,9 +591,9 @@ pub fn weapons_panel(
                             ui.selectable_value(&mut player.weapons.settings.mine, Size::Large, Size::Large.name())
                                 .on_hover_text("Detonate only for large enemies.");
                         });
-                    });
+                    }
 
-                    ui.add_enabled_ui(player.weapons.bombs > 0, |ui| {
+                    if player.weapons.bombs > 0 {
                         ui.add_space(7.);
                         ui.horizontal(|ui| {
                             ui.add_image(bomb_texture, [20., 20.]);
@@ -687,39 +687,41 @@ pub fn weapons_panel(
                                 }
                             }
                         });
-                    });
+                    }
 
                     ui.add_space(7.);
 
-                    ui.add_enabled_ui(player.weapons.nuke > 0 && *game_state.get() == GameState::Running, |ui| {
-                        ui.add_space(7.);
-                        ui.horizontal(|ui| {
-                            ui.add_image(nuke_texture, [20., 20.]);
-                            ui.add(egui::Label::new(format!("Nuke ({}): ", player.weapons.nuke)));
-                            let button = ui.add_sized([60., 20.], egui::Button::new("Launch!"));
+                    if player.weapons.nuke > 0 {
+                        ui.add_enabled_ui(*game_state.get() == GameState::Running, |ui| {
+                            ui.add_space(7.);
+                            ui.horizontal(|ui| {
+                                ui.add_image(nuke_texture, [20., 20.]);
+                                ui.add(egui::Label::new(format!("Nuke ({}): ", player.weapons.nuke)));
+                                let button = ui.add_sized([60., 20.], egui::Button::new("Launch!"));
 
-                            if button.clicked() {
-                                let nuke = weapons.nuke.clone();
-                                messages.info("A nuke is launched");
+                                if button.clicked() {
+                                    let nuke = weapons.nuke.clone();
+                                    messages.info("A nuke is launched");
 
-                                commands.spawn((
-                                    Sprite {
-                                        image: asset_server.load(nuke.image),
-                                        custom_size: Some(nuke.dim),
-                                        ..default()
-                                    },
-                                    Transform {
-                                        translation: Vec3::new(-WEAPONS_PANEL_SIZE.x * 0.5, SIZE.y * 0.5, WEAPON_Z),
-                                        rotation: Quat::from_rotation_z(-PI * 0.5),
-                                        ..default()
-                                    },
-                                    nuke,
-                                ));
+                                    commands.spawn((
+                                        Sprite {
+                                            image: asset_server.load(nuke.image),
+                                            custom_size: Some(nuke.dim),
+                                            ..default()
+                                        },
+                                        Transform {
+                                            translation: Vec3::new(-WEAPONS_PANEL_SIZE.x * 0.5, SIZE.y * 0.5, WEAPON_Z),
+                                            rotation: Quat::from_rotation_z(-PI * 0.5),
+                                            ..default()
+                                        },
+                                        nuke,
+                                    ));
 
-                                player.weapons.nuke -= 1;
-                            }
+                                    player.weapons.nuke -= 1;
+                                }
+                            });
                         });
-                    });
+                    }
 
                     ui.add_space(7.);
                 }
@@ -1055,7 +1057,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce bullets.");
                                 ui.add_space(10.);
                                 ui.add_image(bullets_texture, [20., 20.]);
-                                ui.label(format!("+{}", new_resources.bullets));
+                                ui.label(format!("+{:.0}", new_resources.bullets));
 
                                 if label.clicked() {
                                     armorers = player.population.armorer + player.population.idle;
@@ -1081,7 +1083,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce gasoline.");
                                 ui.add_space(10.);
                                 ui.add_image(gasoline_texture, [20., 20.]);
-                                ui.label(format!("+{}", new_resources.gasoline));
+                                ui.label(format!("+{:.0}", new_resources.gasoline));
 
                                 if label.clicked() {
                                     refiners = player.population.refiner + player.population.idle;
@@ -1107,7 +1109,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to produce materials.");
                                 ui.add_space(10.);
                                 ui.add_image(materials_texture, [20., 20.]);
-                                ui.label(format!("+{}", new_resources.materials));
+                                ui.label(format!("+{:.0}", new_resources.materials));
 
                                 if label.clicked() {
                                     constructors =
@@ -1134,7 +1136,7 @@ pub fn day_panel(
                                 .on_hover_text("Assign the population to research technology.");
                                 ui.add_space(10.);
                                 ui.add_image(technology_texture, [20., 20.]);
-                                ui.label(format!("+{}", new_resources.technology));
+                                ui.label(format!("+{:.0}", new_resources.technology));
 
                                 if label.clicked() {
                                     scientists =
@@ -1326,15 +1328,16 @@ pub fn day_panel(
                             ui.add_space(10.);
                             ui.horizontal(|ui| {
                                 let cost = player.wall.max_health;
+                                let increase = 1000.;
 
-                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase the max health.");
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text(format!("Increase the max health with {increase}."));
                                 ui.strong(format!("{}", cost));
                                 ui.add_image(materials_texture, [20., 20.]);
                                 if button.clicked() {
                                     if player.resources.materials >= cost {
                                         player.resources.materials -= cost;
-                                        player.wall.health += 1000.;
-                                        player.wall.max_health += 1000.;
+                                        player.wall.health += increase;
+                                        player.wall.max_health += increase;
                                     } else {
                                         messages.error("Not enough materials.");
                                     }
@@ -1344,15 +1347,16 @@ pub fn day_panel(
                             ui.horizontal(|ui| {
                                 ui.add_enabled_ui(player.wall.health < player.wall.max_health, |ui| {
                                     let cost = 100.;
+                                    let increase = 500.;
 
                                     let button = ui.add_upgrade_button(repair_texture)
-                                        .on_hover_text("Add 500 health to the wall. Double click to repair to full health.");
+                                        .on_hover_text(format!("Add {increase} health to the wall. Double click to repair to full health."));
                                     ui.strong(format!("{}", cost));
                                     ui.add_image(materials_texture, [20., 20.]);
                                     if button.clicked() {
                                         if player.resources.materials >= cost {
                                             player.resources.materials -= cost;
-                                            player.wall.health += 500.;
+                                            player.wall.health += increase;
                                         } else {
                                             messages.error("Not enough materials.");
                                         }
@@ -1420,15 +1424,16 @@ pub fn day_panel(
                             ui.add_space(10.);
                             ui.horizontal(|ui| {
                                 let cost = 100. + player.fence.max_health;
+                                let increase = cost.min(1000.);
 
-                                let button = ui.add_upgrade_button(up_texture).on_hover_text("Upgrade to increase the max health.");
+                                let button = ui.add_upgrade_button(up_texture).on_hover_text(format!("Increase the max health with {increase}."));
                                 ui.strong(format!("{}", cost));
                                 ui.add_image(materials_texture, [20., 20.]);
                                 if button.clicked() {
                                     if player.resources.materials >= cost {
                                         player.resources.materials -= cost;
-                                        player.fence.health += 100.;
-                                        player.fence.max_health += 100.;
+                                        player.fence.health += increase;
+                                        player.fence.max_health += increase;
                                     } else {
                                         messages.error("Not enough materials.");
                                     }
@@ -1438,15 +1443,16 @@ pub fn day_panel(
                             ui.horizontal(|ui| {
                                 ui.add_enabled_ui(player.fence.health < player.fence.max_health, |ui| {
                                     let cost = 100.;
+                                    let increase = 300.;
 
                                     let button = ui.add_upgrade_button(repair_texture)
-                                        .on_hover_text("Add 300 health to the fence. Double click to repair to full health.");
+                                        .on_hover_text(format!("Add {increase} health to the fence. Double click to repair to full health."));
                                     ui.strong(format!("{}", cost));
                                     ui.add_image(materials_texture, [20., 20.]);
                                     if button.clicked() {
                                         if player.resources.materials >= cost {
                                             player.resources.materials -= cost;
-                                            player.fence.health += 300.;
+                                            player.fence.health += increase;
                                         } else {
                                             messages.error("Not enough materials.");
                                         }
@@ -1468,16 +1474,17 @@ pub fn day_panel(
                             ui.add_enabled_ui(player.fence.max_health > 0. && player.has_tech(TechnologyName::Electricity), |ui| {
                                 ui.horizontal(|ui| {
                                     let cost = player.fence.damage * 20.;
+                                    let increase = 5.;
 
                                     let button = ui.add_upgrade_button(lightning_texture)
-                                        .on_hover_text("Increase the fence's damage.")
+                                        .on_hover_text(format!("Increase the fence's damage with {increase}."))
                                         .on_disabled_hover_text("Requires the electricity technology.");
                                     ui.strong(format!("{}", cost));
                                     ui.add_image(technology_texture, [20., 20.]);
                                     if button.clicked() {
                                         if player.resources.technology >= cost {
                                             player.resources.technology -= cost;
-                                            player.fence.damage += 5.;
+                                            player.fence.damage += increase;
                                         } else {
                                             messages.error("Not enough technology.");
                                         }
@@ -1590,17 +1597,28 @@ pub fn day_panel(
                                             frame.show(ui, |ui| {
                                                 ui.strong(format!("{}", player.weapons.mines));
                                             });
-                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine.");
+                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine. Double-click to buy maximum.");
 
-                                            if button.clicked() {
-                                                if player.weapons.mines >= MAX_MINES {
+                                            if button.clicked() || button.double_clicked() {
+                                                if player.weapons.bombs >= MAX_MINES {
                                                     messages.error("Maximum number of mines reached.");
                                                 } else {
-                                                    if player.resources >= weapons.mine.price {
-                                                        player.resources -= &weapons.mine.price;
-                                                        player.weapons.mines += 1;
+                                                    let amount = if button.double_clicked() {
+                                                        MAX_MINES - player.weapons.mines
                                                     } else {
-                                                        messages.error("Not enough resources.");
+                                                        1
+                                                    };
+
+                                                    for _ in 0..amount {
+                                                        if player.resources >= weapons.mine.price {
+                                                            player.resources -= &weapons.mine.price;
+                                                            player.weapons.mines += 1;
+                                                        } else {
+                                                            if button.clicked() {
+                                                                messages.error("Not enough resources.");
+                                                            }
+                                                            break
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1635,17 +1653,28 @@ pub fn day_panel(
                                             frame.show(ui, |ui| {
                                                 ui.strong(format!("{}", player.weapons.bombs));
                                             });
-                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a bomb.");
+                                            let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a bomb. Double-click to buy maximum.");
 
-                                            if button.clicked() {
+                                            if button.clicked() || button.double_clicked() {
                                                 if player.weapons.bombs >= MAX_BOMBS {
                                                     messages.error("Maximum number of bombs reached.");
                                                 } else {
-                                                    if player.resources >= weapons.bomb.price {
-                                                        player.resources -= &weapons.bomb.price;
-                                                        player.weapons.bombs += 1;
+                                                    let amount = if button.double_clicked() {
+                                                        MAX_BOMBS - player.weapons.bombs
                                                     } else {
-                                                        messages.error("Not enough resources.");
+                                                        1
+                                                    };
+
+                                                    for _ in 0..amount {
+                                                        if player.resources >= weapons.bomb.price {
+                                                            player.resources -= &weapons.bomb.price;
+                                                            player.weapons.bombs += 1;
+                                                        } else {
+                                                            if button.clicked() {
+                                                                messages.error("Not enough resources.");
+                                                            }
+                                                            break
+                                                        }
                                                     }
                                                 }
                                             }

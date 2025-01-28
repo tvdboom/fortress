@@ -31,6 +31,10 @@ pub fn new_game(
 pub fn start_night(mut commands: Commands, player: Res<Player>) {
     commands.insert_resource(NightStats {
         day: player.day,
+        spawn_timer: Timer::from_seconds(
+            (0.25 - 0.01 * player.day as f32).max(0.05),
+            TimerMode::Repeating,
+        ),
         ..default()
     });
 }
@@ -54,8 +58,8 @@ pub fn start_day(
 
         // Increase population
         let dist = Normal::new(
-            (POPULATION_MEAN_INCREASE * player.day) as f32,
-            (POPULATION_STD_INCREASE * player.day) as f32,
+            POPULATION_MEAN_INCREASE as f32,
+            POPULATION_STD_INCREASE as f32,
         )
         .unwrap();
 
@@ -188,7 +192,8 @@ pub fn check_keys(
         if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
             if keyboard.just_pressed(KeyCode::ArrowUp) {
                 player.day += 1;
-                player.resources += 2000.;
+                player.resources += 5000.;
+                player.population.idle += 100;
             }
             if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
                 player.day -= 1;
