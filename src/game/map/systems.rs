@@ -44,7 +44,6 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         Transform::from_xyz(0., SIZE.y - MENU_PANEL_SIZE.y, 10.),
-        Map,
     ));
     commands.spawn((
         Sprite {
@@ -53,7 +52,6 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         Transform::from_xyz(0., -SIZE.y + RESOURCES_PANEL_SIZE.y, 10.),
-        Map,
     ));
 
     commands.spawn((
@@ -97,15 +95,14 @@ pub fn draw_map(mut commands: Commands, asset_server: Res<AssetServer>) {
                 FOW_Z,
             ),
             Visibility::Hidden,
-            PauseWrapper,
+            Pause,
         ))
         .with_children(|parent| {
             parent.spawn((
-                Text2d::new("Paused".to_string()),
+                Text2d::from("Paused"),
                 TextColor(Color::from(WHITE)),
                 TextLayout::new_with_justify(JustifyText::Center),
                 Transform::from_xyz(0., 0., FOW_Z),
-                PauseText,
             ));
         });
 }

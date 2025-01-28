@@ -192,6 +192,7 @@ pub fn spawn_bullets(
                 } else {
                     enemy_t.translation
                 });
+
             let angle = d.y.atan2(d.x);
 
             // Check if the player has enough resources to fire

@@ -127,7 +127,6 @@ impl FromWorld for WorldAssets {
         ]);
 
         let sounds = HashMap::from([
-            ("error", assets.load("sounds/error.ogg")),
             ("turret", assets.load("sounds/turret.ogg")),
         ]);
 

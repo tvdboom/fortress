@@ -8,21 +8,14 @@
 <br><br>
 </div>
 
-<p align="center">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" alt="Early game" style="margin-right: 10px;">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s2.png?raw=true" alt="Population" style="margin-right: 10px;">
-</p>
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s1.png?raw=true" alt="Early game"">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s2.png?raw=true" alt="Population">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s3.png?raw=true" alt="Technologies">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s4.png?raw=true" alt="Armory">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s5.png?raw=true" alt="Late game">
+<img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s6.png?raw=true" alt="Constructions">
 
-<p align="center">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s3.png?raw=true" alt="Technologies" style="margin-right: 10px;">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s4.png?raw=true" alt="Armory" style="margin-right: 10px;">
-</p>
-
-<p align="center">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s5.png?raw=true" alt="Late game" style="margin-right: 10px;">
-  <img src="https://github.com/tvdboom/fortress/blob/master/assets/scenery/s6.png?raw=true" alt="Constructions" style="margin-right: 10px;">
-</p>
-
+<br>
 
 ## 📜 Introduction
 

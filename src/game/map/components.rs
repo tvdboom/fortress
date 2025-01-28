@@ -8,10 +8,7 @@ pub struct Map;
 pub struct FogOfWar;
 
 #[derive(Component)]
-pub struct PauseWrapper;
-
-#[derive(Component)]
-pub struct PauseText;
+pub struct Pause;
 
 #[derive(Component)]
 pub struct AnimationComponent {

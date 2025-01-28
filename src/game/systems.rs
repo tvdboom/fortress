@@ -1,5 +1,5 @@
 use crate::constants::*;
-use crate::game::map::components::{FogOfWar, PauseWrapper};
+use crate::game::map::components::{FogOfWar, Pause};
 use crate::game::resources::*;
 use crate::game::weapon::components::WeaponManager;
 use crate::game::{AppState, AudioState, GameState};
@@ -81,7 +81,7 @@ pub fn start_day(
 }
 
 pub fn pause_game(
-    mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,
+    mut vis_q: Query<&mut Visibility, With<Pause>>,
     mut night_stats: ResMut<NightStats>,
     audio: Res<Audio>,
 ) {
@@ -91,7 +91,7 @@ pub fn pause_game(
 }
 
 pub fn unpause_game(
-    mut vis_q: Query<&mut Visibility, With<PauseWrapper>>,
+    mut vis_q: Query<&mut Visibility, With<Pause>>,
     mut game_settings: ResMut<GameSettings>,
     mut night_stats: ResMut<NightStats>,
     audio: Res<Audio>,
