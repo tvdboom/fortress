@@ -144,8 +144,6 @@ impl PartialOrd for Resources {
     }
 }
 
-
-
 macro_rules! resources_binary_ops {
     ($($trait:ident, $method:ident, $op:tt);*;) => {
         $(
