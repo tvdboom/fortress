@@ -118,29 +118,22 @@ impl Default for Resources {
 
 impl PartialOrd for Resources {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.bullets
-            .partial_cmp(&other.bullets)
-            .and_then(|bullets_cmp| {
-                if bullets_cmp == Ordering::Equal {
-                    self.gasoline.partial_cmp(&other.gasoline)
-                } else {
-                    Some(bullets_cmp)
-                }
-            })
-            .and_then(|gasoline_cmp| {
-                if gasoline_cmp == Ordering::Equal {
-                    self.materials.partial_cmp(&other.materials)
-                } else {
-                    Some(gasoline_cmp)
-                }
-            })
-            .and_then(|materials_cmp| {
-                if materials_cmp == Ordering::Equal {
-                    self.technology.partial_cmp(&other.technology)
-                } else {
-                    Some(materials_cmp)
-                }
-            })
+        let all_gte = self.bullets >= other.bullets
+            && self.gasoline >= other.gasoline
+            && self.materials >= other.materials
+            && self.technology >= other.technology;
+
+        let all_lte = self.bullets <= other.bullets
+            && self.gasoline <= other.gasoline
+            && self.materials <= other.materials
+            && self.technology <= other.technology;
+
+        match (all_gte, all_lte) {
+            (true, true) => Some(Ordering::Equal),
+            (true, false) => Some(Ordering::Greater),
+            (false, true) => Some(Ordering::Less),
+            (false, false) => None,
+        }
     }
 }
 
@@ -601,19 +594,11 @@ impl Player {
         };
 
         Resources {
-            bullets: (self.population.armorer * self.constructions.armory * RESOURCE_FACTOR) as f32
-                * productivity,
-            gasoline: (self.population.refiner * self.constructions.refinery * RESOURCE_FACTOR)
-                as f32
-                * productivity,
-            materials: (self.population.constructor * self.constructions.factory * RESOURCE_FACTOR)
-                as f32
-                * productivity,
-            technology: (self.population.scientist
-                * self.constructions.laboratory
-                * RESOURCE_FACTOR) as f32
-                * productivity,
-        }
+            bullets: (self.population.armorer * self.constructions.armory) as f32,
+            gasoline: (self.population.refiner * self.constructions.refinery) as f32,
+            materials: (self.population.constructor * self.constructions.factory) as f32,
+            technology: (self.population.scientist * self.constructions.laboratory) as f32,
+        } * RESOURCE_FACTOR * productivity
     }
 
     pub fn has_tech(&self, tech: TechnologyName) -> bool {

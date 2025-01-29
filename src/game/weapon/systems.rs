@@ -255,11 +255,14 @@ pub fn spawn_bullets(
                                                 as f32;
 
                                     // The damage increases exponentially with the firepower
-                                    bullet.impact = Impact::SingleTarget(Damage {
-                                        ground: power.powf(player.weapons.settings.turret),
-                                        air: power.powf(player.weapons.settings.turret),
-                                        penetration: power.powf(player.weapons.settings.turret),
-                                    });
+                                    bullet.impact = Impact::Piercing {
+                                        damage: Damage {
+                                            ground: power.powf(player.weapons.settings.turret),
+                                            air: power.powf(player.weapons.settings.turret),
+                                            penetration: power.powf(player.weapons.settings.turret),
+                                        },
+                                        hits: HashSet::new(),
+                                    };
                                     player.weapons.settings.turret = 0.;
                                     weapon.fire_strategy = FireStrategy::None;
                                 }
@@ -297,6 +300,9 @@ pub fn spawn_bullets(
                                     }
                                     Movement::Homing(_) => {
                                         bullet.movement = Movement::Homing(enemy_e)
+                                    }
+                                    Movement::PiercingHoming(_) => {
+                                        bullet.movement = Movement::PiercingHoming(enemy_e)
                                     }
                                     _ => (),
                                 }
@@ -361,7 +367,7 @@ pub fn move_bullets(
         let d = match bullet.movement {
             Movement::Straight => None,
             Movement::Location(v) => Some(v - bullet_t.translation),
-            Movement::Homing(enemy_e) => {
+            Movement::Homing(enemy_e) | Movement::PiercingHoming(enemy_e) => {
                 if let Ok((_, enemy_t, _)) = enemy_q.get(enemy_e) {
                     Some(enemy_t.translation - bullet_t.translation)
                 } else {
@@ -393,8 +399,6 @@ pub fn move_bullets(
         match bullet.movement {
             Movement::Straight => {
                 for (enemy_e, enemy_t, mut enemy) in enemy_q.iter_mut() {
-                    // If the bullet can hit grounded/airborne enemies
-                    // and the bullet collided with an enemy -> despawn and resolve
                     if collision(
                         &bullet_t.translation,
                         &bullet.dim,
@@ -446,6 +450,30 @@ pub fn move_bullets(
                         Some((enemy_e, &mut enemy)),
                         &assets,
                     );
+                }
+            }
+            Movement::PiercingHoming(enemy_e) => {
+                let (target, _, _) = enemy_q.get_mut(enemy_e).unwrap();
+
+                for (enemy_e, enemy_t, mut enemy) in enemy_q.iter_mut() {
+                    if collision(
+                        &bullet_t.translation,
+                        &bullet.dim,
+                        &enemy_t.translation,
+                        &enemy.dim,
+                    ) {
+                        bullet.impact.resolve(
+                            &mut commands,
+                            bullet_e,
+                            &bullet_t,
+                            Some((enemy_e, &mut enemy)),
+                            &assets,
+                        );
+
+                        if enemy_e == target {
+                            commands.entity(bullet_e).try_despawn();
+                        }
+                    }
                 }
             }
         }

@@ -126,9 +126,7 @@ impl FromWorld for WorldAssets {
             ("game_over", assets.load("map/game-over.png")),
         ]);
 
-        let sounds = HashMap::from([
-            ("turret", assets.load("sounds/turret.ogg")),
-        ]);
+        let sounds = HashMap::from([("turret", assets.load("sounds/turret.ogg"))]);
 
         let mut texture = world
             .get_resource_mut::<Assets<TextureAtlasLayout>>()

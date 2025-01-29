@@ -1,5 +1,5 @@
 use crate::constants::{
-    EnemyQ, EXPLOSION_Z, MAP_SIZE, MAX_FLAMETHROWER_POWER, SIZE, WEAPONS_PANEL_SIZE,
+    EnemyQ, EXPLOSION_Z, MAP_SIZE, MAX_FLAMETHROWER_POWER, MAX_SPOTS, SIZE, WEAPONS_PANEL_SIZE,
 };
 use crate::game::assets::WorldAssets;
 use crate::game::enemy::components::Enemy;
@@ -204,6 +204,9 @@ pub enum Movement {
 
     /// Bullets impacts on `Entity`
     Homing(Entity),
+
+    /// Bullets impacts on `Entity` and damages everything it hits
+    PiercingHoming(Entity),
 }
 
 #[derive(Clone)]
@@ -479,7 +482,7 @@ impl Weapon {
                     air: 40. + 10. * upgrade1,
                     penetration: 10. + upgrade1,
                 });
-                self.fire_timer = Some(Timer::from_seconds(1.1 - 0.1 * upgrade2, TimerMode::Once));
+                self.fire_timer = Some(Timer::from_seconds(1. - 0.07 * upgrade2, TimerMode::Once));
 
                 self.target = None;
                 self.fire_strategy = player.weapons.settings.artillery.clone();
@@ -625,7 +628,7 @@ impl Weapon {
                 };
             }
             WeaponName::Turret => {
-                self.fire_timer = Some(Timer::from_seconds(1. - 0.05 * upgrade2, TimerMode::Once));
+                self.fire_timer = Some(Timer::from_seconds(1. - 0.07 * upgrade2, TimerMode::Once));
             }
         }
     }
@@ -673,7 +676,7 @@ impl Default for WeaponManager {
                     units. Has two shooting strategies: all (shoots at all enemies doing low damage) \
                     and airborne (shoots only at flying enemies doing high damage).",
                 dim: Vec2::new(80., 80.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -693,7 +696,7 @@ impl Default for WeaponManager {
                     image: "weapon/shell.png",
                     dim: Vec2::new(20., 7.),
                     price: Resources {
-                        bullets: 5.,
+                        bullets: 10.,
                         ..default()
                     },
                     speed: 1.2 * MAP_SIZE.y,
@@ -732,7 +735,7 @@ impl Default for WeaponManager {
                     firing strategies: closest (shoots at the closes enemy) and strongest (shoot \
                     at the enemy with the highest maximum health).",
                 dim: Vec2::new(80., 80.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -752,7 +755,7 @@ impl Default for WeaponManager {
                     image: "weapon/bullet.png",
                     dim: Vec2::new(30., 10.),
                     price: Resources {
-                        bullets: 25.,
+                        bullets: 30.,
                         ..default()
                     },
                     speed: 0.9 * MAP_SIZE.y,
@@ -790,7 +793,7 @@ impl Default for WeaponManager {
                     has two firing strategies: grounded (shoots only at ground enemies) and airborne \
                     (shoots only at flying enemies).",
                 dim: Vec2::new(50., 70.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 6.,
                 target: None,
                 price: Resources {
@@ -848,7 +851,7 @@ impl Default for WeaponManager {
                     flamethrower can adjust its firing power, increasing its range and damage at \
                     an increased gasoline consumption. All enemies in the stream take damage.",
                 dim: Vec2::new(60., 60.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 7.,
                 target: None,
                 price: Resources {
@@ -868,7 +871,7 @@ impl Default for WeaponManager {
                     image: "weapon/invisible-bullet.png",
                     dim: Vec2::new(20., 40.),
                     price: Resources {
-                        gasoline: 1.,
+                        gasoline: 5.,
                         ..default()
                     },
                     speed: 1.2 * MAP_SIZE.y,
@@ -908,7 +911,7 @@ impl Default for WeaponManager {
                     Medium range, low damage, single-target fire weapon. The machine gun can \
                     change its firing frequency.",
                 dim: Vec2::new(70., 70.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 7.,
                 target: None,
                 price: Resources {
@@ -987,7 +990,7 @@ impl Default for WeaponManager {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(20., 6.),
                     price: Resources {
-                        bullets: 15.,
+                        bullets: 50.,
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
@@ -1030,7 +1033,7 @@ impl Default for WeaponManager {
                     damage and radius) and heavy (high damage and radius, but costs more and does \
                     damage to structures). It can't shoot enemies that are too close.",
                 dim: Vec2::new(70., 70.),
-                maximum: u32::MAX,
+                maximum: MAX_SPOTS,
                 rotation_speed: 5.,
                 target: None,
                 price: Resources {
@@ -1050,7 +1053,7 @@ impl Default for WeaponManager {
                     image: "weapon/grenade.png",
                     dim: Vec2::new(25., 10.),
                     price: Resources {
-                        bullets: 15.,
+                        bullets: 35.,
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
@@ -1088,12 +1091,12 @@ impl Default for WeaponManager {
                 name: WeaponName::Turret,
                 image: "weapon/turret.png",
                 description:"\
-                    Long range, single-target weapon, that always shoots at the strongest enemy. \
-                    The turret requires you to click on the button on the weapons panel to shoot. \
-                    The weapon shoots with the power indicated in the bar next to the button. \
-                    Although it can shoot at >20% power, its damage increases exponentially with \
-                    the shooting power. The turret has high penetration bullets. Only one turret \
-                    can be built.",
+                    Long range, massive damage weapon that always shoots at the strongest enemy. \
+                    Its bullets damage all enemies it passes through. The turret requires you to \
+                    click on the button on the weapons panel to shoot. The weapon shoots with the \
+                    power indicated in the bar next to the button. Although it can shoot at >20% \
+                    power, its damage increases exponentially with the shooting power. The turret \
+                    has high penetration bullets. Only one turret can be built.",
                 dim: Vec2::new(90., 90.),
                 maximum: 1,
                 rotation_speed: 5.,
@@ -1115,17 +1118,21 @@ impl Default for WeaponManager {
                     image: "weapon/triple-bullet.png",
                     dim: Vec2::new(25., 25.),
                     price: Resources {
-                        bullets: 30.,
+                        bullets: 200.,
                         ..default()
                     },
                     speed: 0.6 * MAP_SIZE.y,
-                    movement: Movement::Homing(Entity::from_raw(0)), // Set at spawn
-                    impact: Impact::SingleTarget(Damage {
-                        ground: 50.,
-                        air: 50.,
-                        penetration: 10.,
-                    }),
-                    max_distance: 2. * MAP_SIZE.y,
+                    movement: Movement::PiercingHoming(Entity::from_raw(0)), // Set at spawn
+                    impact: Impact::Piercing {
+                        // Real damage set when firing
+                        damage: Damage {
+                            ground: 50.,
+                            air: 50.,
+                            penetration: 0.,
+                        },
+                        hits: HashSet::new(),
+                    },
+                    max_distance: 3. * MAP_SIZE.y,
                     distance: 0.,
                 },
                 upgrade1: Upgrade {

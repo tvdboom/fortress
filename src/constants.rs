@@ -52,10 +52,10 @@ pub const BETA: f32 = 5.; // Probability factor decrease for above-level enemies
 pub const POPULATION_MEAN_INCREASE: u32 = 100;
 pub const POPULATION_STD_INCREASE: u32 = 10;
 pub const SOLDIER_BASE_DAMAGE: u32 = 3;
-pub const RESOURCE_FACTOR: u32 = 5; // Factor to multiply population by to get resources
+pub const RESOURCE_FACTOR: f32 = 5.; // Factor to multiply population by to get resources
 
 // Weapon settings
-pub const MAX_SPOTS: usize = 8;
+pub const MAX_SPOTS: u32 = 8;
 pub const MAX_UPGRADE_LEVEL: u32 = 10;
 pub const MAX_MACHINE_GUN_FIRE_RATE: u32 = 5;
 pub const MAX_FLAMETHROWER_POWER: u32 = 5;

@@ -1324,7 +1324,7 @@ pub fn day_panel(
                             ui.strong("Wall");
                             ui.add_space(10.);
                             ui.horizontal(|ui| {
-                                let cost = player.wall.max_health;
+                                let cost = player.wall.max_health * 0.5;
                                 let increase = 1000.;
 
                                 let button = ui.add_upgrade_button(up_texture).on_hover_text(format!("Increase the max health with {increase}."));
@@ -1372,7 +1372,7 @@ pub fn day_panel(
                                 });
                             });
                             ui.add_space(10.);
-                            ui.add_enabled_ui(player.weapons.spots.len() < MAX_SPOTS, |ui| {
+                            ui.add_enabled_ui(player.weapons.spots.len() < MAX_SPOTS as usize, |ui| {
                                 ui.horizontal(|ui| {
                                     let cost = 500.;
 
@@ -2274,11 +2274,11 @@ pub fn update_game(
     }
 
     // Warn on low resources
-    if player.resources.bullets < 200. * player.day as f32 && !night_stats.warnings.low_bullets {
+    if player.resources.bullets < 100. * player.day as f32 && !night_stats.warnings.low_bullets {
         messages.warning("Low bullets");
         night_stats.warnings.low_bullets = true;
     }
-    if player.resources.gasoline < 200. * player.day as f32 && !night_stats.warnings.low_gasoline {
+    if player.resources.gasoline < 100. * player.day as f32 && !night_stats.warnings.low_gasoline {
         messages.warning("Low gasoline");
         night_stats.warnings.low_gasoline = true;
     }

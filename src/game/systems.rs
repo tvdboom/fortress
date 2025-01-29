@@ -192,8 +192,8 @@ pub fn check_keys(
         if keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]) {
             if keyboard.just_pressed(KeyCode::ArrowUp) {
                 player.day += 1;
-                player.resources += 5000.;
-                player.population.idle += 100;
+                player.resources += 50000.;
+                player.population.idle += 120;
             }
             if keyboard.just_pressed(KeyCode::ArrowDown) && player.day > 1 {
                 player.day -= 1;

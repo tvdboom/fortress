@@ -7,6 +7,7 @@ mod utils;
 use crate::game::enemy::components::EnemyManager;
 use crate::game::GamePlugin;
 use crate::messages::MessagesPlugin;
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::window::{WindowMode, WindowResolution};
 use bevy_egui::EguiPlugin;
@@ -36,6 +37,11 @@ fn main() {
                     fit_canvas_to_parent: true,
                     ..default()
                 }),
+                ..default()
+            })
+            // Disable asset meta loading since that fails on itch.io
+            .set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
                 ..default()
             }),
     )
