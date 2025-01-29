@@ -6,7 +6,7 @@ pub mod systems;
 pub mod weapon;
 
 use crate::game::enemy::EnemyPlugin;
-use crate::game::map::systems::clear_map;
+use crate::game::map::systems::clear_all;
 use crate::game::map::MapPlugin;
 use crate::game::resources::{GameSettings, NightStats};
 use crate::game::systems::*;
@@ -21,7 +21,7 @@ impl Plugin for GamePlugin {
         app.add_plugins((MapPlugin, EnemyPlugin, WeaponPlugin))
             .add_systems(
                 OnEnter(AppState::StartGame),
-                (new_game, clear_map, spawn_weapons).chain(),
+                (new_game, clear_all, spawn_weapons).chain(),
             )
             .add_systems(OnEnter(AppState::Night), start_night)
             .add_systems(OnExit(AppState::Night), end_night)

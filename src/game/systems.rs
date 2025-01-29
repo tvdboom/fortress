@@ -32,7 +32,7 @@ pub fn start_night(mut commands: Commands, player: Res<Player>) {
     commands.insert_resource(NightStats {
         day: player.day,
         spawn_timer: Timer::from_seconds(
-            (0.25 - 0.01 * player.day as f32).max(0.05),
+            (2. - 0.1 * player.day as f32).max(0.1),
             TimerMode::Repeating,
         ),
         ..default()

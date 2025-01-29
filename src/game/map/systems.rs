@@ -1597,7 +1597,7 @@ pub fn day_panel(
                                             let button = ui.add_upgrade_button(up_texture).on_hover_text("Buy a mine. Double-click to buy maximum.");
 
                                             if button.clicked() || button.double_clicked() {
-                                                if player.weapons.bombs >= MAX_MINES {
+                                                if player.weapons.mines >= MAX_MINES {
                                                     messages.error("Maximum number of mines reached.");
                                                 } else {
                                                     let amount = if button.double_clicked() {
@@ -2335,6 +2335,23 @@ pub fn clear_map(
     mut commands: Commands,
     animation_q: Query<Entity, With<AnimationComponent>>,
     bullet_q: Query<Entity, (With<Bullet>, Without<Mine>)>,
+    enemy_q: Query<Entity, With<Enemy>>,
+) {
+    animation_q
+        .iter()
+        .for_each(|a| commands.entity(a).try_despawn());
+    bullet_q
+        .iter()
+        .for_each(|b| commands.entity(b).try_despawn());
+    enemy_q
+        .iter()
+        .for_each(|e| commands.entity(e).despawn_recursive());
+}
+
+pub fn clear_all(
+    mut commands: Commands,
+    animation_q: Query<Entity, With<AnimationComponent>>,
+    bullet_q: Query<Entity, With<Bullet>>,
     enemy_q: Query<Entity, With<Enemy>>,
 ) {
     animation_q

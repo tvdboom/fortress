@@ -572,7 +572,7 @@ impl Player {
                     artillery: FireStrategy::None,
                     canon: AirFireStrategy::None,
                     flamethrower: 0,
-                    machine_gun: 0,
+                    machine_gun: 2,
                     mortar: MortarShell::None,
                     turret: 0.,
                     missile_launcher: 0,
